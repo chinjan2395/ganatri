@@ -52,6 +52,8 @@ export interface RoomUpdatePayload {
   players: string[];
   hostId: string;
   phase: 'LOBBY' | 'PLAYING' | 'DONE';
+  /** playerIds currently within their disconnect grace period */
+  disconnectedPlayers: string[];
 }
 export interface GameEventPayload {
   event: GameEvent;

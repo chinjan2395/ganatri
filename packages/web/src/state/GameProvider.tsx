@@ -89,12 +89,13 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
     }
     function onRoomUpdate(payload: RoomUpdatePayload): void {
       setRoom(payload);
+      // Always sync disconnected players from the server's authoritative list.
+      setDisconnectedPlayers(new Set(payload.disconnectedPlayers));
       if (payload.phase === 'LOBBY') {
         // Returned to lobby; clear stale game state.
         setView(null);
         setEventLog([]);
         setLastEvent(null);
-        setDisconnectedPlayers(new Set());
       }
     }
     function onGameEvent(payload: GameEventPayload): void {
