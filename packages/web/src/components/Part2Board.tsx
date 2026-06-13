@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   cardId,
   type CardId,
@@ -8,7 +9,6 @@ import {
 } from '@ganatri/engine';
 import { legalPart2CardIds } from '../game/legal';
 import { Card } from './Card';
-import { Hand } from './Hand';
 import './Boards.css';
 
 const SUIT_GLYPH: Record<Suit, string> = { S: '♠', H: '♥', D: '♦', C: '♣' };
@@ -17,13 +17,23 @@ export interface Part2BoardProps {
   view: PlayerView;
   flash: { kind: 'cut' | 'won' | 'safe'; text: string } | null;
   onMove: (move: Move) => Promise<boolean>;
+  /** Called whenever hand interaction state changes so the parent can render the Hand. */
+  onSelectionChange: (state: Part2SelectionState) => void;
+}
+
+export interface Part2SelectionState {
+  selectedId: null;
+  legalIds: ReadonlySet<CardId>;
+  canAct: boolean;
+  onSelect: (id: CardId) => void;
+  hint: string;
 }
 
 function shortId(id: string): string {
   return id.length <= 6 ? id : id.slice(0, 6);
 }
 
-export function Part2Board({ view, flash, onMove }: Part2BoardProps): React.ReactNode {
+export function Part2Board({ view, flash, onMove, onSelectionChange }: Part2BoardProps): React.ReactNode {
   const canAct = view.turn === view.you;
   const legalIds: ReadonlySet<CardId> = legalPart2CardIds(view);
   const [submitting, setSubmitting] = useState(false);
@@ -36,17 +46,50 @@ export function Part2Board({ view, flash, onMove }: Part2BoardProps): React.Reac
     setSubmitting(false);
   }
 
+  const hint = youSafe
+    ? 'You are safe — out of the round.'
+    : canAct
+      ? 'Your turn — tap a highlighted card.'
+      : 'Waiting for other players…';
+
+  // Notify parent of current selection state
+  useEffect(() => {
+    onSelectionChange({
+      selectedId: null,
+      legalIds,
+      canAct: canAct && !submitting,
+      onSelect: play,
+      hint,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canAct, submitting, youSafe, view.ledSuit]);
+
   return (
     <div className="board">
-      <div className={`board__flash ${flash ? `board__flash--${flash.kind}` : ''}`}>
-        {flash?.text}
-      </div>
+      <AnimatePresence>
+        {flash && (
+          <motion.div
+            key={flash.text}
+            className={`board__banner board__banner--${flash.kind}`}
+            initial={{ opacity: 0, scale: 0.6, y: -10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 18 }}
+          >
+            {flash.text}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="board__led">
         {view.ledSuit ? (
           <span>
             Led suit:{' '}
-            <span style={{ color: view.ledSuit === 'H' || view.ledSuit === 'D' ? 'var(--red-suit)' : 'var(--text)' }}>
+            <span
+              style={{
+                color: view.ledSuit === 'H' || view.ledSuit === 'D' ? 'var(--red-suit)' : 'var(--text)',
+              }}
+            >
               {SUIT_GLYPH[view.ledSuit]}
             </span>
           </span>
@@ -55,34 +98,27 @@ export function Part2Board({ view, flash, onMove }: Part2BoardProps): React.Reac
         )}
       </div>
 
-      <div className="board__trick" aria-label="Current trick">
+      <div className="board__trick board__table--felt" aria-label="Current trick">
         {view.trick.length === 0 && <div className="board__empty muted">No cards played yet</div>}
-        {view.trick.map((play) => (
-          <div key={cardId(play.card)} className="board__trick-play">
-            <Card card={play.card} small={false} highlighted={play.isCut} />
-            <div className="board__trick-name">
-              {shortId(play.player)}
-              {play.isCut && <span className="board__cut-tag">CUT</span>}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="board__hand-area">
-        <div className="board__hint">
-          {youSafe
-            ? 'You are safe — out of the round.'
-            : canAct
-              ? 'Your turn — tap a highlighted card.'
-              : 'Waiting for other players…'}
-        </div>
-        <Hand
-          hand={view.hand}
-          selectedId={null}
-          legalIds={legalIds}
-          canAct={canAct && !submitting}
-          onSelect={play}
-        />
+        <AnimatePresence initial={false}>
+          {view.trick.map((play) => (
+            <motion.div
+              key={cardId(play.card)}
+              className="board__trick-play"
+              layout
+              initial={{ y: -24, opacity: 0, scale: 0.85 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 16, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 360, damping: 22 }}
+            >
+              <Card card={play.card} small={false} highlighted={play.isCut} />
+              <div className="board__trick-name">
+                {shortId(play.player)}
+                {play.isCut && <span className="board__cut-tag">CUT</span>}
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
     </div>
   );

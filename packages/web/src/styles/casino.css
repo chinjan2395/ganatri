@@ -1,0 +1,62 @@
+/* Shared casino animation primitives. Imported once from main.tsx. */
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    box-shadow: var(--glow-turn);
+  }
+  50% {
+    box-shadow:
+      0 0 22px rgba(74, 144, 226, 0.95),
+      0 0 40px rgba(74, 144, 226, 0.6);
+  }
+}
+
+@keyframes neon-flicker {
+  0%,
+  18%,
+  22%,
+  25%,
+  53%,
+  57%,
+  100% {
+    opacity: 1;
+    text-shadow:
+      0 0 6px rgba(231, 195, 74, 0.9),
+      0 0 16px rgba(231, 195, 74, 0.7),
+      0 0 32px rgba(184, 134, 11, 0.5);
+  }
+  20%,
+  24%,
+  55% {
+    opacity: 0.7;
+    text-shadow: none;
+  }
+}
+
+/* Utility: applies the neon nameplate look to a heading. */
+.neon-title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: 4px;
+  color: var(--gold-rim);
+  text-shadow:
+    0 0 6px rgba(231, 195, 74, 0.9),
+    0 0 16px rgba(231, 195, 74, 0.7),
+    0 0 32px rgba(184, 134, 11, 0.5);
+  animation: neon-flicker 4.5s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .neon-title {
+    animation: none;
+  }
+}

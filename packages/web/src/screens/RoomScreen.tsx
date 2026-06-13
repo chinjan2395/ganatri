@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { useGame } from '../state/GameProvider';
 import './RoomScreen.css';
 
@@ -28,19 +29,30 @@ export function RoomScreen(): React.ReactNode {
 
   return (
     <div className="center-screen">
-      <h1>Room {room.roomCode}</h1>
+      <h1 className="neon-title room__title">ROOM {room.roomCode}</h1>
       <p className="muted">Share this code so others can join.</p>
-      <div className="card-surface">
+      <motion.div
+        className="card-surface room__panel"
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 280, damping: 26 }}
+      >
         <div className="room__players">
           {room.players.map((pid, i) => (
-            <div key={pid} className="room__player">
+            <motion.div
+              key={pid}
+              className="room__player"
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.05 * i }}
+            >
               <span className="room__index">{i + 1}</span>
               <span>
                 {shortId(pid)}
                 {pid === session.playerId && <span className="room__you"> (you)</span>}
                 {pid === room.hostId && <span className="room__host"> host</span>}
               </span>
-            </div>
+            </motion.div>
           ))}
         </div>
         <p className="muted">{room.players.length} / 4 players</p>
@@ -61,7 +73,7 @@ export function RoomScreen(): React.ReactNode {
         >
           Leave room
         </button>
-      </div>
+      </motion.div>
     </div>
   );
 }

@@ -1,41 +1,56 @@
 .seat {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 8px 10px;
-  background: var(--panel);
-  border-radius: 12px;
-  min-width: 76px;
-  border: 2px solid transparent;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  gap: 5px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  min-width: 84px;
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  border: 1px solid rgba(231, 195, 74, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 4px 14px rgba(0, 0, 0, 0.45);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 .seat--turn {
   border-color: var(--accent-2);
-  box-shadow: 0 0 12px rgba(74, 144, 226, 0.5);
+  animation: glow-pulse 1.8s ease-in-out infinite;
 }
 .seat--safe {
-  opacity: 0.8;
+  opacity: 0.85;
 }
 .seat--disconnected {
   opacity: 0.55;
 }
 .seat__avatar {
   position: relative;
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--panel-2), #2e4a38);
+  background: radial-gradient(circle at 35% 30%, #3a5c44, #1c2f24);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 16px;
+  color: var(--gold-rim);
+  box-shadow:
+    0 0 0 2px var(--gold-2),
+    0 0 0 4px rgba(0, 0, 0, 0.4),
+    inset 0 0 8px rgba(0, 0, 0, 0.5);
+}
+.seat--turn .seat__avatar {
+  box-shadow:
+    0 0 0 2px var(--accent-2),
+    0 0 12px rgba(74, 144, 226, 0.6),
+    inset 0 0 8px rgba(0, 0, 0, 0.5);
 }
 .seat__overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.62);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -45,11 +60,14 @@
   text-transform: uppercase;
 }
 .seat__name {
+  font-family: var(--font-display);
   font-size: 12px;
-  max-width: 84px;
+  letter-spacing: 0.5px;
+  max-width: 92px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--text);
 }
 .seat__you {
   color: var(--accent);
@@ -57,15 +75,36 @@
 .seat__stats {
   display: flex;
   gap: 8px;
-  font-size: 12px;
-  color: var(--text-dim);
+  align-items: center;
 }
 .seat__badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
   font-size: 10px;
-  background: var(--safe);
+  background: linear-gradient(180deg, #7ee6a6, var(--safe));
   color: #08361d;
-  padding: 1px 6px;
+  padding: 2px 7px;
   border-radius: 999px;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
+  box-shadow: 0 0 10px rgba(92, 210, 138, 0.6);
+}
+
+/* Compact variant for oval-rim placement. */
+.seat--compact {
+  min-width: 70px;
+  padding: 6px 9px;
+  gap: 3px;
+  backdrop-filter: blur(2px);
+  background: linear-gradient(180deg, rgba(29, 51, 38, 0.92), rgba(20, 38, 27, 0.92));
+}
+.seat--compact .seat__avatar {
+  width: 38px;
+  height: 38px;
+  font-size: 14px;
+}
+.seat--compact .seat__name {
+  font-size: 11px;
+  max-width: 74px;
 }

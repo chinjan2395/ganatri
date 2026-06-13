@@ -1,3 +1,11 @@
+.room__title {
+  font-size: clamp(28px, 9vw, 52px);
+  margin: 0;
+}
+.room__panel {
+  border: 1px solid rgba(231, 195, 74, 0.4);
+  box-shadow: var(--glow-gold), 0 8px 30px rgba(0, 0, 0, 0.5);
+}
 .room__players {
   display: flex;
   flex-direction: column;

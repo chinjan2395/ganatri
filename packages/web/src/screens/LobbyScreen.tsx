@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { useGame } from '../state/GameProvider';
+import './LobbyScreen.css';
 
 export function LobbyScreen(): React.ReactNode {
   const { createRoom, joinRoom } = useGame();
@@ -49,8 +51,13 @@ export function LobbyScreen(): React.ReactNode {
   if (rejoin) {
     return (
       <div className="center-screen">
-        <h1>Ganatri</h1>
-        <div className="card-surface">
+        <h1 className="neon-title lobby__title">GANATRI</h1>
+        <motion.div
+          className="card-surface lobby__panel"
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 280, damping: 26 }}
+        >
           <p>
             You already have an active game in room <strong>{rejoin}</strong>.
           </p>
@@ -60,20 +67,32 @@ export function LobbyScreen(): React.ReactNode {
           <button className="secondary" onClick={() => setRejoin(null)} disabled={busy}>
             Back
           </button>
-        </div>
+        </motion.div>
       </div>
     );
   }
 
   return (
     <div className="center-screen">
-      <h1>Ganatri</h1>
-      <p className="muted">A two-part capture &amp; cut card game</p>
-      <div className="card-surface">
+      <motion.h1
+        className="neon-title lobby__title"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        GANATRI
+      </motion.h1>
+      <p className="muted lobby__tag">A two-part capture &amp; cut card game</p>
+      <motion.div
+        className="card-surface lobby__panel"
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 280, damping: 26, delay: 0.1 }}
+      >
         <button onClick={() => void handleCreate()} disabled={busy}>
           Create room
         </button>
-        <div className="muted">— or join with a code —</div>
+        <div className="muted lobby__or">— or join with a code —</div>
         <form
           className="row"
           onSubmit={(e) => {
@@ -93,8 +112,8 @@ export function LobbyScreen(): React.ReactNode {
             Join
           </button>
         </form>
-        {localError && <div style={{ color: 'var(--danger)' }}>{localError}</div>}
-      </div>
+        {localError && <div className="lobby__error">{localError}</div>}
+      </motion.div>
     </div>
   );
 }

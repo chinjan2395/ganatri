@@ -1,0 +1,59 @@
+.chip {
+  --chip-size: 32px;
+  --chip-color: var(--chip-blue);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--chip-size);
+  height: var(--chip-size);
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.12), transparent 60%),
+    var(--chip-color);
+  /* Dashed/striped rim made of conic edge segments + a notched ring. */
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.85),
+    inset 0 0 0 5px var(--chip-color),
+    inset 0 0 0 7px rgba(0, 0, 0, 0.25),
+    0 2px 4px rgba(0, 0, 0, 0.5);
+}
+.chip::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    rgba(255, 255, 255, 0.9) 0deg 12deg,
+    transparent 12deg 36deg
+  );
+  -webkit-mask: radial-gradient(circle, transparent 0 60%, #000 60% 78%, transparent 78%);
+  mask: radial-gradient(circle, transparent 0 60%, #000 60% 78%, transparent 78%);
+  opacity: 0.65;
+  pointer-events: none;
+}
+.chip__face {
+  position: relative;
+  z-index: 1;
+  font-weight: 800;
+  font-size: calc(var(--chip-size) * 0.42);
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  line-height: 1;
+}
+.chip--small {
+  --chip-size: 24px;
+}
+.chip--red {
+  --chip-color: var(--chip-red);
+}
+.chip--blue {
+  --chip-color: var(--chip-blue);
+}
+.chip--green {
+  --chip-color: var(--chip-green);
+}
+.chip--black {
+  --chip-color: var(--chip-black);
+}

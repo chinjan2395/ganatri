@@ -6,6 +6,42 @@
   padding: 24px;
   text-align: center;
 }
+.end__title {
+  font-size: clamp(30px, 9vw, 56px);
+  margin: 0;
+}
+
+.end__spotlight {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 22px 40px 18px;
+  border-radius: 18px;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(231, 195, 74, 0.35), transparent 70%),
+    linear-gradient(180deg, rgba(29, 51, 38, 0.9), rgba(20, 38, 27, 0.9));
+  border: 1px solid rgba(231, 195, 74, 0.5);
+  box-shadow: var(--glow-gold), 0 10px 30px rgba(0, 0, 0, 0.55);
+}
+.end__trophy {
+  font-size: 48px;
+  filter: drop-shadow(0 0 12px rgba(231, 195, 74, 0.7));
+}
+.end__winner-name {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 22px;
+  color: var(--gold-rim);
+}
+.end__winner-label {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
 .end__rankings {
   list-style: none;
   padding: 0;
@@ -20,9 +56,10 @@
   grid-template-columns: 40px 1fr auto;
   align-items: center;
   gap: 10px;
-  background: var(--panel);
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
   padding: 10px 14px;
   border-radius: 10px;
+  border: 1px solid rgba(231, 195, 74, 0.2);
 }
 .end__row--loser {
   background: rgba(226, 92, 92, 0.18);

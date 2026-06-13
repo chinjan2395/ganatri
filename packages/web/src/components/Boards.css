@@ -1,30 +1,36 @@
 .board {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 8px;
   align-items: center;
   width: 100%;
 }
+
+/* Table / trick inner panels */
 .board__table,
 .board__trick {
-  background: radial-gradient(ellipse at center, var(--felt), var(--felt-dark));
-  border-radius: 16px;
-  padding: 16px;
-  min-height: calc(var(--card-h) + 26px);
-  width: min(640px, 96vw);
+  border-radius: 14px;
+  padding: 8px;
+  min-height: calc(var(--card-h) + 18px);
+  width: min(520px, 90vw);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.35);
+}
+.board__table--felt {
+  background: rgba(0, 0, 0, 0.16);
+  border: 1px solid rgba(231, 195, 74, 0.22);
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.35);
 }
 .board__table-cards {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   justify-content: center;
 }
 .board__trick {
-  gap: 14px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 .board__trick-play {
@@ -32,13 +38,6 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  animation: drop-in 0.18s ease;
-}
-@keyframes drop-in {
-  from {
-    transform: translateY(-12px);
-    opacity: 0;
-  }
 }
 .board__trick-name {
   font-size: 11px;
@@ -54,64 +53,72 @@
   padding: 0 4px;
   font-weight: 700;
   font-size: 9px;
+  box-shadow: 0 0 8px rgba(226, 92, 92, 0.7);
 }
 .board__empty {
   font-style: italic;
 }
-.board__capture-panel {
+
+/* Capture action bar — animates in below the table cards */
+.board__action-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
   justify-content: center;
-  background: var(--panel);
-  padding: 10px 14px;
+  background: linear-gradient(180deg, rgba(29, 51, 38, 0.96), rgba(20, 38, 27, 0.96));
+  padding: 8px 14px;
   border-radius: 12px;
+  border: 1px solid rgba(231, 195, 74, 0.5);
+  box-shadow: var(--glow-gold), 0 6px 16px rgba(0, 0, 0, 0.5);
+  width: min(520px, 90vw);
 }
-.board__hand-area {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: center;
-}
-.board__hint {
-  font-size: 13px;
-  color: var(--text-dim);
-  min-height: 18px;
-}
+
+/* Led-suit indicator (Part 2) */
 .board__led {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
+  font-family: var(--font-display);
+  letter-spacing: 0.5px;
 }
-.board__flash {
-  min-height: 22px;
-  font-weight: 700;
+
+/* Part 2 large centered neon banners */
+.board__banner {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(18px, 5vw, 34px);
+  letter-spacing: 1px;
   text-align: center;
-  transition: opacity 0.25s ease;
+  padding: 6px 18px;
+  border-radius: 12px;
+  pointer-events: none;
+  white-space: nowrap;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
-.board__flash--cut {
-  color: var(--danger);
-  animation: flash-pop 0.4s ease;
+.board__banner--cut {
+  color: #ff7b7b;
+  text-shadow:
+    0 0 8px rgba(226, 92, 92, 0.9),
+    0 0 22px rgba(226, 92, 92, 0.6);
+  border-color: rgba(226, 92, 92, 0.5);
 }
-.board__flash--won {
-  color: var(--accent);
-  animation: flash-pop 0.4s ease;
+.board__banner--won {
+  color: var(--gold-rim);
+  text-shadow:
+    0 0 8px rgba(231, 195, 74, 0.9),
+    0 0 22px rgba(231, 195, 74, 0.6);
+  border-color: rgba(231, 195, 74, 0.5);
 }
-.board__flash--safe {
-  color: var(--safe);
-  animation: flash-pop 0.4s ease;
-}
-@keyframes flash-pop {
-  0% {
-    transform: scale(0.8);
-    opacity: 0;
-  }
-  50% {
-    transform: scale(1.1);
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
+.board__banner--safe {
+  color: #8ff0b6;
+  text-shadow:
+    0 0 8px rgba(92, 210, 138, 0.9),
+    0 0 22px rgba(92, 210, 138, 0.6);
+  border-color: rgba(92, 210, 138, 0.5);
 }

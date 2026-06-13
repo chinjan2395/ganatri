@@ -33,6 +33,7 @@ export function setToken(token: string): void {
 export const socket: Socket = io(SERVER_URL, {
   autoConnect: true,
   auth: { token: getToken() ?? undefined },
+  transports: ['websocket', 'polling'],
 });
 
 function emitAck<T>(event: string, payload?: unknown): Promise<T> {

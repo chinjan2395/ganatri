@@ -1,4 +1,6 @@
+import { AnimatePresence, motion } from 'framer-motion';
 import type { PlayerId } from '@ganatri/engine';
+import { Chip } from './Chip';
 import './OpponentSeat.css';
 
 export interface OpponentSeatProps {
@@ -10,6 +12,8 @@ export interface OpponentSeatProps {
   isSafe: boolean;
   safeRank?: number; // 1-based position in safeOrder
   disconnected: boolean;
+  /** Compact rim placement around the oval. */
+  compact?: boolean;
 }
 
 function shortId(id: PlayerId): string {
@@ -17,11 +21,13 @@ function shortId(id: PlayerId): string {
 }
 
 export function OpponentSeat(props: OpponentSeatProps): React.ReactNode {
-  const { playerId, isYou, handCount, captureCount, isTurn, isSafe, safeRank, disconnected } = props;
+  const { playerId, isYou, handCount, captureCount, isTurn, isSafe, safeRank, disconnected, compact } =
+    props;
   const classes = ['seat'];
   if (isTurn) classes.push('seat--turn');
   if (isSafe) classes.push('seat--safe');
   if (disconnected) classes.push('seat--disconnected');
+  if (compact) classes.push('seat--compact');
 
   return (
     <div className={classes.join(' ')}>
@@ -34,10 +40,30 @@ export function OpponentSeat(props: OpponentSeatProps): React.ReactNode {
         {isYou && <span className="seat__you"> (you)</span>}
       </div>
       <div className="seat__stats">
-        <span title="cards in hand">🂠 {handCount}</span>
-        {captureCount !== undefined && <span title="captured cards">⊞ {captureCount}</span>}
+        <Chip count={handCount} denomination="blue" small label="cards in hand" />
+        {captureCount !== undefined && (
+          <Chip
+            count={captureCount}
+            denomination="red"
+            small
+            label="captured cards"
+            popKey={captureCount}
+          />
+        )}
       </div>
-      {isSafe && <div className="seat__badge">safe{safeRank ? ` #${safeRank}` : ''}</div>}
+      <AnimatePresence>
+        {isSafe && (
+          <motion.div
+            className="seat__badge"
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 480, damping: 20 }}
+          >
+            safe{safeRank ? ` #${safeRank}` : ''}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

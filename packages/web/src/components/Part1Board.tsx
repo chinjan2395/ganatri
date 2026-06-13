@@ -1,31 +1,42 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { cardId, type Card as CardModel, type CardId, type Move, type PlayerView } from '@ganatri/engine';
 import { captureOptionsFor } from '../game/legal';
 import { Card } from './Card';
-import { Hand } from './Hand';
 import './Boards.css';
 
 export interface Part1BoardProps {
   view: PlayerView;
   onMove: (move: Move) => Promise<boolean>;
+  /** Called whenever hand-selection state changes so the parent can render the Hand. */
+  onSelectionChange: (state: Part1SelectionState) => void;
+}
+
+export interface Part1SelectionState {
+  selectedId: CardId | null;
+  /** null = all cards enabled */
+  legalIds: null;
+  canAct: boolean;
+  onSelect: (id: CardId) => void;
+  /** Hint text to display above the hand */
+  hint: string;
 }
 
 interface Selection {
   cardId: CardId;
   options: readonly (readonly CardId[])[];
-  optionIndex: number; // which capture set is chosen
+  optionIndex: number;
 }
 
 function findCard(hand: readonly CardModel[], id: CardId): CardModel | undefined {
   return hand.find((c) => cardId(c) === id);
 }
 
-export function Part1Board({ view, onMove }: Part1BoardProps): React.ReactNode {
+export function Part1Board({ view, onMove, onSelectionChange }: Part1BoardProps): React.ReactNode {
   const canAct = view.turn === view.you;
   const [selection, setSelection] = useState<Selection | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Drop stale selection if the card is no longer in hand or it isn't our turn.
   const liveSelection =
     selection && canAct && findCard(view.hand, selection.cardId) ? selection : null;
 
@@ -52,7 +63,6 @@ export function Part1Board({ view, onMove }: Part1BoardProps): React.ReactNode {
     );
   }
 
-  /** Clicking a table card jumps to an offered set that contains it. */
   function clickTableCard(id: CardId): void {
     if (!liveSelection) return;
     const idx = liveSelection.options.findIndex((set) => set.includes(id));
@@ -68,69 +78,90 @@ export function Part1Board({ view, onMove }: Part1BoardProps): React.ReactNode {
     if (ok) setSelection(null);
   }
 
+  const hint = canAct
+    ? liveSelection
+      ? 'Pick a capture set, then confirm.'
+      : 'Your turn — tap a card to play.'
+    : 'Waiting for other players…';
+
+  // Notify parent of current selection state
+  useEffect(() => {
+    onSelectionChange({
+      selectedId: liveSelection?.cardId ?? null,
+      legalIds: null,
+      canAct: canAct && !submitting,
+      onSelect: selectHandCard,
+      hint,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveSelection?.cardId, liveSelection?.optionIndex, canAct, submitting]);
+
   return (
     <div className="board">
-      <div className="board__table" aria-label="Table cards">
+      <div className="board__table board__table--felt" aria-label="Table cards">
         {view.table.length === 0 && <div className="board__empty muted">Table is empty</div>}
         <div className="board__table-cards">
-          {view.table.map((card) => {
-            const id = cardId(card);
-            const highlighted = chosenSet.has(id);
-            const clickable = liveSelection?.options.some((s) => s.includes(id)) ?? false;
-            return (
-              <Card
-                key={id}
-                card={card}
-                highlighted={highlighted}
-                onClick={clickable ? () => clickTableCard(id) : undefined}
-              />
-            );
-          })}
+          <AnimatePresence initial={false}>
+            {view.table.map((card) => {
+              const id = cardId(card);
+              const highlighted = chosenSet.has(id);
+              const clickable = liveSelection?.options.some((s) => s.includes(id)) ?? false;
+              return (
+                <motion.div
+                  key={id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.6 }}
+                  transition={{ type: 'spring', stiffness: 340, damping: 24 }}
+                >
+                  <Card
+                    card={card}
+                    highlighted={highlighted}
+                    onClick={clickable ? () => clickTableCard(id) : undefined}
+                  />
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
       </div>
 
-      {liveSelection && (
-        <div className="board__capture-panel">
-          {hasCapture ? (
-            <>
-              <span>
-                Capture {chosenSet.size} card{chosenSet.size === 1 ? '' : 's'}
-                {multipleOptions ? ` (option ${liveSelection.optionIndex + 1}/${liveSelection.options.length})` : ''}
-              </span>
-              {multipleOptions && (
-                <button className="secondary" onClick={cycleOption}>
-                  Next option
-                </button>
-              )}
-            </>
-          ) : (
-            <span className="muted">No capture — card stays on the table</span>
-          )}
-          <button onClick={confirm} disabled={submitting}>
-            {submitting ? '…' : hasCapture ? 'Capture' : 'Play (no capture)'}
-          </button>
-          <button className="secondary" onClick={() => setSelection(null)} disabled={submitting}>
-            Cancel
-          </button>
-        </div>
-      )}
-
-      <div className="board__hand-area">
-        <div className="board__hint">
-          {canAct
-            ? liveSelection
-              ? 'Pick a capture set, then confirm.'
-              : 'Your turn — tap a card to play.'
-            : 'Waiting for other players…'}
-        </div>
-        <Hand
-          hand={view.hand}
-          selectedId={liveSelection?.cardId ?? null}
-          legalIds={null}
-          canAct={canAct && !submitting}
-          onSelect={selectHandCard}
-        />
-      </div>
+      <AnimatePresence>
+        {liveSelection && (
+          <motion.div
+            className="board__action-bar"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 12 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+          >
+            {hasCapture ? (
+              <>
+                <span>
+                  Capture {chosenSet.size} card{chosenSet.size === 1 ? '' : 's'}
+                  {multipleOptions
+                    ? ` (option ${liveSelection.optionIndex + 1}/${liveSelection.options.length})`
+                    : ''}
+                </span>
+                {multipleOptions && (
+                  <button className="secondary" onClick={cycleOption}>
+                    Next option
+                  </button>
+                )}
+              </>
+            ) : (
+              <span className="muted">No capture — card stays on the table</span>
+            )}
+            <button onClick={confirm} disabled={submitting}>
+              {submitting ? '…' : hasCapture ? 'Capture' : 'Play (no capture)'}
+            </button>
+            <button className="secondary" onClick={() => setSelection(null)} disabled={submitting}>
+              Cancel
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

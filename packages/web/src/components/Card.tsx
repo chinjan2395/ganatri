@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import type { Card as CardModel, Suit } from '@ganatri/engine';
 import './Card.css';
 
@@ -33,24 +34,73 @@ export function Card(props: CardProps): React.ReactNode {
   if (interactive) classes.push('card--interactive');
 
   if (faceDown || !card) {
-    return <div className={classes.join(' ')} aria-hidden="true" />;
+    return (
+      <motion.div
+        className={classes.join(' ')}
+        aria-hidden="true"
+        initial={{ rotateY: 90, opacity: 0 }}
+        animate={{ rotateY: 0, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+      >
+        <span className="card__back-art" />
+      </motion.div>
+    );
   }
 
   const red = isRedSuit(card.suit);
-  const Tag = interactive ? 'button' : 'div';
+  const glyph = SUIT_GLYPH[card.suit];
+
+  const corner = (
+    <span className="card__corner">
+      <span className="card__rank">{card.rank}</span>
+      <span className="card__pip">{glyph}</span>
+    </span>
+  );
+
+  const body = (
+    <>
+      {corner}
+      <span className="card__suit" aria-hidden="true">
+        {glyph}
+      </span>
+      <span className="card__corner card__corner--br">
+        <span className="card__rank">{card.rank}</span>
+        <span className="card__pip">{glyph}</span>
+      </span>
+    </>
+  );
+
+  const sharedProps = {
+    className: classes.join(' '),
+    style: { color: red ? 'var(--red-suit)' : 'var(--black-suit)' },
+    title: title ?? `${card.rank}${glyph}`,
+    'aria-label': `${card.rank} of ${card.suit}`,
+  };
+
+  const motionProps = {
+    initial: { y: -14, opacity: 0, rotateZ: -4 },
+    animate: { y: 0, opacity: 1, rotateZ: 0 },
+    transition: { type: 'spring' as const, stiffness: 320, damping: 22 },
+  };
+
+  if (interactive) {
+    return (
+      <motion.button
+        type="button"
+        {...sharedProps}
+        {...motionProps}
+        whileHover={{ y: -8 }}
+        whileTap={{ scale: 0.96 }}
+        onClick={onClick}
+      >
+        {body}
+      </motion.button>
+    );
+  }
 
   return (
-    <Tag
-      type={interactive ? 'button' : undefined}
-      className={classes.join(' ')}
-      style={{ color: red ? 'var(--red-suit)' : 'var(--black-suit)' }}
-      onClick={interactive ? onClick : undefined}
-      disabled={interactive ? false : undefined}
-      title={title ?? `${card.rank}${SUIT_GLYPH[card.suit]}`}
-      aria-label={`${card.rank} of ${card.suit}`}
-    >
-      <span className="card__rank">{card.rank}</span>
-      <span className="card__suit">{SUIT_GLYPH[card.suit]}</span>
-    </Tag>
+    <motion.div {...sharedProps} {...motionProps}>
+      {body}
+    </motion.div>
   );
 }

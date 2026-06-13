@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import type { PlayerId } from '@ganatri/engine';
 import './EndScreen.css';
 
@@ -16,10 +17,28 @@ function shortId(id: PlayerId): string {
 export function EndScreen({ rankings, you, isHost, onPlayAgain, onLeave }: EndScreenProps): React.ReactNode {
   const order = rankings ?? [];
   const loserIndex = order.length > 0 ? order.length - 1 : -1;
+  const winner = order[0];
 
   return (
     <div className="end">
-      <h1>Game Over</h1>
+      <h1 className="neon-title end__title">GAME OVER</h1>
+
+      {winner && (
+        <motion.div
+          className="end__spotlight"
+          initial={{ opacity: 0, scale: 0.7 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', stiffness: 320, damping: 20 }}
+        >
+          <div className="end__trophy">🏆</div>
+          <div className="end__winner-name">
+            {shortId(winner)}
+            {winner === you && <span className="end__you"> (you)</span>}
+          </div>
+          <div className="end__winner-label">Winner</div>
+        </motion.div>
+      )}
+
       {order.length === 0 ? (
         <p className="muted">No loser — everyone finished safely.</p>
       ) : (
@@ -27,14 +46,20 @@ export function EndScreen({ rankings, you, isHost, onPlayAgain, onLeave }: EndSc
           {order.map((pid, i) => {
             const isLoser = i === loserIndex && order.length > 1;
             return (
-              <li key={pid} className={isLoser ? 'end__row end__row--loser' : 'end__row'}>
+              <motion.li
+                key={pid}
+                className={isLoser ? 'end__row end__row--loser' : 'end__row'}
+                initial={{ opacity: 0, x: -16 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.08 * i }}
+              >
                 <span className="end__place">{i === 0 ? '🏆' : `#${i + 1}`}</span>
                 <span className="end__player">
                   {shortId(pid)}
                   {pid === you && <span className="end__you"> (you)</span>}
                 </span>
                 <span className="end__label">{i === 0 ? 'winner' : isLoser ? 'loser' : 'safe'}</span>
-              </li>
+              </motion.li>
             );
           })}
         </ol>
