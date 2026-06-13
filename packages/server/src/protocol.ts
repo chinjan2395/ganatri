@@ -94,6 +94,8 @@ export interface RoomUpdatePayload {
   players: string[]; // playerIds in join order
   hostId: string;
   phase: 'LOBBY' | 'PLAYING' | 'DONE';
+  /** playerIds currently within their disconnect grace period */
+  disconnectedPlayers: string[];
 }
 
 /** Broadcast to the room after each valid move (one emit per event in the events array). */

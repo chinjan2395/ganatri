@@ -150,8 +150,14 @@ function handleReconnect(socket: Socket, session: SessionState): void {
 // ---------------------------------------------------------------------------
 
 function handleDisconnect(socket: Socket, session: SessionState): void {
-  // Clean up debounce entry to prevent unbounded map growth and socket.id reuse issues.
+  // Clean up debounce state for this specific socket.
   lastMoveTime.delete(socket.id);
+
+  // Guard: if the session already points to a different (newer) socket, the
+  // player reconnected before this disconnect event fired. Emitting
+  // PLAYER_DISCONNECTED here would create a permanent "offline" ghost, and
+  // nulling socketId would break message delivery to the live socket.
+  if (session.socketId !== socket.id) return;
 
   session.socketId = null;
   const { playerId, roomCode } = session;
@@ -535,6 +541,7 @@ function broadcastRoomUpdate(roomCode: string): void {
     players: [...room.players],
     hostId: room.hostId,
     phase: room.phase === 'PLAYING' ? 'PLAYING' : room.phase === 'DONE' ? 'DONE' : 'LOBBY',
+    disconnectedPlayers: [...room.disconnectedAt.keys()],
   });
 }
 

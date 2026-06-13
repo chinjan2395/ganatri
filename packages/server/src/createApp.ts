@@ -31,8 +31,8 @@ export function createApp(): AppInstance {
   });
   const io = new Server(httpServer, {
     cors: { origin: process.env['CORS_ORIGIN'] ?? '*', methods: ['GET', 'POST'] },
-    pingInterval: 10_000,
-    pingTimeout: 5_000,
+    pingInterval: 25_000,
+    pingTimeout: 20_000,
   });
 
   setupSocketHandlers(io);
