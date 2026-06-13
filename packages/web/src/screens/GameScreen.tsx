@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { CardId, GameEvent } from '@ganatri/engine';
+import { cardId, type CardId, type Card as CardModel, type GameEvent } from '@ganatri/engine';
 import { useGame } from '../state/GameProvider';
 import { OpponentSeat } from '../components/OpponentSeat';
 import { Part1Board, type Part1SelectionState } from '../components/Part1Board';
@@ -8,6 +8,7 @@ import { Part2Board, type Part2SelectionState } from '../components/Part2Board';
 import { Hand } from '../components/Hand';
 import { CapturedPile } from '../components/CapturedPile';
 import { EndScreen } from '../components/EndScreen';
+import { TurnTimer } from '../components/TurnTimer';
 import './GameScreen.css';
 
 function shortId(id: string): string {
@@ -41,6 +42,18 @@ function flashFor(event: GameEvent): Flash | null {
   }
 }
 
+function getLocalCapturedCards(eventLog: readonly { event: GameEvent }[], playerId: string): readonly CardModel[] {
+  const captured: CardModel[] = [];
+  for (const { event } of eventLog) {
+    if (event.type === 'CAPTURED' && event.player === playerId) {
+      captured.push(...event.cards);
+    } else if (event.type === 'PART1_ENDED') {
+      break;
+    }
+  }
+  return captured;
+}
+
 type HandState = Part1SelectionState | Part2SelectionState;
 
 const DEFAULT_HAND_STATE: HandState = {
@@ -53,9 +66,22 @@ const DEFAULT_HAND_STATE: HandState = {
 };
 
 export function GameScreen(): React.ReactNode {
-  const { view, room, session, lastEvent, disconnectedPlayers, makeMove, startGame, leaveRoom } = useGame();
+  const { view, room, session, lastEvent, eventLog, disconnectedPlayers, turnStartedAt, makeMove, startGame, leaveRoom } = useGame();
   const [flash, setFlash] = useState<Flash | null>(null);
   const [handState, setHandState] = useState<HandState>(DEFAULT_HAND_STATE);
+  // Local drag order for Part 2 — keeps user's custom arrangement across tricks.
+  const [handOrder, setHandOrder] = useState<CardId[]>([]);
+
+  // Sync handOrder when hand changes: preserve existing order, append new cards.
+  useEffect(() => {
+    if (!view) return;
+    const currentIds = view.hand.map((c) => cardId(c));
+    setHandOrder((prev) => {
+      const stillPresent = prev.filter((id) => currentIds.includes(id));
+      const newIds = currentIds.filter((id) => !stillPresent.includes(id));
+      return [...stillPresent, ...newIds];
+    });
+  }, [view?.hand]);
 
   // Drive transient Part 2 feedback from the game-event stream.
   useEffect(() => {
@@ -112,6 +138,14 @@ export function GameScreen(): React.ReactNode {
     handState.onSelect(id as never);
   };
 
+  // In Part 2, show cards in the user's chosen drag order.
+  const handToRender: readonly CardModel[] =
+    view.phase === 'PART_2' && handOrder.length > 0
+      ? (handOrder
+          .map((id) => view.hand.find((c) => cardId(c) === id))
+          .filter(Boolean) as CardModel[])
+      : view.hand;
+
   return (
     <div className="game">
       {/* ── Top bar ── */}
@@ -121,7 +155,7 @@ export function GameScreen(): React.ReactNode {
           <span className="game__turn">
             Turn <strong>{turnName}</strong>
           </span>
-          {view.phase === 'PART_1' && <span className="game__stock">Stock {view.stockCount}</span>}
+          {turnStartedAt !== null && <TurnTimer turnStartedAt={turnStartedAt} />}
         </div>
         <button
           className="secondary game__leave"
@@ -184,70 +218,95 @@ export function GameScreen(): React.ReactNode {
             <Part2Board view={view} flash={flash} onMove={makeMove} onSelectionChange={handlePart2Change} />
           )}
         </div>
-      </div>
 
-      {/* ── Hint + captured pile (Part 1 only) + hand ── */}
-      {handState.hint && (
-        <div className="game__hint">{handState.hint}</div>
-      )}
-      {view.phase === 'PART_1' && view.myCapturedCards.length > 0 && (
-        <CapturedPile cards={view.myCapturedCards} />
-      )}
-      <div className="game__hand">
-        <Hand
-          hand={view.hand}
-          selectedId={handState.selectedId}
-          legalIds={legalIds}
-          canAct={handState.canAct}
-          onSelect={onSelectCard}
-        />
-      </div>
-
-      {/* ── Action bar (capture confirm) — sits between hand and player info ── */}
-      <AnimatePresence>
-        {handState.action && (
-          <motion.div
-            className="game__action-bar"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 28 }}
-          >
-            {handState.action.stage === 'confirm-card' ? (
-              <>
-                <span>Play this card?</span>
-                <button onClick={handState.action.onConfirm} disabled={handState.action.submitting}>
-                  {handState.action.submitting ? '…' : 'Yes, lock it in'}
-                </button>
-                <button className="secondary" onClick={handState.action.onCancel} disabled={handState.action.submitting}>
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <>
-                {handState.action.hasCapture ? (
-                  <>
-                    <span>
-                      Capture {handState.action.captureSize} card{handState.action.captureSize === 1 ? '' : 's'}
-                      {handState.action.optionLabel}
-                    </span>
-                    {handState.action.multipleOptions && (
-                      <button className="secondary" onClick={handState.action.onCycle}>
-                        Next option
-                      </button>
-                    )}
-                  </>
-                ) : (
-                  <span className="muted">No capture — card stays on the table</span>
-                )}
-                <button onClick={handState.action.onConfirm} disabled={handState.action.submitting}>
-                  {handState.action.submitting ? '…' : handState.action.hasCapture ? 'Capture' : 'Play (no capture)'}
-                </button>
-              </>
-            )}
-          </motion.div>
+        {view.phase === 'PART_1' && view.stockCount > 0 && (
+          <div className="table-stock">
+            <div className="table-stock__stack" />
+            <span className="table-stock__count">{view.stockCount}</span>
+          </div>
         )}
-      </AnimatePresence>
+
+        <AnimatePresence>
+          {flash && (
+            <motion.div
+              key={flash.text}
+              className={`table-flash table-flash--${flash.kind}`}
+              initial={{ opacity: 0, y: -6, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -4, scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+            >
+              {flash.text}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {handState.hint && <div className="table-hint">{handState.hint}</div>}
+      </div>
+
+      {/* ── Sidebar: captured pile (Part 1 only) + hand + action bar ── */}
+      <div className="game__sidebar">
+        {view.phase === 'PART_1' && (() => {
+          const captured = getLocalCapturedCards(eventLog, view.you);
+          return captured.length > 0 ? <CapturedPile cards={captured} /> : null;
+        })()}
+        <div className="game__hand">
+          <Hand
+            hand={handToRender}
+            selectedId={handState.selectedId}
+            legalIds={legalIds}
+            canAct={handState.canAct}
+            onSelect={onSelectCard}
+            onReorder={view.phase === 'PART_2' ? setHandOrder : undefined}
+          />
+        </div>
+
+        {/* ── Action bar (capture confirm) — sits between hand and player info ── */}
+        <AnimatePresence>
+          {handState.action && (
+            <motion.div
+              className="game__action-bar"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+            >
+              {handState.action.stage === 'confirm-card' ? (
+                <>
+                  <span>Play this card?</span>
+                  <button onClick={handState.action.onConfirm} disabled={handState.action.submitting}>
+                    {handState.action.submitting ? '…' : 'Yes, lock it in'}
+                  </button>
+                  <button className="secondary" onClick={handState.action.onCancel} disabled={handState.action.submitting}>
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  {handState.action.hasCapture ? (
+                    <>
+                      <span>
+                        Capture {handState.action.captureSize} card{handState.action.captureSize === 1 ? '' : 's'}
+                        {handState.action.optionLabel}
+                      </span>
+                      {handState.action.multipleOptions && (
+                        <button className="secondary" onClick={handState.action.onCycle}>
+                          Next option
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <span className="muted">No capture — card stays on the table</span>
+                  )}
+                  <button onClick={handState.action.onConfirm} disabled={handState.action.submitting}>
+                    {handState.action.submitting ? '…' : handState.action.hasCapture ? 'Capture' : 'Play (no capture)'}
+                  </button>
+                </>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
     </div>
   );
