@@ -7,13 +7,13 @@
   width: 100%;
 }
 
-/* Table / trick inner panels */
+/* Table / trick inner panels — width driven by .table-center container */
 .board__table,
 .board__trick {
   border-radius: 14px;
   padding: 8px;
   min-height: calc(var(--card-h) + 18px);
-  width: min(520px, 90vw);
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -22,6 +22,25 @@
   background: rgba(0, 0, 0, 0.16);
   border: 1px solid rgba(231, 195, 74, 0.22);
   box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.35);
+}
+
+/* Inside the oval: transparent panel, tight spacing, cards float on the felt */
+.table-center .board {
+  gap: 4px;
+}
+.table-center .board__table,
+.table-center .board__trick {
+  min-height: 0;
+  padding: 4px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+.table-center .board__table-cards {
+  gap: 4px;
+}
+.table-center .board__trick {
+  gap: 8px;
 }
 .board__table-cards {
   display: flex;

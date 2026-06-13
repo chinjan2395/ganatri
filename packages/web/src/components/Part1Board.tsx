@@ -13,6 +13,7 @@ export interface Part1BoardProps {
 }
 
 export interface Part1Action {
+  stage: 'confirm-card' | 'choose-capture';
   hasCapture: boolean;
   captureSize: number;
   multipleOptions: boolean;
@@ -37,6 +38,8 @@ export interface Part1SelectionState {
 
 interface Selection {
   cardId: CardId;
+  /** false = awaiting card confirmation; true = card locked, choosing capture */
+  confirmed: boolean;
   options: readonly (readonly CardId[])[];
   optionIndex: number;
 }
@@ -47,28 +50,81 @@ function findCard(hand: readonly CardModel[], id: CardId): CardModel | undefined
 
 export function Part1Board({ view, onMove, onSelectionChange }: Part1BoardProps): React.ReactNode {
   const canAct = view.turn === view.you;
+  const storageKey = `ganatri_p1_sel_${view.you}`;
   const [selection, setSelection] = useState<Selection | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Restore selection from sessionStorage on mount (survives page refresh)
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(storageKey);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { cardId: CardId; confirmed: boolean; optionIndex: number };
+      const card = findCard(view.hand, saved.cardId);
+      if (!card) { sessionStorage.removeItem(storageKey); return; }
+      if (saved.confirmed) {
+        const options = captureOptionsFor(card, view.table);
+        setSelection({ cardId: saved.cardId, confirmed: true, options, optionIndex: saved.optionIndex });
+      } else {
+        setSelection({ cardId: saved.cardId, confirmed: false, options: [], optionIndex: 0 });
+      }
+    } catch {
+      sessionStorage.removeItem(storageKey);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keep sessionStorage in sync with selection state
+  useEffect(() => {
+    if (selection) {
+      try {
+        sessionStorage.setItem(storageKey, JSON.stringify({
+          cardId: selection.cardId,
+          confirmed: selection.confirmed,
+          optionIndex: selection.optionIndex,
+        }));
+      } catch { /* quota exceeded — ignore */ }
+    } else {
+      sessionStorage.removeItem(storageKey);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selection]);
 
   const liveSelection =
     selection && canAct && findCard(view.hand, selection.cardId) ? selection : null;
 
   const chosenSet: ReadonlySet<CardId> = useMemo(() => {
-    if (!liveSelection) return new Set();
+    if (!liveSelection?.confirmed) return new Set();
     const set = liveSelection.options[liveSelection.optionIndex];
     return new Set(set ?? []);
   }, [liveSelection]);
 
   function selectHandCard(id: CardId): void {
     if (!canAct) return;
-    const card = findCard(view.hand, id);
-    if (!card) return;
-    const options = captureOptionsFor(card, view.table);
-    setSelection({ cardId: id, options, optionIndex: 0 });
+    if (!findCard(view.hand, id)) return;
+    // Stage 1: just select the card — no capture hints yet
+    setSelection({ cardId: id, confirmed: false, options: [], optionIndex: 0 });
   }
 
-  const hasCapture = (liveSelection?.options.length ?? 0) > 0;
-  const multipleOptions = (liveSelection?.options.length ?? 0) > 1;
+  async function confirmCard(): Promise<void> {
+    if (!liveSelection || liveSelection.confirmed) return;
+    const card = findCard(view.hand, liveSelection.cardId);
+    if (!card) return;
+    const options = captureOptionsFor(card, view.table);
+    if (options.length === 0) {
+      // No captures possible — submit immediately, no second step needed
+      setSubmitting(true);
+      const ok = await onMove({ type: 'PLAY_CAPTURE', card: liveSelection.cardId, capture: [] });
+      setSubmitting(false);
+      if (ok) setSelection(null);
+    } else {
+      // Has capture options — move to stage 2 so player can choose
+      setSelection({ cardId: liveSelection.cardId, confirmed: true, options, optionIndex: 0 });
+    }
+  }
+
+  const hasCapture = liveSelection?.confirmed ? (liveSelection.options.length ?? 0) > 0 : false;
+  const multipleOptions = liveSelection?.confirmed ? (liveSelection.options.length ?? 0) > 1 : false;
 
   function cycleOption(): void {
     setSelection((sel) =>
@@ -77,13 +133,13 @@ export function Part1Board({ view, onMove, onSelectionChange }: Part1BoardProps)
   }
 
   function clickTableCard(id: CardId): void {
-    if (!liveSelection) return;
+    if (!liveSelection?.confirmed) return;
     const idx = liveSelection.options.findIndex((set) => set.includes(id));
     if (idx >= 0) setSelection({ ...liveSelection, optionIndex: idx });
   }
 
   async function confirm(): Promise<void> {
-    if (!liveSelection || submitting) return;
+    if (!liveSelection?.confirmed || submitting) return;
     const set = hasCapture ? liveSelection.options[liveSelection.optionIndex] : [];
     setSubmitting(true);
     const ok = await onMove({ type: 'PLAY_CAPTURE', card: liveSelection.cardId, capture: set ?? [] });
@@ -93,7 +149,9 @@ export function Part1Board({ view, onMove, onSelectionChange }: Part1BoardProps)
 
   const hint = canAct
     ? liveSelection
-      ? 'Pick a capture set, then confirm.'
+      ? liveSelection.confirmed
+        ? 'Choose a capture set, then confirm.'
+        : 'Are you sure? This choice is final.'
       : 'Your turn — tap a card to play.'
     : 'Waiting for other players…';
 
@@ -102,26 +160,39 @@ export function Part1Board({ view, onMove, onSelectionChange }: Part1BoardProps)
     onSelectionChange({
       selectedId: liveSelection?.cardId ?? null,
       legalIds: null,
-      canAct: canAct && !submitting,
+      canAct: canAct && !submitting && !liveSelection?.confirmed,
       onSelect: selectHandCard,
       hint,
       action: liveSelection
-        ? {
-            hasCapture,
-            captureSize: chosenSet.size,
-            multipleOptions,
-            optionLabel: multipleOptions
-              ? ` (option ${liveSelection.optionIndex + 1}/${liveSelection.options.length})`
-              : '',
-            submitting,
-            onConfirm: confirm,
-            onCycle: cycleOption,
-            onCancel: () => setSelection(null),
-          }
+        ? liveSelection.confirmed
+          ? {
+              stage: 'choose-capture',
+              hasCapture,
+              captureSize: chosenSet.size,
+              multipleOptions,
+              optionLabel: multipleOptions
+                ? ` (option ${liveSelection.optionIndex + 1}/${liveSelection.options.length})`
+                : '',
+              submitting,
+              onConfirm: confirm,
+              onCycle: cycleOption,
+              onCancel: () => undefined,
+            }
+          : {
+              stage: 'confirm-card',
+              hasCapture: false,
+              captureSize: 0,
+              multipleOptions: false,
+              optionLabel: '',
+              submitting,
+              onConfirm: () => { void confirmCard(); },
+              onCycle: () => undefined,
+              onCancel: () => setSelection(null),
+            }
         : null,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveSelection?.cardId, liveSelection?.optionIndex, canAct, submitting]);
+  }, [liveSelection?.cardId, liveSelection?.confirmed, liveSelection?.optionIndex, canAct, submitting]);
 
   return (
     <div className="board">
@@ -132,7 +203,7 @@ export function Part1Board({ view, onMove, onSelectionChange }: Part1BoardProps)
             {view.table.map((card) => {
               const id = cardId(card);
               const highlighted = chosenSet.has(id);
-              const clickable = liveSelection?.options.some((s) => s.includes(id)) ?? false;
+              const clickable = (liveSelection?.confirmed && liveSelection.options.some((s) => s.includes(id))) ?? false;
               return (
                 <motion.div
                   key={id}

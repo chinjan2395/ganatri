@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import type { PlayerId } from '@ganatri/engine';
+import logo from '../assets/ganatri-logo.png';
 import './EndScreen.css';
 
 export interface EndScreenProps {
@@ -21,6 +22,7 @@ export function EndScreen({ rankings, you, isHost, onPlayAgain, onLeave }: EndSc
 
   return (
     <div className="end">
+      <img src={logo} alt="Ganatri" className="end__logo" />
       <h1 className="neon-title end__title">GAME OVER</h1>
 
       {winner && (

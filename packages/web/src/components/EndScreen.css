@@ -6,6 +6,10 @@
   padding: 24px;
   text-align: center;
 }
+.end__logo {
+  width: min(200px, 50vw);
+  filter: drop-shadow(0 0 16px rgba(231, 195, 74, 0.3));
+}
 .end__title {
   font-size: clamp(30px, 9vw, 56px);
   margin: 0;
