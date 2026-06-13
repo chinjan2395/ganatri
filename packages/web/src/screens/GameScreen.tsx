@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import type { CardId, GameEvent } from '@ganatri/engine';
 import { useGame } from '../state/GameProvider';
 import { OpponentSeat } from '../components/OpponentSeat';
@@ -35,6 +36,7 @@ const DEFAULT_HAND_STATE: HandState = {
   canAct: false,
   onSelect: () => undefined,
   hint: '',
+  action: null,
 };
 
 export function GameScreen(): React.ReactNode {
@@ -166,6 +168,45 @@ export function GameScreen(): React.ReactNode {
           onSelect={onSelectCard}
         />
       </div>
+
+      {/* ── Action bar (capture confirm) — sits between hand and player info ── */}
+      <AnimatePresence>
+        {handState.action && (
+          <motion.div
+            className="game__action-bar"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+          >
+            {handState.action.hasCapture ? (
+              <>
+                <span>
+                  Capture {handState.action.captureSize} card{handState.action.captureSize === 1 ? '' : 's'}
+                  {handState.action.optionLabel}
+                </span>
+                {handState.action.multipleOptions && (
+                  <button className="secondary" onClick={handState.action.onCycle}>
+                    Next option
+                  </button>
+                )}
+              </>
+            ) : (
+              <span className="muted">No capture — card stays on the table</span>
+            )}
+            <button onClick={handState.action.onConfirm} disabled={handState.action.submitting}>
+              {handState.action.submitting ? '…' : handState.action.hasCapture ? 'Capture' : 'Play (no capture)'}
+            </button>
+            <button
+              className="secondary"
+              onClick={handState.action.onCancel}
+              disabled={handState.action.submitting}
+            >
+              Cancel
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Self info strip ── */}
       <footer className="game__self">

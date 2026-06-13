@@ -146,6 +146,21 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* ── Action bar: capture confirm, sits above the player info card ── */
+.game__action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(29, 51, 38, 0.97), rgba(20, 38, 27, 0.97));
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(231, 195, 74, 0.5);
+  box-shadow: var(--glow-gold), 0 4px 14px rgba(0, 0, 0, 0.5);
+  flex-shrink: 0;
+}
+
 /* ── Self info strip ── */
 .game__self {
   display: flex;
