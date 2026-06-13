@@ -1,0 +1,138 @@
+:root {
+  --felt: #1b6b3a;
+  --felt-dark: #145029;
+  --bg: #0e1f16;
+  --panel: #14261b;
+  --panel-2: #1d3326;
+  --text: #f2f5f0;
+  --text-dim: #a9bdae;
+  --accent: #e7c34a;
+  --accent-2: #4a90e2;
+  --danger: #e25c5c;
+  --safe: #5cd28a;
+  --red-suit: #d4332f;
+  --black-suit: #1c1c1c;
+
+  --card-w: clamp(42px, 12vw, 64px);
+  --card-h: calc(var(--card-w) * 1.4);
+  --card-radius: 7px;
+
+  --ring: 0 0 0 3px var(--accent);
+  --ring-turn: 0 0 0 3px var(--accent-2);
+  --ring-legal: 0 0 0 2px var(--safe);
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-text-size-adjust: 100%;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  background: var(--accent);
+  color: #1a1400;
+  font-weight: 600;
+  transition: filter 0.15s ease, opacity 0.15s ease;
+}
+button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+button.secondary {
+  background: var(--panel-2);
+  color: var(--text);
+}
+button.danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+input {
+  font: inherit;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-2);
+  background: var(--panel);
+  color: var(--text);
+}
+
+.app-shell {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.center-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px;
+  text-align: center;
+}
+
+.card-surface {
+  background: var(--panel);
+  border-radius: 14px;
+  padding: 22px;
+  width: min(420px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+
+h1 {
+  margin: 0;
+  letter-spacing: 1px;
+}
+.muted {
+  color: var(--text-dim);
+}
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--panel-2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

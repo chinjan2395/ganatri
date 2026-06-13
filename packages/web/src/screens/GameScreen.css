@@ -1,0 +1,50 @@
+.game {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 10px 16px;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+}
+.game__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--panel);
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+.game__phase {
+  font-weight: 700;
+  color: var(--accent);
+}
+.game__turn,
+.game__stock {
+  color: var(--text-dim);
+}
+.game__leave {
+  margin-left: auto;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+.game__seats {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.game__board {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.game__self {
+  display: flex;
+  justify-content: center;
+}

@@ -1,0 +1,45 @@
+.end {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 24px;
+  text-align: center;
+}
+.end__rankings {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  width: min(360px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.end__row {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel);
+  padding: 10px 14px;
+  border-radius: 10px;
+}
+.end__row--loser {
+  background: rgba(226, 92, 92, 0.18);
+  border: 1px solid var(--danger);
+}
+.end__place {
+  font-size: 18px;
+}
+.end__player {
+  text-align: left;
+  font-weight: 600;
+}
+.end__you {
+  color: var(--accent);
+}
+.end__label {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
