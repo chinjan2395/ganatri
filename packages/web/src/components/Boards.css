@@ -59,20 +59,6 @@
   font-style: italic;
 }
 
-/* Capture action bar — animates in below the table cards */
-.board__action-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(180deg, rgba(29, 51, 38, 0.96), rgba(20, 38, 27, 0.96));
-  padding: 8px 14px;
-  border-radius: 12px;
-  border: 1px solid rgba(231, 195, 74, 0.5);
-  box-shadow: var(--glow-gold), 0 6px 16px rgba(0, 0, 0, 0.5);
-  width: min(520px, 90vw);
-}
 
 /* Led-suit indicator (Part 2) */
 .board__led {

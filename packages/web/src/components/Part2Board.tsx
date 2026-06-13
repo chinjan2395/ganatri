@@ -27,6 +27,7 @@ export interface Part2SelectionState {
   canAct: boolean;
   onSelect: (id: CardId) => void;
   hint: string;
+  action: null;
 }
 
 function shortId(id: string): string {
@@ -60,6 +61,7 @@ export function Part2Board({ view, flash, onMove, onSelectionChange }: Part2Boar
       canAct: canAct && !submitting,
       onSelect: play,
       hint,
+      action: null,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canAct, submitting, youSafe, view.ledSuit]);

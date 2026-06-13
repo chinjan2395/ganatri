@@ -12,6 +12,17 @@ export interface Part1BoardProps {
   onSelectionChange: (state: Part1SelectionState) => void;
 }
 
+export interface Part1Action {
+  hasCapture: boolean;
+  captureSize: number;
+  multipleOptions: boolean;
+  optionLabel: string;
+  submitting: boolean;
+  onConfirm: () => void;
+  onCycle: () => void;
+  onCancel: () => void;
+}
+
 export interface Part1SelectionState {
   selectedId: CardId | null;
   /** null = all cards enabled */
@@ -20,6 +31,8 @@ export interface Part1SelectionState {
   onSelect: (id: CardId) => void;
   /** Hint text to display above the hand */
   hint: string;
+  /** Non-null when a hand card is selected and the action bar should show */
+  action: Part1Action | null;
 }
 
 interface Selection {
@@ -92,6 +105,20 @@ export function Part1Board({ view, onMove, onSelectionChange }: Part1BoardProps)
       canAct: canAct && !submitting,
       onSelect: selectHandCard,
       hint,
+      action: liveSelection
+        ? {
+            hasCapture,
+            captureSize: chosenSet.size,
+            multipleOptions,
+            optionLabel: multipleOptions
+              ? ` (option ${liveSelection.optionIndex + 1}/${liveSelection.options.length})`
+              : '',
+            submitting,
+            onConfirm: confirm,
+            onCycle: cycleOption,
+            onCancel: () => setSelection(null),
+          }
+        : null,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveSelection?.cardId, liveSelection?.optionIndex, canAct, submitting]);
@@ -127,41 +154,6 @@ export function Part1Board({ view, onMove, onSelectionChange }: Part1BoardProps)
         </div>
       </div>
 
-      <AnimatePresence>
-        {liveSelection && (
-          <motion.div
-            className="board__action-bar"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 12 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 28 }}
-          >
-            {hasCapture ? (
-              <>
-                <span>
-                  Capture {chosenSet.size} card{chosenSet.size === 1 ? '' : 's'}
-                  {multipleOptions
-                    ? ` (option ${liveSelection.optionIndex + 1}/${liveSelection.options.length})`
-                    : ''}
-                </span>
-                {multipleOptions && (
-                  <button className="secondary" onClick={cycleOption}>
-                    Next option
-                  </button>
-                )}
-              </>
-            ) : (
-              <span className="muted">No capture — card stays on the table</span>
-            )}
-            <button onClick={confirm} disabled={submitting}>
-              {submitting ? '…' : hasCapture ? 'Capture' : 'Play (no capture)'}
-            </button>
-            <button className="secondary" onClick={() => setSelection(null)} disabled={submitting}>
-              Cancel
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
