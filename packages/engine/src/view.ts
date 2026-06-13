@@ -30,6 +30,7 @@ export function viewFor(state: GameState, player: PlayerId): PlayerView {
     table: part1?.table ?? [],
     stockCount: part1?.stock.length ?? 0,
     captureCounts,
+    myCapturedCards: part1?.capturePiles[player] ?? [],
     trick: part2?.trick ?? [],
     ledSuit: part2?.ledSuit ?? null,
     safeOrder: part2?.safeOrder ?? [],

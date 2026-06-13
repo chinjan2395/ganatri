@@ -81,6 +81,8 @@ export interface PlayerView {
   readonly table: readonly Card[];
   readonly stockCount: number;
   readonly captureCounts: Readonly<Record<PlayerId, number>>;
+  /** Own capture pile — full cards visible only to this player. Empty in Part 2. */
+  readonly myCapturedCards: readonly Card[];
   // Part 2
   readonly trick: readonly TrickPlay[];
   readonly ledSuit: Suit | null;
