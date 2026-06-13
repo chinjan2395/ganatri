@@ -19,19 +19,31 @@ export interface AppInstance {
 }
 
 export function createApp(): AppInstance {
-  const httpServer = createServer();
+  const httpServer = createServer((req, res) => {
+    // Render (and other PaaS) probe HTTP on 0.0.0.0:PORT during deploy.
+    if (req.url === '/health' || req.url === '/') {
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end('ok');
+      return;
+    }
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    res.end('not found');
+  });
   const io = new Server(httpServer, {
     cors: { origin: '*', methods: ['GET', 'POST'] },
   });
 
   setupSocketHandlers(io);
 
+  const host = process.env['HOST'] ?? '0.0.0.0';
+
   return {
     io,
     httpServer,
     listen(port = 0): Promise<number> {
-      return new Promise((resolve) => {
-        httpServer.listen(port, () => {
+      return new Promise((resolve, reject) => {
+        httpServer.once('error', reject);
+        httpServer.listen(port, host, () => {
           const addr = httpServer.address();
           const boundPort = typeof addr === 'object' && addr !== null ? addr.port : port;
           resolve(boundPort);

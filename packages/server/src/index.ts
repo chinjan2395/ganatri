@@ -11,5 +11,5 @@ const app = createApp();
 const port = Number(process.env['PORT'] ?? 4000);
 
 app.listen(port).then((boundPort) => {
-  console.log(`Ganatri server listening on :${boundPort}`);
+  console.log(`Ganatri server listening on 0.0.0.0:${boundPort}`);
 });
