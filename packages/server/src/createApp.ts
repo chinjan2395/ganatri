@@ -30,7 +30,9 @@ export function createApp(): AppInstance {
     res.end('not found');
   });
   const io = new Server(httpServer, {
-    cors: { origin: '*', methods: ['GET', 'POST'] },
+    cors: { origin: process.env['CORS_ORIGIN'] ?? '*', methods: ['GET', 'POST'] },
+    pingInterval: 10_000,
+    pingTimeout: 5_000,
   });
 
   setupSocketHandlers(io);
