@@ -1,11 +1,7 @@
-.lobby__title {
-  font-size: clamp(40px, 13vw, 78px);
-  margin: 0;
-}
-.lobby__tag {
-  margin-top: -6px;
-  font-family: var(--font-display);
-  letter-spacing: 1px;
+.lobby__logo {
+  width: min(420px, 88vw);
+  margin-bottom: 4px;
+  filter: drop-shadow(0 0 24px rgba(231, 195, 74, 0.35));
 }
 .lobby__panel {
   border: 1px solid rgba(231, 195, 74, 0.4);

@@ -6,11 +6,24 @@ import { OpponentSeat } from '../components/OpponentSeat';
 import { Part1Board, type Part1SelectionState } from '../components/Part1Board';
 import { Part2Board, type Part2SelectionState } from '../components/Part2Board';
 import { Hand } from '../components/Hand';
+import { CapturedPile } from '../components/CapturedPile';
 import { EndScreen } from '../components/EndScreen';
 import './GameScreen.css';
 
 function shortId(id: string): string {
   return id.length <= 6 ? id : id.slice(0, 6);
+}
+
+/**
+ * Maps an opponent index to a rim position around the vertical oval.
+ *  1 opponent  → top
+ *  2 opponents → top-left, top-right
+ *  3 opponents → left, top, right
+ */
+function slotFor(index: number, total: number): string {
+  if (total <= 1) return 'top';
+  if (total === 2) return index === 0 ? 'left' : 'right';
+  return (['left', 'top', 'right'] as const)[index] ?? 'top';
 }
 
 type Flash = { kind: 'cut' | 'won' | 'safe'; text: string };
@@ -120,33 +133,51 @@ export function GameScreen(): React.ReactNode {
         </button>
       </header>
 
-      {/* ── Opponent row ── */}
-      <div className="game__opponents">
-        {opponents.map((pid) => {
-          const handCount = view.handCounts[pid] ?? 0;
-          const captureCount = view.phase === 'PART_1' ? view.captureCounts[pid] ?? 0 : undefined;
-          const safeIndex = view.safeOrder.indexOf(pid);
-          return (
-            <OpponentSeat
-              key={pid}
-              playerId={pid}
-              isYou={false}
-              handCount={handCount}
-              captureCount={captureCount}
-              isTurn={view.turn === pid}
-              isSafe={safeIndex >= 0}
-              safeRank={safeIndex >= 0 ? safeIndex + 1 : undefined}
-              disconnected={disconnectedPlayers.has(pid)}
-              compact
-            />
-          );
-        })}
-      </div>
-
-      {/* ── Table area (felt + board cards) ── */}
-      <div className="game__table-area">
+      {/* ── Vertical oval table with opponents on the rim ── */}
+      <div className="game__table-stage">
         <div className="table-felt" aria-hidden="true" />
-        <div className="game__board">
+
+        <div className="table-seats">
+          {opponents.map((pid, i) => {
+            const handCount = view.handCounts[pid] ?? 0;
+            const captureCount = view.phase === 'PART_1' ? view.captureCounts[pid] ?? 0 : undefined;
+            const safeIndex = view.safeOrder.indexOf(pid);
+            return (
+              <div className="table-seat" data-pos={slotFor(i, opponents.length)} key={pid}>
+                <OpponentSeat
+                  playerId={pid}
+                  isYou={false}
+                  handCount={handCount}
+                  captureCount={captureCount}
+                  isTurn={view.turn === pid}
+                  isSafe={safeIndex >= 0}
+                  safeRank={safeIndex >= 0 ? safeIndex + 1 : undefined}
+                  disconnected={disconnectedPlayers.has(pid)}
+                  compact
+                />
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Current player info card on the bottom rim */}
+        <div className="table-seat" data-pos="bottom">
+          <OpponentSeat
+            playerId={view.you}
+            isYou
+            handCount={view.handCounts[view.you] ?? view.hand.length}
+            captureCount={view.phase === 'PART_1' ? view.captureCounts[view.you] ?? 0 : undefined}
+            isTurn={view.turn === view.you}
+            isSafe={view.safeOrder.includes(view.you)}
+            safeRank={
+              view.safeOrder.indexOf(view.you) >= 0 ? view.safeOrder.indexOf(view.you) + 1 : undefined
+            }
+            disconnected={false}
+            compact
+          />
+        </div>
+
+        <div className="table-center">
           {view.phase === 'PART_1' ? (
             <Part1Board view={view} onMove={makeMove} onSelectionChange={handlePart1Change} />
           ) : (
@@ -155,9 +186,12 @@ export function GameScreen(): React.ReactNode {
         </div>
       </div>
 
-      {/* ── Hint + hand ── */}
+      {/* ── Hint + captured pile (Part 1 only) + hand ── */}
       {handState.hint && (
         <div className="game__hint">{handState.hint}</div>
+      )}
+      {view.phase === 'PART_1' && view.myCapturedCards.length > 0 && (
+        <CapturedPile cards={view.myCapturedCards} />
       )}
       <div className="game__hand">
         <Hand
@@ -179,50 +213,42 @@ export function GameScreen(): React.ReactNode {
             exit={{ opacity: 0, y: 10 }}
             transition={{ type: 'spring', stiffness: 420, damping: 28 }}
           >
-            {handState.action.hasCapture ? (
+            {handState.action.stage === 'confirm-card' ? (
               <>
-                <span>
-                  Capture {handState.action.captureSize} card{handState.action.captureSize === 1 ? '' : 's'}
-                  {handState.action.optionLabel}
-                </span>
-                {handState.action.multipleOptions && (
-                  <button className="secondary" onClick={handState.action.onCycle}>
-                    Next option
-                  </button>
-                )}
+                <span>Play this card?</span>
+                <button onClick={handState.action.onConfirm} disabled={handState.action.submitting}>
+                  {handState.action.submitting ? '…' : 'Yes, lock it in'}
+                </button>
+                <button className="secondary" onClick={handState.action.onCancel} disabled={handState.action.submitting}>
+                  Cancel
+                </button>
               </>
             ) : (
-              <span className="muted">No capture — card stays on the table</span>
+              <>
+                {handState.action.hasCapture ? (
+                  <>
+                    <span>
+                      Capture {handState.action.captureSize} card{handState.action.captureSize === 1 ? '' : 's'}
+                      {handState.action.optionLabel}
+                    </span>
+                    {handState.action.multipleOptions && (
+                      <button className="secondary" onClick={handState.action.onCycle}>
+                        Next option
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <span className="muted">No capture — card stays on the table</span>
+                )}
+                <button onClick={handState.action.onConfirm} disabled={handState.action.submitting}>
+                  {handState.action.submitting ? '…' : handState.action.hasCapture ? 'Capture' : 'Play (no capture)'}
+                </button>
+              </>
             )}
-            <button onClick={handState.action.onConfirm} disabled={handState.action.submitting}>
-              {handState.action.submitting ? '…' : handState.action.hasCapture ? 'Capture' : 'Play (no capture)'}
-            </button>
-            <button
-              className="secondary"
-              onClick={handState.action.onCancel}
-              disabled={handState.action.submitting}
-            >
-              Cancel
-            </button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── Self info strip ── */}
-      <footer className="game__self">
-        <OpponentSeat
-          playerId={view.you}
-          isYou
-          handCount={view.handCounts[view.you] ?? view.hand.length}
-          captureCount={view.phase === 'PART_1' ? view.captureCounts[view.you] ?? 0 : undefined}
-          isTurn={view.turn === view.you}
-          isSafe={view.safeOrder.includes(view.you)}
-          safeRank={
-            view.safeOrder.indexOf(view.you) >= 0 ? view.safeOrder.indexOf(view.you) + 1 : undefined
-          }
-          disconnected={false}
-        />
-      </footer>
     </div>
   );
 }

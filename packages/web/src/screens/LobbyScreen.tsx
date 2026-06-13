@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useGame } from '../state/GameProvider';
+import logo from '../assets/ganatri-logo.png';
 import './LobbyScreen.css';
 
 export function LobbyScreen(): React.ReactNode {
@@ -51,7 +52,7 @@ export function LobbyScreen(): React.ReactNode {
   if (rejoin) {
     return (
       <div className="center-screen">
-        <h1 className="neon-title lobby__title">GANATRI</h1>
+        <img src={logo} alt="Ganatri" className="lobby__logo" />
         <motion.div
           className="card-surface lobby__panel"
           initial={{ opacity: 0, y: 18 }}
@@ -74,15 +75,14 @@ export function LobbyScreen(): React.ReactNode {
 
   return (
     <div className="center-screen">
-      <motion.h1
-        className="neon-title lobby__title"
+      <motion.img
+        src={logo}
+        alt="Ganatri"
+        className="lobby__logo"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-      >
-        GANATRI
-      </motion.h1>
-      <p className="muted lobby__tag">A two-part capture &amp; cut card game</p>
+      />
       <motion.div
         className="card-surface lobby__panel"
         initial={{ opacity: 0, y: 18 }}

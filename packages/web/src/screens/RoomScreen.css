@@ -1,3 +1,8 @@
+.room__logo {
+  width: min(220px, 55vw);
+  margin-bottom: -8px;
+  filter: drop-shadow(0 0 16px rgba(231, 195, 74, 0.3));
+}
 .room__title {
   font-size: clamp(28px, 9vw, 52px);
   margin: 0;

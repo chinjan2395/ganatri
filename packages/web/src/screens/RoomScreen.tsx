@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useGame } from '../state/GameProvider';
+import logo from '../assets/ganatri-logo.png';
 import './RoomScreen.css';
 
 function shortId(id: string): string {
@@ -29,6 +30,7 @@ export function RoomScreen(): React.ReactNode {
 
   return (
     <div className="center-screen">
+      <img src={logo} alt="Ganatri" className="room__logo" />
       <h1 className="neon-title room__title">ROOM {room.roomCode}</h1>
       <p className="muted">Share this code so others can join.</p>
       <motion.div
