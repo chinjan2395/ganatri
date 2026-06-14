@@ -16,11 +16,12 @@ import type { GameConfig } from './config.js';
 // ---------------------------------------------------------------------------
 
 export interface CreateRoomPayload {
-  // no payload needed; session token comes from socket.handshake.auth.token
+  name?: string;
 }
 
 export interface JoinRoomPayload {
   roomCode: string;
+  name?: string;
 }
 
 export interface LeaveRoomPayload {
@@ -99,6 +100,8 @@ export interface RoomUpdatePayload {
   phase: 'LOBBY' | 'PLAYING' | 'DONE';
   /** playerIds currently within their disconnect grace period */
   disconnectedPlayers: string[];
+  /** playerId → display name */
+  playerNames: Record<string, string>;
 }
 
 /** Broadcast to the room after each valid move (one emit per event in the events array). */

@@ -16,6 +16,8 @@ export interface SessionState {
   token: string;
   /** Stable UUID for this player across reconnects. */
   playerId: string;
+  /** Display name chosen by the player. */
+  name: string;
   /** The room this player is currently bound to, or null. */
   roomCode: string | null;
   /** The current socket.id, or null when disconnected. */
@@ -104,8 +106,8 @@ export function getSessionByPlayerId(playerId: string): SessionState | undefined
 }
 
 /** Create a brand-new session and register it in the store. */
-export function createSession(token: string, playerId: string, socketId: string): SessionState {
-  const session: SessionState = { token, playerId, roomCode: null, socketId };
+export function createSession(token: string, playerId: string, socketId: string, name = ''): SessionState {
+  const session: SessionState = { token, playerId, name, roomCode: null, socketId };
   store.sessions.set(token, session);
   store.playerIndex.set(playerId, token);
   return session;
@@ -115,6 +117,7 @@ export function createSession(token: string, playerId: string, socketId: string)
 export function updateSession(token: string, patch: Partial<Omit<SessionState, 'token' | 'playerId'>>): void {
   const session = store.sessions.get(token);
   if (session === undefined) return;
+  if (patch.name !== undefined) session.name = patch.name;
   if (patch.roomCode !== undefined) session.roomCode = patch.roomCode;
   if (patch.socketId !== undefined) session.socketId = patch.socketId;
 }

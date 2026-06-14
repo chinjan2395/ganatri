@@ -302,8 +302,21 @@ export function resetLastMoveTime(): void {
 }
 
 function registerSocketEvents(socket: Socket, session: SessionState): void {
-  socket.on(EVENTS.CREATE_ROOM, (ack: (res: CreateRoomAck) => void) => {
-    if (typeof ack !== 'function') return;
+  socket.on(EVENTS.CREATE_ROOM, (payloadOrAck: unknown, maybeAck?: (res: CreateRoomAck) => void) => {
+    // Support both (payload, ack) and legacy (ack) call forms.
+    let ack: (res: CreateRoomAck) => void;
+    let name = '';
+    if (typeof payloadOrAck === 'function') {
+      ack = payloadOrAck as (res: CreateRoomAck) => void;
+    } else {
+      if (typeof maybeAck !== 'function') return;
+      ack = maybeAck;
+      if (typeof payloadOrAck === 'object' && payloadOrAck !== null) {
+        const n = (payloadOrAck as Record<string, unknown>)['name'];
+        if (typeof n === 'string') name = n.trim().slice(0, 20);
+      }
+    }
+    if (name) updateSession(session.token, { name });
     handleCreateRoom(socket, session, ack);
   });
 
@@ -312,6 +325,9 @@ function registerSocketEvents(socket: Socket, session: SessionState): void {
     if (!isJoinRoomPayload(payload)) {
       ack({ ok: false, error: 'NOT_FOUND' });
       return;
+    }
+    if (typeof payload.name === 'string' && payload.name.trim()) {
+      updateSession(session.token, { name: payload.name.trim().slice(0, 20) });
     }
     handleJoinRoom(socket, session, payload.roomCode.trim().toUpperCase(), ack);
   });
@@ -707,12 +723,19 @@ function broadcastRoomUpdate(roomCode: string): void {
   const room = getRoom(roomCode);
   if (room === undefined) return;
 
+  const playerNames: Record<string, string> = {};
+  for (const pid of room.players) {
+    const s = getSessionByPlayerId(pid);
+    playerNames[pid] = s?.name || pid.slice(0, 6);
+  }
+
   transport.broadcast(roomCode, EVENTS.ROOM_UPDATE, {
     roomCode,
     players: [...room.players],
     hostId: room.hostId,
     phase: room.phase === 'PLAYING' ? 'PLAYING' : room.phase === 'DONE' ? 'DONE' : 'LOBBY',
     disconnectedPlayers: [...room.disconnectedAt.keys()],
+    playerNames,
   });
 }
 
@@ -735,7 +758,7 @@ function generateRoomCode(): string {
 // Payload validators
 // ---------------------------------------------------------------------------
 
-function isJoinRoomPayload(v: unknown): v is { roomCode: string } {
+function isJoinRoomPayload(v: unknown): v is { roomCode: string; name?: string } {
   return typeof v === 'object' && v !== null && typeof (v as Record<string, unknown>)['roomCode'] === 'string';
 }
 
