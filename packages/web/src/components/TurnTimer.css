@@ -1,0 +1,52 @@
+.turn-timer {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.turn-timer__track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 3;
+}
+
+.turn-timer__arc {
+  fill: none;
+  stroke: rgba(74, 144, 226, 0.9);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke 0.3s;
+}
+
+.turn-timer--urgent .turn-timer__arc {
+  stroke: rgba(220, 80, 60, 0.95);
+}
+
+.turn-timer__label {
+  position: absolute;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1;
+}
+
+.turn-timer--urgent .turn-timer__label {
+  color: rgba(220, 80, 60, 0.95);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes pulse-scale {
+    0%, 100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.06);
+    }
+  }
+
+  .turn-timer--urgent {
+    animation: pulse-scale 0.65s ease-in-out infinite;
+  }
+}

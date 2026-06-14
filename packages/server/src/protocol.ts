@@ -9,6 +9,7 @@
  */
 
 import type { GameEvent, Move, MoveError, MoveResult, PlayerView } from '@ganatri/engine';
+import type { GameConfig } from './config.js';
 
 // ---------------------------------------------------------------------------
 // Client → Server payloads
@@ -67,11 +68,13 @@ export interface StartGameAck {
 
 /**
  * Ack for make_move.
- * On success, `view` is the caller's redacted PlayerView after the move.
+ * On success, `view` is the caller's redacted PlayerView after the move and
+ * `turnStartedAt` is the Unix ms timestamp at which the next turn began
+ * (null if the game ended).
  * On failure, the MoveError is forwarded directly from the engine.
  */
 export type MakeMoveAck =
-  | { ok: true; view: PlayerView }
+  | { ok: true; view: PlayerView; turnStartedAt: number | null }
   | { ok: false; error: MoveError; message: string };
 
 export interface RequestStateAck {
@@ -106,9 +109,14 @@ export interface GameEventPayload {
 /**
  * Unicast to each player after each valid move.
  * Each player only sees their own redacted view.
+ * `turnStartedAt` is the Unix ms timestamp at which the current turn began;
+ * clients use this to render a countdown. Null when no active turn (game over).
+ * `turnTimeoutMs` is the configured timeout for each turn.
  */
 export interface StateUpdatePayload {
   view: PlayerView;
+  turnStartedAt: number | null;
+  turnTimeoutMs: number;
 }
 
 /** Broadcast when a player's socket disconnects. */
@@ -122,6 +130,21 @@ export interface PlayerReconnectedPayload {
 }
 
 // ---------------------------------------------------------------------------
+// Admin payload types
+// ---------------------------------------------------------------------------
+
+export interface AdminAuthPayload { email: string; }
+export interface AdminAuthAck { ok: boolean; reason?: string; }
+
+export interface AdminGetConfigAck { config: GameConfig; }
+
+export interface AdminUpdateConfigPayload { config: Partial<GameConfig>; }
+export interface AdminUpdateConfigAck { ok: boolean; reason?: string; }
+
+// Re-export for consumers that want the config shape via the protocol module.
+export type { GameConfig };
+
+// ---------------------------------------------------------------------------
 // Socket event name constants — single source of truth
 // ---------------------------------------------------------------------------
 
@@ -133,6 +156,11 @@ export const EVENTS = {
   START_GAME: 'start_game',
   MAKE_MOVE: 'make_move',
   REQUEST_STATE: 'request_state',
+
+  // Admin (Client → Server)
+  ADMIN_AUTH: 'admin_auth',
+  ADMIN_GET_CONFIG: 'admin_get_config',
+  ADMIN_UPDATE_CONFIG: 'admin_update_config',
 
   // Server → Client
   SESSION: 'session',

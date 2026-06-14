@@ -2,10 +2,15 @@ import { useGame } from './state/GameProvider';
 import { LobbyScreen } from './screens/LobbyScreen';
 import { RoomScreen } from './screens/RoomScreen';
 import { GameScreen } from './screens/GameScreen';
+import { AdminScreen } from './screens/AdminScreen';
 import { Toast } from './components/Toast';
 import { ConnectionBanner } from './components/ConnectionBanner';
 
 export function App(): React.ReactNode {
+  if (window.location.pathname === '/admin') {
+    return <AdminScreen />;
+  }
+
   const { session, room, view, error, clearError } = useGame();
 
   let screen: React.ReactNode;

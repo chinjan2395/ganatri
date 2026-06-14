@@ -63,10 +63,11 @@ const DEFAULT_HAND_STATE: HandState = {
   onSelect: () => undefined,
   hint: '',
   action: null,
+  highlightedIds: new Set(),
 };
 
 export function GameScreen(): React.ReactNode {
-  const { view, room, session, lastEvent, eventLog, disconnectedPlayers, turnStartedAt, makeMove, startGame, leaveRoom } = useGame();
+  const { view, room, session, lastEvent, eventLog, disconnectedPlayers, turnStartedAt, turnTimeoutMs, makeMove, startGame, leaveRoom } = useGame();
   const [flash, setFlash] = useState<Flash | null>(null);
   const [handState, setHandState] = useState<HandState>(DEFAULT_HAND_STATE);
   // Local drag order for Part 2 — keeps user's custom arrangement across tricks.
@@ -134,6 +135,7 @@ export function GameScreen(): React.ReactNode {
   const turnName = view.turn ? (view.turn === view.you ? 'You' : shortId(view.turn)) : '—';
 
   const legalIds = handState.legalIds as ReadonlySet<CardId> | null;
+  const highlightedIds = 'highlightedIds' in handState ? handState.highlightedIds : undefined;
   const onSelectCard = (id: CardId): void => {
     handState.onSelect(id as never);
   };
@@ -155,7 +157,7 @@ export function GameScreen(): React.ReactNode {
           <span className="game__turn">
             Turn <strong>{turnName}</strong>
           </span>
-          {turnStartedAt !== null && <TurnTimer turnStartedAt={turnStartedAt} />}
+          {turnStartedAt !== null && <TurnTimer turnStartedAt={turnStartedAt} durationMs={turnTimeoutMs} />}
         </div>
         <button
           className="secondary game__leave"
@@ -258,6 +260,7 @@ export function GameScreen(): React.ReactNode {
             canAct={handState.canAct}
             onSelect={onSelectCard}
             onReorder={view.phase === 'PART_2' ? setHandOrder : undefined}
+            highlightedIds={highlightedIds}
           />
         </div>
 

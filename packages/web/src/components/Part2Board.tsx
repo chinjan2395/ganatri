@@ -68,21 +68,6 @@ export function Part2Board({ view, flash, onMove, onSelectionChange }: Part2Boar
 
   return (
     <div className="board">
-      <AnimatePresence>
-        {flash && (
-          <motion.div
-            key={flash.text}
-            className={`board__banner board__banner--${flash.kind}`}
-            initial={{ opacity: 0, scale: 0.6, y: -10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 18 }}
-          >
-            {flash.text}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <div className="board__led">
         {view.ledSuit ? (
           <span>

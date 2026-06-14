@@ -1,0 +1,130 @@
+.admin {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: var(--bg);
+}
+
+.admin__card {
+  width: 100%;
+  max-width: 360px;
+  background: linear-gradient(180deg, rgba(29,51,38,0.97), rgba(20,38,27,0.97));
+  border: 1px solid rgba(231,195,74,0.4);
+  border-radius: 16px;
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+.admin__card--wide {
+  max-width: 480px;
+}
+
+.admin__title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--gold);
+  margin: 0;
+}
+
+.admin__subtitle {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.admin__input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(231,195,74,0.35);
+  background: rgba(0,0,0,0.3);
+  color: var(--text);
+  font-size: 15px;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.admin__input:focus {
+  border-color: rgba(231,195,74,0.7);
+}
+
+.admin__error {
+  font-size: 13px;
+  color: #e05c45;
+  margin: 0;
+}
+
+.admin__btn {
+  padding: 10px 24px;
+  border-radius: 8px;
+  border: none;
+  background: var(--gold);
+  color: #0a1a0f;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  align-self: flex-start;
+}
+
+.admin__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.admin__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.admin__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.admin__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin__range {
+  flex: 1;
+  accent-color: var(--gold);
+}
+
+.admin__number {
+  width: 80px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(231,195,74,0.3);
+  background: rgba(0,0,0,0.3);
+  color: var(--text);
+  font-size: 13px;
+  text-align: right;
+}
+
+.admin__hint {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.admin__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}

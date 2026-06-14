@@ -47,6 +47,8 @@ export interface GameContextValue {
   session: SessionInfo | null;
   room: RoomUpdatePayload | null;
   view: PlayerView | null;
+  turnStartedAt: number | null;
+  turnTimeoutMs: number;
   eventLog: readonly LoggedEvent[];
   lastEvent: GameEvent | null;
   disconnectedPlayers: ReadonlySet<string>;
@@ -66,6 +68,8 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [room, setRoom] = useState<RoomUpdatePayload | null>(null);
   const [view, setView] = useState<PlayerView | null>(null);
+  const [turnStartedAt, setTurnStartedAt] = useState<number | null>(null);
+  const [turnTimeoutMs, setTurnTimeoutMs] = useState(10_000);
   const [eventLog, setEventLog] = useState<LoggedEvent[]>([]);
   const [lastEvent, setLastEvent] = useState<GameEvent | null>(null);
   const [disconnectedPlayers, setDisconnectedPlayers] = useState<Set<string>>(new Set());
@@ -105,6 +109,8 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
     }
     function onStateUpdate(payload: StateUpdatePayload): void {
       setView(payload.view);
+      setTurnStartedAt(payload.turnStartedAt ?? null);
+      setTurnTimeoutMs(payload.turnTimeoutMs);
     }
     function onPlayerDisconnected(payload: PlayerDisconnectedPayload): void {
       setDisconnectedPlayers((prev) => {
@@ -153,6 +159,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
     await netLeaveRoom();
     setRoom(null);
     setView(null);
+    setTurnStartedAt(null);
     setEventLog([]);
     setLastEvent(null);
     setDisconnectedPlayers(new Set());
@@ -162,6 +169,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
     const ack = await netMakeMove(move);
     if (ack.ok) {
       setView(ack.view);
+      setTurnStartedAt(ack.turnStartedAt);
       return true;
     }
     setError(ack.message || ack.error);
@@ -174,6 +182,8 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       session,
       room,
       view,
+      turnStartedAt,
+      turnTimeoutMs,
       eventLog,
       lastEvent,
       disconnectedPlayers,
@@ -190,6 +200,8 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       session,
       room,
       view,
+      turnStartedAt,
+      turnTimeoutMs,
       eventLog,
       lastEvent,
       disconnectedPlayers,

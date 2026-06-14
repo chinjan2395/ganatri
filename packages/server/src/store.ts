@@ -47,6 +47,21 @@ export interface RoomState {
    * Cleared on reconnect.
    */
   gracePeriodTimers: Map<string, ReturnType<typeof setTimeout>>;
+  /**
+   * Handle for the active turn timer, or null when no game is in progress or
+   * the current turn has no pending auto-play timeout.
+   */
+  turnTimer: ReturnType<typeof setTimeout> | null;
+  /**
+   * Unix timestamp (ms) at which the current turn began, or null when no
+   * turn is active. Sent to clients so they can render a countdown.
+   */
+  turnStartedAt: number | null;
+  /**
+   * Unix ms timestamp when the room transitioned to 'DONE', or null if it
+   * hasn't ended yet. Used by the room-expiry cleanup interval.
+   */
+  completedAt: number | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -60,6 +75,8 @@ export interface Store {
   rooms: Map<string, RoomState>;
   /** playerId → token (reverse index for fast lookup) */
   playerIndex: Map<string, string>;
+  /** Socket IDs that have passed admin authentication. */
+  adminSockets: Set<string>;
 }
 
 /** The single in-memory store instance. */
@@ -67,6 +84,7 @@ export const store: Store = {
   sessions: new Map(),
   rooms: new Map(),
   playerIndex: new Map(),
+  adminSockets: new Set(),
 };
 
 // ---------------------------------------------------------------------------
@@ -116,6 +134,9 @@ export function createRoom(code: string, hostId: string): RoomState {
     phase: 'LOBBY',
     disconnectedAt: new Map(),
     gracePeriodTimers: new Map(),
+    turnTimer: null,
+    turnStartedAt: null,
+    completedAt: null,
   };
   store.rooms.set(code, room);
   return room;
@@ -126,13 +147,17 @@ export function createRoom(code: string, hostId: string): RoomState {
  * For use in tests only — do not call in production code.
  */
 export function resetStore(): void {
-  // Cancel all outstanding grace-period timers to avoid leaks.
+  // Cancel all outstanding timers to avoid leaks.
   for (const room of store.rooms.values()) {
     for (const timer of room.gracePeriodTimers.values()) {
       clearTimeout(timer);
+    }
+    if (room.turnTimer !== null) {
+      clearTimeout(room.turnTimer);
     }
   }
   store.sessions.clear();
   store.rooms.clear();
   store.playerIndex.clear();
+  store.adminSockets.clear();
 }

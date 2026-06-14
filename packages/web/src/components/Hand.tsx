@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, Reorder } from 'framer-motion';
 import { cardId, type Card as CardModel, type CardId } from '@ganatri/engine';
 import { Card } from './Card';
 import './Hand.css';
@@ -9,12 +9,58 @@ export interface HandProps {
   legalIds: ReadonlySet<CardId> | null; // null = all enabled (your turn, no constraint)
   canAct: boolean;
   onSelect: (id: CardId) => void;
+  /** When provided, renders the hand as drag-to-reorder (Part 2). */
+  onReorder?: (newOrder: CardId[]) => void;
+  /** Card IDs to highlight (Part 1 capture selection). */
+  highlightedIds?: ReadonlySet<CardId>;
 }
 
-export function Hand({ hand, selectedId, legalIds, canAct, onSelect }: HandProps): React.ReactNode {
+export function Hand({ hand, selectedId, legalIds, canAct, onSelect, onReorder, highlightedIds }: HandProps): React.ReactNode {
   if (hand.length === 0) {
     return <div className="hand hand--empty muted">No cards in hand</div>;
   }
+
+  if (onReorder) {
+    const ids = hand.map((c) => cardId(c));
+    return (
+      <Reorder.Group
+        as="div"
+        axis="x"
+        values={ids}
+        onReorder={onReorder}
+        className="hand"
+        role="group"
+        aria-label="Your hand — drag to rearrange"
+      >
+        {hand.map((card) => {
+          const id = cardId(card);
+          const legal = legalIds === null ? canAct : legalIds.has(id);
+          const disabled = !canAct || !legal;
+          return (
+            <Reorder.Item
+              key={id}
+              value={id}
+              as="div"
+              className="hand__slot"
+              whileDrag={{ scale: 1.08, zIndex: 10, cursor: 'grabbing' }}
+              transition={{ type: 'spring', stiffness: 360, damping: 26 }}
+              style={{ cursor: 'grab' }}
+            >
+              <Card
+                card={card}
+                selected={selectedId === id}
+                legal={canAct && legal}
+                disabled={disabled}
+                highlighted={highlightedIds?.has(id) ?? false}
+                onClick={() => onSelect(id)}
+              />
+            </Reorder.Item>
+          );
+        })}
+      </Reorder.Group>
+    );
+  }
+
   return (
     <div className="hand" role="group" aria-label="Your hand">
       <AnimatePresence initial={false}>
@@ -37,6 +83,7 @@ export function Hand({ hand, selectedId, legalIds, canAct, onSelect }: HandProps
                 selected={selectedId === id}
                 legal={canAct && legal}
                 disabled={disabled}
+                highlighted={highlightedIds?.has(id) ?? false}
                 onClick={() => onSelect(id)}
               />
             </motion.div>

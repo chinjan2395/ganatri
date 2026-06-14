@@ -34,6 +34,8 @@ export interface Part1SelectionState {
   hint: string;
   /** Non-null when a hand card is selected and the action bar should show */
   action: Part1Action | null;
+  /** Table card IDs in the currently-selected capture option */
+  highlightedIds: ReadonlySet<CardId>;
 }
 
 interface Selection {
@@ -163,6 +165,7 @@ export function Part1Board({ view, onMove, onSelectionChange }: Part1BoardProps)
       canAct: canAct && !submitting && !liveSelection?.confirmed,
       onSelect: selectHandCard,
       hint,
+      highlightedIds: chosenSet,
       action: liveSelection
         ? liveSelection.confirmed
           ? {

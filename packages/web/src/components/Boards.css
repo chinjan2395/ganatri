@@ -48,6 +48,14 @@
   gap: 6px;
   justify-content: center;
 }
+
+.board__table-cards > * + * {
+  margin-left: -10px;
+}
+
+.table-center .board__table-cards > * + * {
+  margin-left: -8px;
+}
 .board__trick {
   gap: 12px;
   flex-wrap: wrap;
@@ -87,43 +95,3 @@
   letter-spacing: 0.5px;
 }
 
-/* Part 2 large centered neon banners */
-.board__banner {
-  position: absolute;
-  top: 30%;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 5;
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-size: clamp(18px, 5vw, 34px);
-  letter-spacing: 1px;
-  text-align: center;
-  padding: 6px 18px;
-  border-radius: 12px;
-  pointer-events: none;
-  white-space: nowrap;
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-}
-.board__banner--cut {
-  color: #ff7b7b;
-  text-shadow:
-    0 0 8px rgba(226, 92, 92, 0.9),
-    0 0 22px rgba(226, 92, 92, 0.6);
-  border-color: rgba(226, 92, 92, 0.5);
-}
-.board__banner--won {
-  color: var(--gold-rim);
-  text-shadow:
-    0 0 8px rgba(231, 195, 74, 0.9),
-    0 0 22px rgba(231, 195, 74, 0.6);
-  border-color: rgba(231, 195, 74, 0.5);
-}
-.board__banner--safe {
-  color: #8ff0b6;
-  text-shadow:
-    0 0 8px rgba(92, 210, 138, 0.9),
-    0 0 22px rgba(92, 210, 138, 0.6);
-  border-color: rgba(92, 210, 138, 0.5);
-}

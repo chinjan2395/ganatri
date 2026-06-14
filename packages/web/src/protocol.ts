@@ -36,7 +36,7 @@ export interface StartGameAck {
   error?: 'NOT_HOST' | 'NOT_ENOUGH_PLAYERS';
 }
 export type MakeMoveAck =
-  | { ok: true; view: PlayerView }
+  | { ok: true; view: PlayerView; turnStartedAt: number | null }
   | { ok: false; error: MoveError; message: string };
 export interface RequestStateAck {
   view: PlayerView | null;
@@ -60,6 +60,8 @@ export interface GameEventPayload {
 }
 export interface StateUpdatePayload {
   view: PlayerView;
+  turnStartedAt: number | null;
+  turnTimeoutMs: number;
 }
 export interface PlayerDisconnectedPayload {
   playerId: string;
@@ -84,3 +86,17 @@ export const EVENTS = {
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];
+
+// --- Admin events ---
+export const ADMIN_EVENTS = {
+  AUTH:          'admin_auth',
+  GET_CONFIG:    'admin_get_config',
+  UPDATE_CONFIG: 'admin_update_config',
+} as const;
+
+export interface GameConfig {
+  turnTimeoutMs: number;
+  maxPlayers: number;
+  gracePeriodMs: number;
+  roomExpiryMs: number;
+}

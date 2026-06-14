@@ -7,10 +7,12 @@
 
 import type { Server, Socket } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
-import { applyMove, createGame, viewFor } from '@ganatri/engine';
+import { applyMove, createGame, legalMoves, viewFor } from '@ganatri/engine';
 import type { GameEvent, Move, MoveResult } from '@ganatri/engine';
 
 import {
+  type AdminAuthPayload,
+  type AdminUpdateConfigPayload,
   type CreateRoomAck,
   type JoinRoomAck,
   type LeaveRoomAck,
@@ -19,7 +21,9 @@ import {
   type RequestStateAck,
   EVENTS,
 } from './protocol.js';
+import { getConfig, isAdminEmail, updateConfig } from './config.js';
 import {
+  type RoomState,
   type SessionState,
   store,
   createSession,
@@ -36,9 +40,7 @@ import { SocketTransport } from './socketTransport.js';
 // Constants
 // ---------------------------------------------------------------------------
 
-const MAX_PLAYERS = 4;
 const MIN_PLAYERS_TO_START = 2;
-const GRACE_PERIOD_MS = 60_000;
 const MOVE_DEBOUNCE_MS = 100;
 
 /** Alphabet for room codes: A-Z excluding O (and digits 1-9, no 0). */
@@ -51,6 +53,74 @@ const ROOM_CODE_CHARS = 'ABCDEFGHIJKLMNPQRSTUVWXYZ123456789';
 let transport: GameTransport;
 
 // ---------------------------------------------------------------------------
+// Turn timer helpers
+// ---------------------------------------------------------------------------
+
+function clearTurnTimer(room: RoomState): void {
+  if (room.turnTimer !== null) {
+    clearTimeout(room.turnTimer);
+    room.turnTimer = null;
+  }
+  room.turnStartedAt = null;
+}
+
+function startTurnTimer(roomCode: string, playerId: string, t: GameTransport): void {
+  const room = getRoom(roomCode);
+  if (!room) return;
+  clearTurnTimer(room);
+  room.turnStartedAt = Date.now();
+  room.turnTimer = setTimeout(() => {
+    autoPlayTurn(roomCode, playerId, t);
+  }, getConfig().turnTimeoutMs);
+}
+
+function autoPlayTurn(roomCode: string, playerId: string, t: GameTransport): void {
+  const room = getRoom(roomCode);
+  if (!room || room.phase !== 'PLAYING' || !room.gameState) return;
+  if (room.gameState.turn !== playerId) return;
+
+  const moves = legalMoves(room.gameState, playerId);
+  if (moves.length === 0) return;
+
+  const result = applyMove(room.gameState, playerId, moves[0]!);
+  if (!result.ok) return;
+
+  room.gameState = result.state;
+  if (result.state.phase === 'GAME_OVER') {
+    room.phase = 'DONE';
+    room.completedAt = Date.now();
+    clearTurnTimer(room);
+  }
+
+  // Broadcast each game event to the room.
+  for (const event of result.events as GameEvent[]) {
+    t.broadcast(roomCode, EVENTS.GAME_EVENT, { event });
+  }
+
+  // Compute turnStartedAt for the next turn before modifying room state.
+  const nextTurnStartedAt =
+    room.phase === 'PLAYING' && result.state.turn !== null ? Date.now() : null;
+
+  // Send updated view to all players.
+  for (const pid of room.players) {
+    t.send(pid, EVENTS.STATE_UPDATE, {
+      view: viewFor(result.state, pid),
+      turnStartedAt: nextTurnStartedAt,
+      turnTimeoutMs: getConfig().turnTimeoutMs,
+    });
+  }
+
+  // Arm timer for the next player directly (avoids a redundant clearTurnTimer
+  // call since we already cleared or the game ended above).
+  if (room.phase === 'PLAYING' && result.state.turn !== null) {
+    room.turnStartedAt = nextTurnStartedAt;
+    room.turnTimer = setTimeout(() => {
+      autoPlayTurn(roomCode, result.state.turn as string, t);
+    }, getConfig().turnTimeoutMs);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
 
@@ -60,6 +130,18 @@ export function setupSocketHandlers(io: Server): void {
   io.on('connection', (socket) => {
     handleConnection(socket);
   });
+
+  // Periodically delete DONE rooms that have passed their expiry window.
+  setInterval(() => {
+    const now = Date.now();
+    const expiryMs = getConfig().roomExpiryMs;
+    for (const [code, room] of store.rooms) {
+      if (room.phase === 'DONE' && room.completedAt !== null && now - room.completedAt > expiryMs) {
+        clearTurnTimer(room);
+        store.rooms.delete(code);
+      }
+    }
+  }, 60_000);
 }
 
 // ---------------------------------------------------------------------------
@@ -90,6 +172,7 @@ function handleConnection(socket: Socket): void {
   registerSocketEvents(socket, session);
 
   socket.on('disconnect', () => {
+    store.adminSockets.delete(socket.id);
     handleDisconnect(socket, session);
   });
 }
@@ -136,7 +219,11 @@ function handleReconnect(socket: Socket, session: SessionState): void {
 
       // Send the player their current game view if a game is in progress.
       if (room.gameState !== null) {
-        socket.emit(EVENTS.STATE_UPDATE, { view: viewFor(room.gameState, playerId) });
+        socket.emit(EVENTS.STATE_UPDATE, {
+          view: viewFor(room.gameState, playerId),
+          turnStartedAt: room.turnStartedAt,
+          turnTimeoutMs: getConfig().turnTimeoutMs,
+        });
       }
     }
   }
@@ -177,7 +264,7 @@ function handleDisconnect(socket: Socket, session: SessionState): void {
       room.gracePeriodTimers.delete(playerId);
       room.disconnectedAt.delete(playerId);
       removeFromLobby(roomCode, session);
-    }, GRACE_PERIOD_MS);
+    }, getConfig().gracePeriodMs);
     room.gracePeriodTimers.set(playerId, timer);
     return;
   }
@@ -193,7 +280,7 @@ function handleDisconnect(socket: Socket, session: SessionState): void {
       // Grace period expired. Seat is held; game pauses on disconnect in v1.
       room.gracePeriodTimers.delete(playerId);
       console.log(`Grace period expired for player ${playerId} in room ${roomCode}`);
-    }, GRACE_PERIOD_MS);
+    }, getConfig().gracePeriodMs);
 
     room.gracePeriodTimers.set(playerId, timer);
   }
@@ -262,6 +349,61 @@ function registerSocketEvents(socket: Socket, session: SessionState): void {
     if (typeof ack !== 'function') return;
     handleRequestState(session, ack);
   });
+
+  // Admin: authenticate
+  socket.on(EVENTS.ADMIN_AUTH, (payload: AdminAuthPayload, ack: (res: { ok: boolean; reason?: string }) => void) => {
+    if (typeof ack !== 'function') return;
+    if (!payload || typeof payload.email !== 'string') {
+      ack({ ok: false, reason: 'invalid_payload' });
+      return;
+    }
+    if (isAdminEmail(payload.email)) {
+      store.adminSockets.add(socket.id);
+      ack({ ok: true });
+    } else {
+      ack({ ok: false, reason: 'not_authorized' });
+    }
+  });
+
+  // Admin: get config
+  socket.on(EVENTS.ADMIN_GET_CONFIG, (_: unknown, ack: (res: { ok?: boolean; reason?: string; config?: Readonly<import('./config.js').GameConfig> }) => void) => {
+    if (typeof ack !== 'function') return;
+    if (!store.adminSockets.has(socket.id)) {
+      ack({ ok: false, reason: 'not_authorized' });
+      return;
+    }
+    ack({ config: getConfig() });
+  });
+
+  // Admin: update config
+  socket.on(EVENTS.ADMIN_UPDATE_CONFIG, (payload: AdminUpdateConfigPayload, ack: (res: { ok: boolean; reason?: string }) => void) => {
+    if (typeof ack !== 'function') return;
+    if (!store.adminSockets.has(socket.id)) {
+      ack({ ok: false, reason: 'not_authorized' });
+      return;
+    }
+    if (!payload || typeof payload.config !== 'object' || payload.config === null) {
+      ack({ ok: false, reason: 'invalid_payload' });
+      return;
+    }
+    const patch = payload.config;
+    const isValidMs = (v: unknown): boolean => typeof v === 'number' && v > 0 && v < 3_600_000 * 24;
+    const isValidPlayers = (v: unknown): boolean => typeof v === 'number' && v >= 2 && v <= 8;
+    if (patch.turnTimeoutMs !== undefined && !isValidMs(patch.turnTimeoutMs)) {
+      ack({ ok: false, reason: 'invalid_value: turnTimeoutMs' }); return;
+    }
+    if (patch.maxPlayers !== undefined && !isValidPlayers(patch.maxPlayers)) {
+      ack({ ok: false, reason: 'invalid_value: maxPlayers' }); return;
+    }
+    if (patch.gracePeriodMs !== undefined && !isValidMs(patch.gracePeriodMs)) {
+      ack({ ok: false, reason: 'invalid_value: gracePeriodMs' }); return;
+    }
+    if (patch.roomExpiryMs !== undefined && !isValidMs(patch.roomExpiryMs)) {
+      ack({ ok: false, reason: 'invalid_value: roomExpiryMs' }); return;
+    }
+    updateConfig(patch);
+    ack({ ok: true });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -324,7 +466,11 @@ function handleJoinRoom(
       updateSession(session.token, { roomCode });
       socket.join(roomCode);
       if (room.gameState !== null) {
-        socket.emit(EVENTS.STATE_UPDATE, { view: viewFor(room.gameState, session.playerId) });
+        socket.emit(EVENTS.STATE_UPDATE, {
+          view: viewFor(room.gameState, session.playerId),
+          turnStartedAt: room.turnStartedAt,
+          turnTimeoutMs: getConfig().turnTimeoutMs,
+        });
       }
       ack({ ok: true });
       return;
@@ -338,7 +484,7 @@ function handleJoinRoom(
     return;
   }
 
-  if (room.players.length >= MAX_PLAYERS) {
+  if (room.players.length >= getConfig().maxPlayers) {
     ack({ ok: false, error: 'FULL' });
     return;
   }
@@ -452,9 +598,18 @@ function handleStartGame(session: SessionState, ack: (res: StartGameAck) => void
 
   broadcastRoomUpdate(roomCode);
 
-  // Send each player their initial redacted view.
+  // Arm the first turn timer before sending views so turnStartedAt is set.
+  if (gameState.turn !== null) {
+    startTurnTimer(roomCode, gameState.turn, transport);
+  }
+
+  // Send each player their initial redacted view (includes turnStartedAt).
   for (const pid of room.players) {
-    transport.send(pid, EVENTS.STATE_UPDATE, { view: viewFor(gameState, pid) });
+    transport.send(pid, EVENTS.STATE_UPDATE, {
+      view: viewFor(gameState, pid),
+      turnStartedAt: room.turnStartedAt,
+      turnTimeoutMs: getConfig().turnTimeoutMs,
+    });
   }
 
   ack({ ok: true });
@@ -478,9 +633,14 @@ function handleMakeMove(session: SessionState, move: Move, ack: (res: MakeMoveAc
     return;
   }
 
+  // Clear the current turn timer before applying the move.
+  clearTurnTimer(room);
+
   const result: MoveResult = applyMove(room.gameState, playerId, move);
 
   if (!result.ok) {
+    // Move rejected — restart the timer so the same player can try again.
+    startTurnTimer(roomCode, playerId, transport);
     ack({ ok: false, error: result.error, message: result.message });
     return;
   }
@@ -490,6 +650,13 @@ function handleMakeMove(session: SessionState, move: Move, ack: (res: MakeMoveAc
 
   if (result.state.phase === 'GAME_OVER') {
     room.phase = 'DONE';
+    room.completedAt = Date.now();
+    clearTurnTimer(room);
+  }
+
+  // Start the next player's turn timer (no-op if game ended).
+  if (room.phase === 'PLAYING' && result.state.turn !== null) {
+    startTurnTimer(roomCode, result.state.turn as string, transport);
   }
 
   // Broadcast each game event to the room.
@@ -500,11 +667,15 @@ function handleMakeMove(session: SessionState, move: Move, ack: (res: MakeMoveAc
   // Unicast the updated view to every connected player in the room.
   for (const pid of room.players) {
     if (pid === playerId) continue; // Mover's view sent in ack below.
-    transport.send(pid, EVENTS.STATE_UPDATE, { view: viewFor(result.state, pid) });
+    transport.send(pid, EVENTS.STATE_UPDATE, {
+      view: viewFor(result.state, pid),
+      turnStartedAt: room.turnStartedAt,
+      turnTimeoutMs: getConfig().turnTimeoutMs,
+    });
   }
 
   // Ack the mover with their redacted view.
-  ack({ ok: true, view: viewFor(result.state, playerId) });
+  ack({ ok: true, view: viewFor(result.state, playerId), turnStartedAt: room.turnStartedAt });
 }
 
 // ---------------------------------------------------------------------------
