@@ -1,6 +1,6 @@
 # Ganatri — Phasewise Development Plan
 
-Last updated: 2026-06-14  
+Last updated: 2026-06-14 (full-bleed felt + floating-avatar restyle)  
 All 163 tests passing (140 engine + 23 server).
 
 ---
@@ -112,6 +112,8 @@ All 163 tests passing (140 engine + 23 server).
 | `RoomScreen` — waiting room, player list, start button | ✅ | `src/screens/RoomScreen.tsx` |
 | RoomScreen: show player names (not shortId) | 🟡 | Uses `shortId(pid)`; needs to read `playerNames` from context |
 | `GameScreen` — top bar, table stage, sidebar | ✅ | `src/screens/GameScreen.tsx` |
+| GameScreen flat-table redesign — opponents top row (turn order), flat full-width board, own seat above hand | ✅ | Replaced oval `.table-felt`/rim seats with `.game__players` + `.game__board`; `Boards.css` `.table-center` → `.game__board` |
+| GameScreen full-bleed felt + floating-avatar restyle — felt on `.game`, de-framed `.game__board`, all players (you centred) as borderless floating avatars in one row, OpponentSeat status line | ✅ | `orderedOpponents` → `orderedPlayers` (you at centre); removed `.game__you-seat`; `OpponentSeat` name/avatar/status/chips, no panel |
 | GameScreen: show player names in flash messages and turn indicator | 🟡 | `shortId()` used; wire `playerNames` from context |
 | `AdminScreen` — email auth, config sliders | ✅ | `src/screens/AdminScreen.tsx` |
 
