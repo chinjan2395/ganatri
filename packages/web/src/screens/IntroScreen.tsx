@@ -1,5 +1,4 @@
-import { useRef } from 'react';
-import introVideo from '../assets/intro.mp4';
+import { useState } from 'react';
 import './IntroScreen.css';
 
 interface Props {
@@ -7,17 +6,23 @@ interface Props {
 }
 
 export function IntroScreen({ onDone }: Props): React.ReactNode {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const [ready, setReady] = useState(false);
 
   return (
     <div className="intro">
+      {!ready && (
+        <div className="intro__loading">
+          <div className="intro__spinner" />
+        </div>
+      )}
       <video
-        ref={videoRef}
-        className="intro__video"
-        src={introVideo}
+        className={`intro__video${ready ? ' intro__video--visible' : ''}`}
+        src="/intro.mp4"
         autoPlay
         muted
         playsInline
+        preload="auto"
+        onCanPlay={() => setReady(true)}
         onEnded={onDone}
       />
       <button className="intro__skip" onClick={onDone}>
