@@ -63,7 +63,7 @@ export interface GameContextValue {
   makeMove: (move: Move) => Promise<boolean>;
 }
 
-const GameContext = createContext<GameContextValue | null>(null);
+export const GameContext = createContext<GameContextValue | null>(null);
 
 export function GameProvider({ children }: { children: ReactNode }): ReactNode {
   const [connected, setConnected] = useState(socket.connected);

@@ -16,15 +16,22 @@ function shortId(id: string): string {
 }
 
 /**
- * Maps an opponent index to a rim position around the vertical oval.
- *  1 opponent  → top
- *  2 opponents → left, right
- *  3 opponents → left, top, right
+ * Returns ALL players in turn order, cyclically rotated so that `you` lands at
+ * the centre index (`Math.floor(n/2)`) while preserving the seating order
+ * around them. Renders left→right as a single floating-avatar row.
  */
-function slotFor(index: number, total: number): string {
-  if (total <= 1) return 'top';
-  if (total === 2) return index === 0 ? 'left' : 'right';
-  return (['left', 'top', 'right'] as const)[index] ?? 'top';
+function orderedPlayers(seating: readonly string[], you: string): string[] {
+  const n = seating.length;
+  if (n === 0) return [];
+  const yi = seating.indexOf(you);
+  if (yi < 0) return [...seating];
+  const center = Math.floor(n / 2);
+  const result: string[] = [];
+  for (let k = 0; k < n; k++) {
+    const pid = seating[(yi - center + k + n) % n];
+    if (pid !== undefined) result.push(pid);
+  }
+  return result;
 }
 
 type Flash = { kind: 'cut' | 'won' | 'safe'; text: string };
@@ -125,7 +132,7 @@ export function GameScreen(): React.ReactNode {
     );
   }
 
-  const opponents = view.seating.filter((pid) => pid !== view.you);
+  const players = orderedPlayers(view.seating, view.you);
   const nameFor = (pid: string): string => playerNames[pid] || shortId(pid);
   const isYourTurn = view.turn === view.you;
   const turnName = view.turn ? (isYourTurn ? 'You' : nameFor(view.turn)) : '—';
@@ -167,57 +174,40 @@ export function GameScreen(): React.ReactNode {
         </button>
       </header>
 
-      {/* ── Vertical oval table ── */}
-      <div className="game__table-stage">
-        <div className="table-felt" aria-hidden="true" />
+      {/* ── Players row — all players (you centred) as floating avatars ── */}
+      <div className="game__players">
+        {players.map((pid) => {
+          const isYou = pid === view.you;
+          const handCount = isYou
+            ? view.handCounts[pid] ?? view.hand.length
+            : view.handCounts[pid] ?? 0;
+          const captureCount = view.phase === 'PART_1' ? view.captureCounts[pid] ?? 0 : undefined;
+          const safeIndex = view.safeOrder.indexOf(pid);
+          return (
+            <OpponentSeat
+              key={pid}
+              playerId={pid}
+              displayName={nameFor(pid)}
+              isYou={isYou}
+              handCount={handCount}
+              captureCount={captureCount}
+              isTurn={view.turn === pid}
+              isSafe={safeIndex >= 0}
+              safeRank={safeIndex >= 0 ? safeIndex + 1 : undefined}
+              disconnected={isYou ? false : disconnectedPlayers.has(pid)}
+              compact
+            />
+          );
+        })}
+      </div>
 
-        <div className="table-seats">
-          {opponents.map((pid, i) => {
-            const handCount = view.handCounts[pid] ?? 0;
-            const captureCount = view.phase === 'PART_1' ? view.captureCounts[pid] ?? 0 : undefined;
-            const safeIndex = view.safeOrder.indexOf(pid);
-            return (
-              <div className="table-seat" data-pos={slotFor(i, opponents.length)} key={pid}>
-                <OpponentSeat
-                  playerId={pid}
-                  displayName={nameFor(pid)}
-                  isYou={false}
-                  handCount={handCount}
-                  captureCount={captureCount}
-                  isTurn={view.turn === pid}
-                  isSafe={safeIndex >= 0}
-                  safeRank={safeIndex >= 0 ? safeIndex + 1 : undefined}
-                  disconnected={disconnectedPlayers.has(pid)}
-                  compact
-                />
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Current player — bottom rim */}
-        <div className="table-seat" data-pos="bottom">
-          <OpponentSeat
-            playerId={view.you}
-            displayName={nameFor(view.you)}
-            isYou
-            handCount={view.handCounts[view.you] ?? view.hand.length}
-            captureCount={view.phase === 'PART_1' ? view.captureCounts[view.you] ?? 0 : undefined}
-            isTurn={isYourTurn}
-            isSafe={view.safeOrder.includes(view.you)}
-            safeRank={view.safeOrder.indexOf(view.you) >= 0 ? view.safeOrder.indexOf(view.you) + 1 : undefined}
-            disconnected={false}
-            compact
-          />
-        </div>
-
-        <div className="table-center">
-          {view.phase === 'PART_1' ? (
-            <Part1Board view={view} onMove={makeMove} onSelectionChange={handlePart1Change} />
-          ) : (
-            <Part2Board view={view} flash={flash} onMove={makeMove} onSelectionChange={handlePart2Change} />
-          )}
-        </div>
+      {/* ── Flat playable table area ── */}
+      <div className="game__board">
+        {view.phase === 'PART_1' ? (
+          <Part1Board view={view} onMove={makeMove} onSelectionChange={handlePart1Change} />
+        ) : (
+          <Part2Board view={view} flash={flash} onMove={makeMove} onSelectionChange={handlePart2Change} />
+        )}
 
         {view.phase === 'PART_1' && view.stockCount > 0 && (
           <div className="table-stock">
