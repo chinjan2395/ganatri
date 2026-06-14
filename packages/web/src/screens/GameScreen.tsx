@@ -246,7 +246,7 @@ export function GameScreen(): React.ReactNode {
       <div className="game__hand-section">
         {handState.hint && <div className="game__hint">{handState.hint}</div>}
 
-        <div className="game__hand-area">
+        <div className={`game__hand-area${view.phase === 'PART_2' ? ' game__hand-area--reorder' : ''}`}>
           <Hand
             hand={handToRender}
             selectedId={handState.selectedId}

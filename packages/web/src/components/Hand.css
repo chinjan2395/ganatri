@@ -16,6 +16,13 @@
   display: flex;
   flex-shrink: 0;
 }
+.hand--reorder {
+  flex-wrap: nowrap;      /* single row — axis="x" needs this */
+  overflow-x: auto;       /* scroll if too many cards */
+  overflow-y: visible;    /* let dragged card escape vertically without clipping */
+  -webkit-overflow-scrolling: auto; /* disable momentum scroll so touch isn't captured */
+  touch-action: pan-y;    /* let browser handle vertical pan; framer-motion owns x */
+}
 .hand--empty {
   padding: 16px;
   font-style: italic;

@@ -28,7 +28,7 @@ export function Hand({ hand, selectedId, legalIds, canAct, onSelect, onReorder, 
         axis="x"
         values={ids}
         onReorder={onReorder}
-        className="hand"
+        className="hand hand--reorder"
         role="group"
         aria-label="Your hand — drag to rearrange"
       >
@@ -42,9 +42,9 @@ export function Hand({ hand, selectedId, legalIds, canAct, onSelect, onReorder, 
               value={id}
               as="div"
               className="hand__slot"
-              whileDrag={{ scale: 1.08, zIndex: 10, cursor: 'grabbing' }}
+              whileDrag={{ scale: 1.08, zIndex: 20, cursor: 'grabbing' }}
               transition={{ type: 'spring', stiffness: 360, damping: 26 }}
-              style={{ cursor: 'grab' }}
+              style={{ cursor: 'grab', touchAction: 'none' }}
             >
               <Card
                 card={card}

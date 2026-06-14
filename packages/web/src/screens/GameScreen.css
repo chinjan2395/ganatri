@@ -258,6 +258,13 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* Part 2: remove clipping so dragged cards aren't cropped */
+.game__hand-area--reorder {
+  overflow: visible;
+  max-height: none;
+  -webkit-overflow-scrolling: auto;
+}
+
 /* ── Action bar — fixed bottom sheet ── */
 .game__action-bar {
   position: fixed;
