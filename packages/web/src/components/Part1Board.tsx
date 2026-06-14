@@ -179,7 +179,7 @@ export function Part1Board({ view, onMove, onSelectionChange }: Part1BoardProps)
               submitting,
               onConfirm: confirm,
               onCycle: cycleOption,
-              onCancel: () => undefined,
+              onCancel: () => setSelection(null),
             }
           : {
               stage: 'confirm-card',
