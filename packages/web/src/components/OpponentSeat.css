@@ -1,113 +1,251 @@
+/* ── Seat column: dark panel strip, all content centred ── */
 .seat {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
-  padding: 9px 12px;
-  border-radius: 14px;
-  min-width: 84px;
-  background: linear-gradient(180deg, var(--panel-2), var(--panel));
-  border: 1px solid rgba(231, 195, 74, 0.45);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 4px 14px rgba(0, 0, 0, 0.45);
-  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-}
-.seat--turn {
-  border-color: var(--accent-2);
-  animation: glow-pulse 1.8s ease-in-out infinite;
-}
-.seat--safe {
-  opacity: 0.85;
+  gap: 6px;
+  padding: 6px 8px 8px;
+  min-width: 68px;
+  transition: opacity 0.2s ease;
 }
 .seat--disconnected {
-  opacity: 0.55;
+  opacity: 0.45;
 }
-.seat__avatar {
-  position: relative;
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #3a5c44, #1c2f24);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+
+/* YOU badge above everything */
+.seat__you-tag {
+  font-family: var(--font-display);
+  font-size: 8px;
   font-weight: 800;
-  font-size: 16px;
+  letter-spacing: 1.2px;
   color: var(--gold-rim);
-  box-shadow:
-    0 0 0 2px var(--gold-2),
-    0 0 0 4px rgba(0, 0, 0, 0.4),
-    inset 0 0 8px rgba(0, 0, 0, 0.5);
-}
-.seat--turn .seat__avatar {
-  box-shadow:
-    0 0 0 2px var(--accent-2),
-    0 0 12px rgba(74, 144, 226, 0.6),
-    inset 0 0 8px rgba(0, 0, 0, 0.5);
-}
-.seat__overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.62);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  color: var(--danger);
   text-transform: uppercase;
+  background: rgba(231, 195, 74, 0.14);
+  border: 1px solid rgba(231, 195, 74, 0.4);
+  border-radius: 6px;
+  padding: 1px 6px;
+  line-height: 1.5;
 }
+
+/* Name + hand count stacked */
+.seat__info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
 .seat__name {
   font-family: var(--font-display);
-  font-size: 12px;
-  letter-spacing: 0.5px;
-  max-width: 92px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: rgba(255, 255, 255, 0.82);
+  max-width: 76px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text);
+  line-height: 1;
 }
-.seat__you {
-  color: var(--accent);
-}
-.seat__stats {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.seat__badge {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  font-size: 10px;
-  background: linear-gradient(180deg, #7ee6a6, var(--safe));
-  color: #08361d;
-  padding: 2px 7px;
-  border-radius: 999px;
-  font-weight: 800;
-  text-transform: uppercase;
-  box-shadow: 0 0 10px rgba(92, 210, 138, 0.6);
+.seat--you .seat__name {
+  color: var(--gold-rim);
+  font-weight: 700;
 }
 
-/* Compact variant for oval-rim placement. */
-.seat--compact {
-  min-width: 60px;
-  padding: 5px 8px;
-  gap: 2px;
-  backdrop-filter: blur(2px);
-  background: linear-gradient(180deg, rgba(29, 51, 38, 0.92), rgba(20, 38, 27, 0.92));
+.seat__count-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
 }
-.seat--compact .seat__avatar {
-  width: 30px;
-  height: 30px;
+.seat__count-icon {
+  font-size: 9px;
+  line-height: 1;
+  opacity: 0.7;
+}
+.seat__count-num {
+  font-family: var(--font-display);
   font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1;
+}
+.seat--you .seat__count-num {
+  color: rgba(231, 195, 74, 0.85);
+}
+
+/* ── Circular avatar — coloured gradient, glossy top ── */
+.seat__avatar {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle at 34% 26%,
+      hsl(var(--seat-hue, 150) 60% 62%),
+      hsl(var(--seat-hue, 150) 55% 32%) 65%,
+      hsl(var(--seat-hue, 150) 60% 18%)
+    );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.1),
+    0 0 0 3.5px rgba(0, 0, 0, 0.55),
+    0 6px 16px rgba(0, 0, 0, 0.55),
+    inset 0 2px 8px rgba(255, 255, 255, 0.22),
+    inset 0 -6px 12px rgba(0, 0, 0, 0.45);
+  transition: box-shadow 0.25s ease, transform 0.2s ease;
+}
+/* Glossy highlight */
+.seat__avatar::after {
+  content: '';
+  position: absolute;
+  inset: 4px 7px 52% 7px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+
+.seat__initials {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 18px;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  z-index: 1;
+  letter-spacing: -0.5px;
+}
+
+/* YOU — gold ring + glow */
+.seat--you .seat__avatar {
+  width: 64px;
+  height: 64px;
+  box-shadow:
+    0 0 0 2.5px var(--gold-rim),
+    0 0 0 4.5px rgba(231, 195, 74, 0.22),
+    0 0 20px rgba(231, 195, 74, 0.5),
+    0 6px 18px rgba(0, 0, 0, 0.55),
+    inset 0 2px 8px rgba(255, 255, 255, 0.28),
+    inset 0 -6px 12px rgba(0, 0, 0, 0.45);
+}
+.seat--you .seat__initials {
+  font-size: 21px;
+}
+
+/* Turn — blue glow + pulse + slight scale */
+.seat--turn .seat__avatar {
+  transform: scale(1.06);
+  box-shadow:
+    0 0 0 2.5px var(--accent-2),
+    0 0 16px rgba(74, 144, 226, 0.8),
+    0 0 32px rgba(74, 144, 226, 0.4),
+    0 6px 18px rgba(0, 0, 0, 0.55),
+    inset 0 2px 8px rgba(255, 255, 255, 0.25),
+    inset 0 -6px 12px rgba(0, 0, 0, 0.45);
+  animation: glow-pulse 1.6s ease-in-out infinite;
+}
+.seat--you.seat--turn .seat__avatar {
+  box-shadow:
+    0 0 0 2.5px var(--gold-rim),
+    0 0 16px rgba(231, 195, 74, 0.8),
+    0 0 32px rgba(231, 195, 74, 0.4),
+    0 6px 18px rgba(0, 0, 0, 0.55),
+    inset 0 2px 8px rgba(255, 255, 255, 0.28),
+    inset 0 -6px 12px rgba(0, 0, 0, 0.45);
+}
+
+/* Capture badge — top-right of avatar */
+.seat__cap {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: linear-gradient(160deg, #e07a5a, var(--red-suit));
+  border: 1.5px solid rgba(255, 220, 180, 0.65);
+  color: #fff;
+  font-weight: 800;
+  font-size: 10px;
+  line-height: 15px;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  z-index: 2;
+}
+
+/* Offline overlay */
+.seat__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.58);
+  border-radius: 50%;
+  z-index: 3;
+}
+
+/* ── Status badge below avatar ── */
+.seat__status {
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.seat__status-badge {
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  line-height: 1;
+  padding: 3px 8px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.seat__status-badge--turn {
+  color: var(--gold-rim);
+  background: rgba(231, 195, 74, 0.16);
+  border: 1px solid rgba(231, 195, 74, 0.35);
+  text-shadow: 0 0 10px rgba(231, 195, 74, 0.6);
+}
+.seat__status-badge--safe {
+  color: #6ed49a;
+  background: rgba(92, 210, 138, 0.12);
+  border: 1px solid rgba(92, 210, 138, 0.3);
+}
+.seat__status-badge--offline {
+  color: var(--danger);
+  background: rgba(220, 80, 80, 0.12);
+  border: 1px solid rgba(220, 80, 80, 0.28);
+}
+.seat__status-badge--waiting {
+  color: rgba(255, 255, 255, 0.32);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ── Compact variant (top-row opponents) — slightly tighter ── */
+.seat--compact .seat__avatar {
+  width: 52px;
+  height: 52px;
+}
+.seat--compact.seat--you .seat__avatar {
+  width: 58px;
+  height: 58px;
+}
+.seat--compact .seat__initials {
+  font-size: 16px;
+}
+.seat--compact.seat--you .seat__initials {
+  font-size: 19px;
 }
 .seat--compact .seat__name {
   font-size: 10px;
-  max-width: 64px;
+  max-width: 68px;
 }
-.seat--compact .seat__stats {
-  gap: 5px;
+.seat--compact .seat__you-tag {
+  font-size: 7px;
 }

@@ -7,7 +7,7 @@
   width: 100%;
 }
 
-/* Table / trick inner panels — width driven by .table-center container */
+/* Table / trick inner panels — width driven by .game__board container */
 .board__table,
 .board__trick {
   border-radius: 14px;
@@ -24,22 +24,22 @@
   box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.35);
 }
 
-/* Inside the oval: transparent panel, tight spacing, cards float on the felt */
-.table-center .board {
+/* Inside the flat board: transparent panel, tight spacing, cards float on the felt */
+.game__board .board {
   gap: 4px;
 }
-.table-center .board__table,
-.table-center .board__trick {
+.game__board .board__table,
+.game__board .board__trick {
   min-height: 0;
   padding: 4px;
   background: transparent;
   border: none;
   box-shadow: none;
 }
-.table-center .board__table-cards {
+.game__board .board__table-cards {
   gap: 4px;
 }
-.table-center .board__trick {
+.game__board .board__trick {
   gap: 8px;
 }
 .board__table-cards {
@@ -53,7 +53,7 @@
   margin-left: -10px;
 }
 
-.table-center .board__table-cards > * + * {
+.game__board .board__table-cards > * + * {
   margin-left: -8px;
 }
 .board__trick {
