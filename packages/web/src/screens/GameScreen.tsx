@@ -226,16 +226,6 @@ export function GameScreen(): React.ReactNode {
           </div>
         )}
 
-        {/* Captures floating badge — left side of oval, mirrors stock */}
-        {view.phase === 'PART_1' && (() => {
-          const captured = getLocalCapturedCards(eventLog, view.you);
-          return captured.length > 0 ? (
-            <div className="table-captures">
-              <CapturedPile cards={captured} />
-            </div>
-          ) : null;
-        })()}
-
         <AnimatePresence>
           {flash && (
             <motion.div
@@ -250,34 +240,61 @@ export function GameScreen(): React.ReactNode {
             </motion.div>
           )}
         </AnimatePresence>
-
-        {handState.hint && <div className="table-hint">{handState.hint}</div>}
       </div>
 
-      {/* ── Hand area at the very bottom ── */}
-      <div className="game__hand-area">
-        {/* Action bar floats above the hand */}
-        <AnimatePresence>
-          {handState.action && (
-            <motion.div
-              className="game__action-bar"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-              transition={{ type: 'spring', stiffness: 420, damping: 28 }}
-            >
-              {handState.action.stage === 'confirm-card' ? (
-                <>
+      {/* ── Hand section: hint + hand + captures ── */}
+      <div className="game__hand-section">
+        {handState.hint && <div className="game__hint">{handState.hint}</div>}
+
+        <div className="game__hand-area">
+          <Hand
+            hand={handToRender}
+            selectedId={handState.selectedId}
+            legalIds={legalIds}
+            canAct={handState.canAct}
+            onSelect={onSelectCard}
+            onReorder={view.phase === 'PART_2' ? setHandOrder : undefined}
+            highlightedIds={highlightedIds}
+          />
+        </div>
+
+        {view.phase === 'PART_1' && (() => {
+          const captured = getLocalCapturedCards(eventLog, view.you);
+          return captured.length > 0 ? (
+            <div className="game__captures">
+              <CapturedPile cards={captured} />
+            </div>
+          ) : null;
+        })()}
+      </div>
+
+      {/* ── Action bar — fixed bottom sheet, doesn't disturb layout ── */}
+      <AnimatePresence>
+        {handState.action && (
+          <motion.div
+            className="game__action-bar"
+            initial={{ y: '100%', opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: '100%', opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+          >
+            {handState.action.stage === 'confirm-card' ? (
+              <>
+                <div className="action-bar__info">
                   <span>Play this card?</span>
-                  <button onClick={handState.action.onConfirm} disabled={handState.action.submitting}>
-                    {handState.action.submitting ? '…' : 'Yes, lock it in'}
-                  </button>
+                </div>
+                <div className="action-bar__buttons">
                   <button className="secondary" onClick={handState.action.onCancel} disabled={handState.action.submitting}>
                     Cancel
                   </button>
-                </>
-              ) : (
-                <>
+                  <button onClick={handState.action.onConfirm} disabled={handState.action.submitting}>
+                    {handState.action.submitting ? '…' : 'Yes, lock it in'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="action-bar__info">
                   {handState.action.hasCapture ? (
                     <>
                       <span>
@@ -285,7 +302,7 @@ export function GameScreen(): React.ReactNode {
                         {handState.action.optionLabel}
                       </span>
                       {handState.action.multipleOptions && (
-                        <button className="secondary" onClick={handState.action.onCycle}>
+                        <button className="secondary action-bar__cycle" onClick={handState.action.onCycle}>
                           Next option
                         </button>
                       )}
@@ -293,25 +310,20 @@ export function GameScreen(): React.ReactNode {
                   ) : (
                     <span className="muted">No capture — card stays on the table</span>
                   )}
-                  <button onClick={handState.action.onConfirm} disabled={handState.action.submitting}>
-                    {handState.action.submitting ? '…' : handState.action.hasCapture ? 'Capture' : 'Play (no capture)'}
+                </div>
+                <div className="action-bar__buttons">
+                  <button className="secondary" onClick={handState.action.onCancel} disabled={handState.action.submitting}>
+                    Cancel
                   </button>
-                </>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <Hand
-          hand={handToRender}
-          selectedId={handState.selectedId}
-          legalIds={legalIds}
-          canAct={handState.canAct}
-          onSelect={onSelectCard}
-          onReorder={view.phase === 'PART_2' ? setHandOrder : undefined}
-          highlightedIds={highlightedIds}
-        />
-      </div>
+                  <button onClick={handState.action.onConfirm} disabled={handState.action.submitting}>
+                    {handState.action.submitting ? '…' : handState.action.hasCapture ? 'Capture' : 'Play'}
+                  </button>
+                </div>
+              </>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
