@@ -24,28 +24,14 @@ export function TurnTimer({ turnStartedAt, durationMs }: TurnTimerProps): React.
 
   const fraction = remaining / durationMs;
   const seconds = Math.ceil(remaining / 1000);
-
-  // SVG ring: r=18, circumference = 2π×18 ≈ 113.1
-  const RADIUS = 18;
-  const CIRC = 2 * Math.PI * RADIUS;
-  const dash = fraction * CIRC;
   const urgent = seconds <= 3;
 
   return (
-    <div className={`turn-timer${urgent ? ' turn-timer--urgent' : ''}`}>
-      <svg viewBox="0 0 44 44" width="44" height="44">
-        <circle cx="22" cy="22" r={RADIUS} className="turn-timer__track" />
-        <circle
-          cx="22"
-          cy="22"
-          r={RADIUS}
-          className="turn-timer__arc"
-          strokeDasharray={`${dash} ${CIRC}`}
-          strokeDashoffset="0"
-          transform="rotate(-90 22 22)"
-        />
-      </svg>
-      <span className="turn-timer__label">{seconds}</span>
+    <div className={`ttimer${urgent ? ' ttimer--urgent' : ''}`} aria-label={`${seconds}s remaining`}>
+      <div className="ttimer__bar">
+        <div className="ttimer__fill" style={{ width: `${fraction * 100}%` }} />
+      </div>
+      <span className="ttimer__secs">{seconds}s</span>
     </div>
   );
 }

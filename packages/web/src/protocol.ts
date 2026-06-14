@@ -8,8 +8,12 @@
 import type { GameEvent, Move, MoveError, PlayerView } from '@ganatri/engine';
 
 // --- Client → Server payloads ---
+export interface CreateRoomPayload {
+  name?: string;
+}
 export interface JoinRoomPayload {
   roomCode: string;
+  name?: string;
 }
 export interface MakeMovePayload {
   move: Move;
@@ -54,6 +58,8 @@ export interface RoomUpdatePayload {
   phase: 'LOBBY' | 'PLAYING' | 'DONE';
   /** playerIds currently within their disconnect grace period */
   disconnectedPlayers: string[];
+  /** playerId → display name */
+  playerNames: Record<string, string>;
 }
 export interface GameEventPayload {
   event: GameEvent;

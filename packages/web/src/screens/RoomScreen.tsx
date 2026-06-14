@@ -1,17 +1,71 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useGame } from '../state/GameProvider';
 import logo from '../assets/ganatri-logo.png';
 import './RoomScreen.css';
 
-function shortId(id: string): string {
-  return id.length <= 6 ? id : id.slice(0, 6);
+const SUITS = ['♠', '♥', '♦', '♣'] as const;
+const SUIT_COLORS = [
+  'var(--text)',
+  'var(--red-suit)',
+  'var(--red-suit)',
+  'var(--text)',
+] as const;
+
+interface SeatSlotProps {
+  pid: string | null;
+  seatIndex: number;
+  playerId: string;
+  hostId: string;
+  playerNames: Record<string, string>;
+}
+
+function SeatSlot({ pid, seatIndex, playerId, hostId, playerNames }: SeatSlotProps) {
+  return (
+    <div className={`room__seat room__seat--${seatIndex}`}>
+      <AnimatePresence mode="wait">
+        {pid ? (
+          <motion.div
+            key={pid}
+            className="room__seat-card"
+            initial={{ x: -50, rotateZ: -6, opacity: 0 }}
+            animate={{ x: 0, rotateZ: 0, opacity: 1 }}
+            exit={{ x: 50, rotateZ: 6, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+          >
+            <span className="room__seat-suit" style={{ color: SUIT_COLORS[seatIndex] }}>
+              {SUITS[seatIndex]}
+            </span>
+            <span className="room__seat-name">
+              {playerNames[pid] ?? pid.slice(0, 6)}
+            </span>
+            <div className="room__seat-badges">
+              {pid === playerId && <span className="room__seat-badge room__seat-you">you</span>}
+              {pid === hostId && <span className="room__seat-host-crown">♛</span>}
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="empty"
+            className="room__seat-empty"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div className="room__seat-pulse" />
+            <span className="room__seat-waiting">Waiting…</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 }
 
 export function RoomScreen(): React.ReactNode {
-  const { room, session, startGame, leaveRoom } = useGame();
+  const { room, session, playerNames, startGame, leaveRoom } = useGame();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   if (!room || !session) return null;
 
@@ -24,58 +78,109 @@ export function RoomScreen(): React.ReactNode {
     const ack = await startGame();
     setBusy(false);
     if (!ack.ok) {
-      setErr(ack.error === 'NOT_ENOUGH_PLAYERS' ? 'Need at least 2 players.' : 'Only the host can start.');
+      setErr(
+        ack.error === 'NOT_ENOUGH_PLAYERS'
+          ? 'Need at least 2 players.'
+          : 'Only the host can start.',
+      );
     }
   }
 
+  function handleCopy(): void {
+    void navigator.clipboard.writeText(room!.roomCode).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  const seats: Array<string | null> = [
+    room.players[0] ?? null,
+    room.players[1] ?? null,
+    room.players[2] ?? null,
+    room.players[3] ?? null,
+  ];
+
   return (
     <div className="center-screen">
+      {/* Ambient floating particles */}
+      <div className="room__particles" aria-hidden="true">
+        {Array.from({ length: 8 }, (_, i) => (
+          <span key={i} className="room__particle" />
+        ))}
+      </div>
+
       <img src={logo} alt="Ganatri" className="room__logo" />
-      <h1 className="neon-title room__title">ROOM {room.roomCode}</h1>
-      <p className="muted">Share this code so others can join.</p>
-      <motion.div
-        className="card-surface room__panel"
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 280, damping: 26 }}
-      >
-        <div className="room__players">
-          {room.players.map((pid, i) => (
-            <motion.div
-              key={pid}
-              className="room__player"
-              initial={{ opacity: 0, x: -16 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.05 * i }}
+
+      {/* Flip-tile room code */}
+      <div className="room__code-row">
+        <div className="room__tiles">
+          {room.roomCode.split('').map((char, i) => (
+            <span
+              key={i}
+              className="room__tile"
+              style={{ '--i': i } as React.CSSProperties}
             >
-              <span className="room__index">{i + 1}</span>
-              <span>
-                {shortId(pid)}
-                {pid === session.playerId && <span className="room__you"> (you)</span>}
-                {pid === room.hostId && <span className="room__host"> host</span>}
-              </span>
-            </motion.div>
+              {char}
+            </span>
           ))}
         </div>
-        <p className="muted">{room.players.length} / 4 players</p>
-        {isHost ? (
-          <button onClick={() => void handleStart()} disabled={!canStart || busy}>
-            {room.players.length < 2 ? 'Waiting for players…' : 'Start game'}
-          </button>
-        ) : (
-          <p className="muted">Waiting for the host to start…</p>
-        )}
-        {err && <div style={{ color: 'var(--danger)' }}>{err}</div>}
         <button
-          className="secondary"
-          onClick={() => {
-            void leaveRoom();
-          }}
-          disabled={busy}
+          className={`secondary room__copy-btn${copied ? ' room__copy-btn--copied' : ''}`}
+          onClick={handleCopy}
+          title="Copy room code"
         >
-          Leave room
+          {copied ? '✓ Copied!' : 'Copy code'}
         </button>
-      </motion.div>
+      </div>
+      <p className="muted">Share this code so others can join.</p>
+
+      {/* Oval table with animated seats */}
+      <div className="room__table-area">
+        <div className="room__oval">
+          <span className="room__oval-label">GANATRI</span>
+        </div>
+        {seats.map((pid, i) => (
+          <SeatSlot
+            key={i}
+            pid={pid}
+            seatIndex={i}
+            playerId={session.playerId}
+            hostId={room.hostId}
+            playerNames={playerNames}
+          />
+        ))}
+      </div>
+
+      {/* Progress pips */}
+      <div className="room__pips">
+        {Array.from({ length: 4 }, (_, i) => (
+          <span
+            key={i}
+            className={`room__pip${i < room.players.length ? ' room__pip--filled' : ''}`}
+          />
+        ))}
+        <span className="room__pip-label muted">{room.players.length} / 4 players</span>
+      </div>
+
+      {isHost ? (
+        <button
+          className={canStart ? 'room__start--ready' : ''}
+          onClick={() => void handleStart()}
+          disabled={!canStart || busy}
+        >
+          {room.players.length < 2 ? 'Waiting for players…' : 'Start game'}
+        </button>
+      ) : (
+        <p className="muted">Waiting for the host to start…</p>
+      )}
+      {err && <div style={{ color: 'var(--danger)' }}>{err}</div>}
+      <button
+        className="secondary"
+        onClick={() => { void leaveRoom(); }}
+        disabled={busy}
+      >
+        Leave room
+      </button>
     </div>
   );
 }

@@ -6,18 +6,28 @@ import './LobbyScreen.css';
 
 export function LobbyScreen(): React.ReactNode {
   const { createRoom, joinRoom } = useGame();
+  const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   // ALREADY_IN_GAME -> offer rejoin to the existing room.
   const [rejoin, setRejoin] = useState<string | null>(null);
 
+  function validateName(): boolean {
+    if (!name.trim()) {
+      setLocalError('Please enter your name.');
+      return false;
+    }
+    return true;
+  }
+
   async function handleCreate(): Promise<void> {
+    if (!validateName()) return;
     setBusy(true);
     setLocalError(null);
-    const ack = await createRoom();
+    const ack = await createRoom(name.trim());
     setBusy(false);
-    if (ack.ok) return; // room_update will move us forward
+    if (ack.ok) return;
     if (ack.error === 'ALREADY_IN_GAME' && ack.currentRoomCode) {
       setRejoin(ack.currentRoomCode);
     } else {
@@ -26,9 +36,10 @@ export function LobbyScreen(): React.ReactNode {
   }
 
   async function handleJoin(roomCode: string): Promise<void> {
+    if (!validateName()) return;
     setBusy(true);
     setLocalError(null);
-    const ack = await joinRoom(roomCode.trim().toUpperCase());
+    const ack = await joinRoom(roomCode.trim().toUpperCase(), name.trim());
     setBusy(false);
     if (ack.ok) return;
     switch (ack.error) {
@@ -89,6 +100,14 @@ export function LobbyScreen(): React.ReactNode {
         animate={{ opacity: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 280, damping: 26, delay: 0.1 }}
       >
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value.slice(0, 20))}
+          placeholder="Your name"
+          maxLength={20}
+          autoFocus
+          style={{ textAlign: 'center' }}
+        />
         <button onClick={() => void handleCreate()} disabled={busy}>
           Create room
         </button>

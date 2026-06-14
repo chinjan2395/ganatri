@@ -8,6 +8,7 @@ import type { Move } from '@ganatri/engine';
 import {
   EVENTS,
   type CreateRoomAck,
+  type CreateRoomPayload,
   type JoinRoomAck,
   type JoinRoomPayload,
   type LeaveRoomAck,
@@ -46,12 +47,13 @@ function emitAck<T>(event: string, payload?: unknown): Promise<T> {
   });
 }
 
-export function createRoom(): Promise<CreateRoomAck> {
-  return emitAck<CreateRoomAck>(EVENTS.CREATE_ROOM);
+export function createRoom(name?: string): Promise<CreateRoomAck> {
+  const payload: CreateRoomPayload = { name };
+  return emitAck<CreateRoomAck>(EVENTS.CREATE_ROOM, payload);
 }
 
-export function joinRoom(roomCode: string): Promise<JoinRoomAck> {
-  const payload: JoinRoomPayload = { roomCode };
+export function joinRoom(roomCode: string, name?: string): Promise<JoinRoomAck> {
+  const payload: JoinRoomPayload = { roomCode, name };
   return emitAck<JoinRoomAck>(EVENTS.JOIN_ROOM, payload);
 }
 

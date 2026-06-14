@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { useGame } from './state/GameProvider';
+import { IntroScreen } from './screens/IntroScreen';
 import { LobbyScreen } from './screens/LobbyScreen';
 import { RoomScreen } from './screens/RoomScreen';
 import { GameScreen } from './screens/GameScreen';
@@ -7,8 +9,16 @@ import { Toast } from './components/Toast';
 import { ConnectionBanner } from './components/ConnectionBanner';
 
 export function App(): React.ReactNode {
+  const introDone = sessionStorage.getItem('intro_done') === '1';
+  const [showIntro, setShowIntro] = useState(!introDone);
+
   if (window.location.pathname === '/admin') {
     return <AdminScreen />;
+  }
+
+  function handleIntroDone() {
+    sessionStorage.setItem('intro_done', '1');
+    setShowIntro(false);
   }
 
   const { session, room, view, error, clearError } = useGame();
@@ -41,10 +51,13 @@ export function App(): React.ReactNode {
   }
 
   return (
-    <div className="app-shell">
-      <ConnectionBanner />
-      {screen}
-      <Toast message={error} onDismiss={clearError} />
-    </div>
+    <>
+      {showIntro && <IntroScreen onDone={handleIntroDone} />}
+      <div className="app-shell">
+        <ConnectionBanner />
+        {screen}
+        <Toast message={error} onDismiss={clearError} />
+      </div>
+    </>
   );
 }

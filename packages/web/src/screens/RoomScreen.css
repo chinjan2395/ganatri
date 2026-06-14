@@ -1,45 +1,311 @@
+/* ── Logo ───────────────────────────────────────────── */
 .room__logo {
-  width: min(220px, 55vw);
-  margin-bottom: -8px;
+  width: min(200px, 50vw);
+  margin-bottom: -4px;
   filter: drop-shadow(0 0 16px rgba(231, 195, 74, 0.3));
 }
-.room__title {
-  font-size: clamp(28px, 9vw, 52px);
-  margin: 0;
-}
-.room__panel {
-  border: 1px solid rgba(231, 195, 74, 0.4);
-  box-shadow: var(--glow-gold), 0 8px 30px rgba(0, 0, 0, 0.5);
-}
-.room__players {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.room__player {
+
+/* ── Flip-tile room code ────────────────────────────── */
+.room__code-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: var(--panel-2);
-  padding: 8px 12px;
-  border-radius: 8px;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
-.room__index {
-  width: 22px;
-  height: 22px;
+
+.room__tiles {
+  display: flex;
+  gap: 6px;
+  perspective: 600px;
+}
+
+@keyframes flip-in {
+  from {
+    transform: rotateX(90deg);
+    opacity: 0;
+  }
+  to {
+    transform: rotateX(0deg);
+    opacity: 1;
+  }
+}
+
+.room__tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 56px;
+  border-radius: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--gold-2);
+  color: var(--gold);
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  box-shadow: var(--glow-gold);
+  animation: flip-in 0.35s ease-out both;
+  animation-delay: calc(var(--i) * 70ms);
+}
+
+.room__copy-btn {
+  font-size: 13px;
+  padding: 6px 14px;
+  min-width: 96px;
+  transition: transform 0.15s, background 0.15s;
+}
+.room__copy-btn--copied {
+  transform: scale(1.07);
+}
+
+/* ── Oval table ─────────────────────────────────────── */
+.room__table-area {
+  position: relative;
+  /* Total size includes space for seats around the oval */
+  width: 640px;
+  height: 380px;
+  max-width: 95vw;
+  flex-shrink: 0;
+}
+
+.room__oval {
+  position: absolute;
+  width: 300px;
+  height: 160px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   border-radius: 50%;
-  background: var(--accent);
-  color: #1a1400;
+  background: radial-gradient(ellipse at 40% 35%, #226640, var(--felt-dark));
+  border: 3px solid var(--gold-2);
+  box-shadow:
+    var(--glow-gold),
+    inset 0 0 40px rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
-  font-size: 12px;
 }
-.room__you {
-  color: var(--accent);
-}
-.room__host {
-  color: var(--accent-2);
+
+.room__oval-label {
+  font-family: var(--font-display);
   font-size: 12px;
+  letter-spacing: 4px;
+  color: rgba(231, 195, 74, 0.25);
+  user-select: none;
+}
+
+/* Seat slots */
+.room__seat {
+  position: absolute;
+  min-width: 100px;
+  display: flex;
+  justify-content: center;
+}
+
+.room__seat--0 { /* top */
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.room__seat--1 { /* right */
+  top: 50%;
+  right: 16px;
+  transform: translateY(-50%);
+}
+.room__seat--2 { /* bottom */
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.room__seat--3 { /* left */
+  top: 50%;
+  left: 16px;
+  transform: translateY(-50%);
+}
+
+/* Occupied seat card */
+.room__seat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: var(--panel);
+  border: 1px solid rgba(231, 195, 74, 0.45);
+  border-radius: 10px;
+  padding: 8px 14px;
+  box-shadow:
+    var(--glow-gold),
+    0 4px 16px rgba(0, 0, 0, 0.5);
+  min-width: 90px;
+  text-align: center;
+}
+
+.room__seat-suit {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.room__seat-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.room__seat-badges {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 18px;
+}
+
+.room__seat-badge {
+  font-size: 10px;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.room__seat-you {
+  background: rgba(231, 195, 74, 0.15);
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.room__seat-host-crown {
+  font-size: 13px;
+  color: var(--gold);
+}
+
+/* Empty seat */
+.room__seat-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+@keyframes seat-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.85;
+  }
+}
+
+.room__seat-pulse {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px dashed rgba(231, 195, 74, 0.4);
+  animation: seat-pulse 2s ease-in-out infinite;
+}
+
+.room__seat-waiting {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* ── Progress pips ──────────────────────────────────── */
+.room__pips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.room__pip {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--panel-2);
+  border: 1px solid rgba(231, 195, 74, 0.2);
+  transition: background 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+}
+
+.room__pip--filled {
+  background: var(--gold);
+  border-color: var(--gold-rim);
+  box-shadow: 0 0 8px rgba(231, 195, 74, 0.75);
+}
+
+.room__pip-label {
+  font-size: 13px;
+  margin-left: 4px;
+}
+
+/* ── Pulsing start button ───────────────────────────── */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: var(--glow-gold);
+  }
+  50% {
+    box-shadow:
+      0 0 22px rgba(231, 195, 74, 0.9),
+      0 0 44px rgba(231, 195, 74, 0.5);
+  }
+}
+
+.room__start--ready {
+  animation: pulse-glow 1.8s ease-in-out infinite;
+}
+
+/* ── Ambient shimmer particles ──────────────────────── */
+.room__particles {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+@keyframes float-up {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.65;
+  }
+  88% {
+    opacity: 0.35;
+  }
+  100% {
+    transform: translateY(-92vh) scale(0.5);
+    opacity: 0;
+  }
+}
+
+.room__particle {
+  position: absolute;
+  bottom: -8px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--gold);
+  animation: float-up linear infinite;
+}
+
+.room__particle:nth-child(1) { left:  8%; animation-duration:  9s; animation-delay:  0s;   width: 3px; height: 3px; }
+.room__particle:nth-child(2) { left: 18%; animation-duration: 12s; animation-delay: 2.5s;  width: 5px; height: 5px; }
+.room__particle:nth-child(3) { left: 33%; animation-duration:  8s; animation-delay:  1s;   width: 3px; height: 3px; }
+.room__particle:nth-child(4) { left: 47%; animation-duration: 11s; animation-delay:  4s;   width: 6px; height: 6px; }
+.room__particle:nth-child(5) { left: 58%; animation-duration:  7s; animation-delay: 0.5s;  width: 4px; height: 4px; }
+.room__particle:nth-child(6) { left: 69%; animation-duration: 10s; animation-delay:  3s;   width: 3px; height: 3px; }
+.room__particle:nth-child(7) { left: 79%; animation-duration: 13s; animation-delay: 1.5s;  width: 5px; height: 5px; }
+.room__particle:nth-child(8) { left: 91%; animation-duration:  8s; animation-delay:  5s;   width: 4px; height: 4px; }
+
+/* ── Mobile scale-down ──────────────────────────────── */
+@media (max-width: 680px) {
+  .room__table-area {
+    transform: scale(0.68);
+    transform-origin: center top;
+    margin-bottom: -120px;
+  }
 }

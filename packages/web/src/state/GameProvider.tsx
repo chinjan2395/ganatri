@@ -52,10 +52,12 @@ export interface GameContextValue {
   eventLog: readonly LoggedEvent[];
   lastEvent: GameEvent | null;
   disconnectedPlayers: ReadonlySet<string>;
+  /** playerId → display name, sourced from room updates */
+  playerNames: Readonly<Record<string, string>>;
   error: string | null;
   clearError: () => void;
-  createRoom: () => Promise<CreateRoomAck>;
-  joinRoom: (roomCode: string) => Promise<JoinRoomAck>;
+  createRoom: (name?: string) => Promise<CreateRoomAck>;
+  joinRoom: (roomCode: string, name?: string) => Promise<JoinRoomAck>;
   leaveRoom: () => Promise<void>;
   startGame: () => Promise<StartGameAck>;
   makeMove: (move: Move) => Promise<boolean>;
@@ -73,6 +75,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
   const [eventLog, setEventLog] = useState<LoggedEvent[]>([]);
   const [lastEvent, setLastEvent] = useState<GameEvent | null>(null);
   const [disconnectedPlayers, setDisconnectedPlayers] = useState<Set<string>>(new Set());
+  const [playerNames, setPlayerNames] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const eventId = useRef(0);
 
@@ -93,10 +96,9 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
     }
     function onRoomUpdate(payload: RoomUpdatePayload): void {
       setRoom(payload);
-      // Always sync disconnected players from the server's authoritative list.
       setDisconnectedPlayers(new Set(payload.disconnectedPlayers));
+      if (payload.playerNames) setPlayerNames(payload.playerNames);
       if (payload.phase === 'LOBBY') {
-        // Returned to lobby; clear stale game state.
         setView(null);
         setEventLog([]);
         setLastEvent(null);
@@ -151,8 +153,8 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
 
   const clearError = useCallback(() => setError(null), []);
 
-  const createRoom = useCallback(() => netCreateRoom(), []);
-  const joinRoom = useCallback((roomCode: string) => netJoinRoom(roomCode), []);
+  const createRoom = useCallback((name?: string) => netCreateRoom(name), []);
+  const joinRoom = useCallback((roomCode: string, name?: string) => netJoinRoom(roomCode, name), []);
   const startGame = useCallback(() => netStartGame(), []);
 
   const leaveRoom = useCallback(async () => {
@@ -163,6 +165,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
     setEventLog([]);
     setLastEvent(null);
     setDisconnectedPlayers(new Set());
+    setPlayerNames({});
   }, []);
 
   const makeMove = useCallback(async (move: Move): Promise<boolean> => {
@@ -187,6 +190,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       eventLog,
       lastEvent,
       disconnectedPlayers,
+      playerNames,
       error,
       clearError,
       createRoom,
@@ -205,6 +209,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       eventLog,
       lastEvent,
       disconnectedPlayers,
+      playerNames,
       error,
       clearError,
       createRoom,

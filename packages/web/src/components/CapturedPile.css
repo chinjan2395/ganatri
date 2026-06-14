@@ -1,55 +1,77 @@
+/* Wrapper — positions the floating panel anchor */
 .cpile {
-  flex-shrink: 0;
-  cursor: pointer;
-  border-radius: 10px;
-  background: linear-gradient(180deg, rgba(29, 51, 38, 0.9), rgba(20, 38, 27, 0.9));
-  border: 1px solid rgba(231, 195, 74, 0.35);
-  padding: 6px 12px;
-  user-select: none;
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  pointer-events: auto;
 }
 
-.cpile__header {
+/* Card-icon pill trigger */
+.cpile__btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
+  gap: 4px;
+  padding: 4px 8px 4px 6px;
+  border-radius: 20px;
+  background: rgba(10, 20, 14, 0.88);
+  border: 1px solid rgba(231, 195, 74, 0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), var(--glow-gold);
+  cursor: pointer;
+  user-select: none;
+  backdrop-filter: blur(4px);
 }
-.cpile__label {
-  font-size: 11px;
-  font-family: var(--font-display);
+.cpile__btn:hover {
+  background: rgba(15, 28, 18, 0.95);
+  border-color: rgba(231, 195, 74, 0.85);
+}
+
+/* Stacked card SVG */
+.cpile__icon {
+  display: block;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 3px rgba(231, 195, 74, 0.35));
+}
+
+/* Count badge */
+.cpile__count {
+  background: rgba(231, 195, 74, 0.15);
   color: var(--gold-rim);
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-}
-.cpile__toggle {
-  margin-left: auto;
-  font-size: 10px;
-  color: var(--text-dim);
-}
-
-/* Collapsed: suit chips in a row */
-.cpile__summary {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-}
-.cpile__chip {
-  font-size: 13px;
+  border-radius: 10px;
+  padding: 0 5px;
   font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.3);
-  min-width: 32px;
+  font-size: 12px;
+  font-family: var(--font-display);
+  min-width: 18px;
   text-align: center;
+  line-height: 18px;
 }
-.cpile__chip--red  { color: var(--red-suit); }
-.cpile__chip--black { color: var(--text); }
 
-/* Expanded: one row per suit */
+.cpile__chevron {
+  color: var(--text-dim);
+  font-size: 8px;
+}
+
+/* Panel floats above the button */
+.cpile__panel {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  background: linear-gradient(180deg, rgba(22, 40, 28, 0.97), rgba(14, 26, 18, 0.97));
+  border: 1px solid rgba(231, 195, 74, 0.4);
+  border-radius: 10px;
+  padding: 8px 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), var(--glow-gold);
+  backdrop-filter: blur(6px);
+  min-width: 140px;
+}
+
+/* Suit rows */
 .cpile__rows {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 .cpile__row {
   display: flex;
@@ -62,17 +84,17 @@
   width: 18px;
   flex-shrink: 0;
 }
-.cpile__suit-label--red  { color: var(--red-suit); }
+.cpile__suit-label--red   { color: var(--red-suit); }
 .cpile__suit-label--black { color: var(--text); }
 .cpile__ranks {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 3px;
 }
 .cpile__rank {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  padding: 1px 5px;
+  padding: 1px 4px;
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.08);
   color: var(--text);

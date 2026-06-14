@@ -5,6 +5,8 @@ import './OpponentSeat.css';
 
 export interface OpponentSeatProps {
   playerId: PlayerId;
+  /** Human-readable display name; falls back to shortened playerId. */
+  displayName?: string;
   isYou: boolean;
   handCount: number;
   captureCount?: number; // Part 1
@@ -21,7 +23,7 @@ function shortId(id: PlayerId): string {
 }
 
 export function OpponentSeat(props: OpponentSeatProps): React.ReactNode {
-  const { playerId, isYou, handCount, captureCount, isTurn, isSafe, safeRank, disconnected, compact } =
+  const { playerId, displayName, isYou, handCount, captureCount, isTurn, isSafe, safeRank, disconnected, compact } =
     props;
   const classes = ['seat'];
   if (isTurn) classes.push('seat--turn');
@@ -29,14 +31,16 @@ export function OpponentSeat(props: OpponentSeatProps): React.ReactNode {
   if (disconnected) classes.push('seat--disconnected');
   if (compact) classes.push('seat--compact');
 
+  const label = displayName || shortId(playerId);
+
   return (
     <div className={classes.join(' ')}>
       <div className="seat__avatar">
-        <span>{shortId(playerId).slice(0, 2).toUpperCase()}</span>
+        <span>{label.slice(0, 2).toUpperCase()}</span>
         {disconnected && <div className="seat__overlay">offline</div>}
       </div>
       <div className="seat__name">
-        {shortId(playerId)}
+        {label}
         {isYou && <span className="seat__you"> (you)</span>}
       </div>
       <div className="seat__stats">

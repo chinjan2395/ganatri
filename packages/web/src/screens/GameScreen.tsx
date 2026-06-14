@@ -18,7 +18,7 @@ function shortId(id: string): string {
 /**
  * Maps an opponent index to a rim position around the vertical oval.
  *  1 opponent  → top
- *  2 opponents → top-left, top-right
+ *  2 opponents → left, right
  *  3 opponents → left, top, right
  */
 function slotFor(index: number, total: number): string {
@@ -29,14 +29,14 @@ function slotFor(index: number, total: number): string {
 
 type Flash = { kind: 'cut' | 'won' | 'safe'; text: string };
 
-function flashFor(event: GameEvent): Flash | null {
+function flashFor(event: GameEvent, nameFor: (pid: string) => string): Flash | null {
   switch (event.type) {
     case 'CUT':
-      return { kind: 'cut', text: `CUT! ${shortId(event.pickerUpper)} picks up ${event.pickedUp.length} cards` };
+      return { kind: 'cut', text: `CUT! ${nameFor(event.pickerUpper)} picks up ${event.pickedUp.length} cards` };
     case 'TRICK_WON':
-      return { kind: 'won', text: `${shortId(event.winner)} wins the trick` };
+      return { kind: 'won', text: `${nameFor(event.winner)} wins the trick` };
     case 'PLAYER_SAFE':
-      return { kind: 'safe', text: `${shortId(event.player)} is safe` };
+      return { kind: 'safe', text: `${nameFor(event.player)} is safe` };
     default:
       return null;
   }
@@ -67,13 +67,11 @@ const DEFAULT_HAND_STATE: HandState = {
 };
 
 export function GameScreen(): React.ReactNode {
-  const { view, room, session, lastEvent, eventLog, disconnectedPlayers, turnStartedAt, turnTimeoutMs, makeMove, startGame, leaveRoom } = useGame();
+  const { view, room, session, lastEvent, eventLog, disconnectedPlayers, playerNames, turnStartedAt, turnTimeoutMs, makeMove, startGame, leaveRoom } = useGame();
   const [flash, setFlash] = useState<Flash | null>(null);
   const [handState, setHandState] = useState<HandState>(DEFAULT_HAND_STATE);
-  // Local drag order for Part 2 — keeps user's custom arrangement across tricks.
   const [handOrder, setHandOrder] = useState<CardId[]>([]);
 
-  // Sync handOrder when hand changes: preserve existing order, append new cards.
   useEffect(() => {
     if (!view) return;
     const currentIds = view.hand.map((c) => cardId(c));
@@ -84,15 +82,15 @@ export function GameScreen(): React.ReactNode {
     });
   }, [view?.hand]);
 
-  // Drive transient Part 2 feedback from the game-event stream.
   useEffect(() => {
     if (!lastEvent) return;
-    const f = flashFor(lastEvent);
+    const name = (pid: string): string => playerNames[pid] || shortId(pid);
+    const f = flashFor(lastEvent, name);
     if (!f) return;
     setFlash(f);
     const t = setTimeout(() => setFlash(null), 2200);
     return () => clearTimeout(t);
-  }, [lastEvent]);
+  }, [lastEvent, playerNames]);
 
   const handlePart1Change = useCallback((state: Part1SelectionState) => {
     setHandState(state);
@@ -120,56 +118,56 @@ export function GameScreen(): React.ReactNode {
           rankings={view.rankings}
           you={view.you}
           isHost={Boolean(isHost)}
-          onPlayAgain={() => {
-            void startGame();
-          }}
-          onLeave={() => {
-            void leaveRoom();
-          }}
+          onPlayAgain={() => { void startGame(); }}
+          onLeave={() => { void leaveRoom(); }}
         />
       </div>
     );
   }
 
   const opponents = view.seating.filter((pid) => pid !== view.you);
-  const turnName = view.turn ? (view.turn === view.you ? 'You' : shortId(view.turn)) : '—';
+  const nameFor = (pid: string): string => playerNames[pid] || shortId(pid);
+  const isYourTurn = view.turn === view.you;
+  const turnName = view.turn ? (isYourTurn ? 'You' : nameFor(view.turn)) : '—';
 
   const legalIds = handState.legalIds as ReadonlySet<CardId> | null;
   const highlightedIds = 'highlightedIds' in handState ? handState.highlightedIds : undefined;
-  const onSelectCard = (id: CardId): void => {
-    handState.onSelect(id as never);
-  };
+  const onSelectCard = (id: CardId): void => { handState.onSelect(id as never); };
 
-  // In Part 2, show cards in the user's chosen drag order.
   const handToRender: readonly CardModel[] =
     view.phase === 'PART_2' && handOrder.length > 0
-      ? (handOrder
-          .map((id) => view.hand.find((c) => cardId(c) === id))
-          .filter(Boolean) as CardModel[])
+      ? (handOrder.map((id) => view.hand.find((c) => cardId(c) === id)).filter(Boolean) as CardModel[])
       : view.hand;
 
   return (
     <div className="game">
-      {/* ── Top bar ── */}
-      <header className="game__topbar">
-        <div className="game__phase">{view.phase === 'PART_1' ? 'Part 1 · Capture' : 'Part 2 · Cut'}</div>
-        <div className="game__topbar-meta">
-          <span className="game__turn">
-            Turn <strong>{turnName}</strong>
-          </span>
-          {turnStartedAt !== null && <TurnTimer turnStartedAt={turnStartedAt} durationMs={turnTimeoutMs} />}
+
+      {/* ── HUD: independent floating pills ── */}
+      <header className="game__hud">
+        {/* Phase pill */}
+        <div className="hud__phase">
+          <span className="hud__phase-number">{view.phase === 'PART_1' ? 'PART 1' : 'PART 2'}</span>
+          <span className="hud__phase-name">{view.phase === 'PART_1' ? 'Capture' : 'Cut'}</span>
         </div>
-        <button
-          className="secondary game__leave"
-          onClick={() => {
-            void leaveRoom();
-          }}
-        >
+
+        {/* Turn pill */}
+        <div className={`hud__turn${isYourTurn ? ' hud__turn--yours' : ''}`}>
+          <span className="hud__turn-dot" aria-hidden="true" />
+          <span className="hud__turn-label">Turn</span>
+          <span className="hud__turn-name">{turnName}</span>
+        </div>
+
+        {/* Timer pill */}
+        {turnStartedAt !== null && (
+          <TurnTimer turnStartedAt={turnStartedAt} durationMs={turnTimeoutMs} />
+        )}
+
+        <button className="secondary game__leave" onClick={() => { void leaveRoom(); }}>
           Leave
         </button>
       </header>
 
-      {/* ── Vertical oval table with opponents on the rim ── */}
+      {/* ── Vertical oval table ── */}
       <div className="game__table-stage">
         <div className="table-felt" aria-hidden="true" />
 
@@ -182,6 +180,7 @@ export function GameScreen(): React.ReactNode {
               <div className="table-seat" data-pos={slotFor(i, opponents.length)} key={pid}>
                 <OpponentSeat
                   playerId={pid}
+                  displayName={nameFor(pid)}
                   isYou={false}
                   handCount={handCount}
                   captureCount={captureCount}
@@ -196,18 +195,17 @@ export function GameScreen(): React.ReactNode {
           })}
         </div>
 
-        {/* Current player info card on the bottom rim */}
+        {/* Current player — bottom rim */}
         <div className="table-seat" data-pos="bottom">
           <OpponentSeat
             playerId={view.you}
+            displayName={nameFor(view.you)}
             isYou
             handCount={view.handCounts[view.you] ?? view.hand.length}
             captureCount={view.phase === 'PART_1' ? view.captureCounts[view.you] ?? 0 : undefined}
-            isTurn={view.turn === view.you}
+            isTurn={isYourTurn}
             isSafe={view.safeOrder.includes(view.you)}
-            safeRank={
-              view.safeOrder.indexOf(view.you) >= 0 ? view.safeOrder.indexOf(view.you) + 1 : undefined
-            }
+            safeRank={view.safeOrder.indexOf(view.you) >= 0 ? view.safeOrder.indexOf(view.you) + 1 : undefined}
             disconnected={false}
             compact
           />
@@ -228,6 +226,16 @@ export function GameScreen(): React.ReactNode {
           </div>
         )}
 
+        {/* Captures floating badge — left side of oval, mirrors stock */}
+        {view.phase === 'PART_1' && (() => {
+          const captured = getLocalCapturedCards(eventLog, view.you);
+          return captured.length > 0 ? (
+            <div className="table-captures">
+              <CapturedPile cards={captured} />
+            </div>
+          ) : null;
+        })()}
+
         <AnimatePresence>
           {flash && (
             <motion.div
@@ -246,32 +254,16 @@ export function GameScreen(): React.ReactNode {
         {handState.hint && <div className="table-hint">{handState.hint}</div>}
       </div>
 
-      {/* ── Sidebar: captured pile (Part 1 only) + hand + action bar ── */}
-      <div className="game__sidebar">
-        {view.phase === 'PART_1' && (() => {
-          const captured = getLocalCapturedCards(eventLog, view.you);
-          return captured.length > 0 ? <CapturedPile cards={captured} /> : null;
-        })()}
-        <div className="game__hand">
-          <Hand
-            hand={handToRender}
-            selectedId={handState.selectedId}
-            legalIds={legalIds}
-            canAct={handState.canAct}
-            onSelect={onSelectCard}
-            onReorder={view.phase === 'PART_2' ? setHandOrder : undefined}
-            highlightedIds={highlightedIds}
-          />
-        </div>
-
-        {/* ── Action bar (capture confirm) — sits between hand and player info ── */}
+      {/* ── Hand area at the very bottom ── */}
+      <div className="game__hand-area">
+        {/* Action bar floats above the hand */}
         <AnimatePresence>
           {handState.action && (
             <motion.div
               className="game__action-bar"
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
+              exit={{ opacity: 0, y: 8 }}
               transition={{ type: 'spring', stiffness: 420, damping: 28 }}
             >
               {handState.action.stage === 'confirm-card' ? (
@@ -309,6 +301,16 @@ export function GameScreen(): React.ReactNode {
             </motion.div>
           )}
         </AnimatePresence>
+
+        <Hand
+          hand={handToRender}
+          selectedId={handState.selectedId}
+          legalIds={legalIds}
+          canAct={handState.canAct}
+          onSelect={onSelectCard}
+          onReorder={view.phase === 'PART_2' ? setHandOrder : undefined}
+          highlightedIds={highlightedIds}
+        />
       </div>
 
     </div>
