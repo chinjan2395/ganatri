@@ -558,21 +558,35 @@ function silentLeaveRoom(socket: Socket, session: SessionState): void {
 
   const room = getRoom(roomCode);
   if (room !== undefined) {
-    // Remove from player list (only valid in LOBBY).
     if (room.phase === 'LOBBY') {
       room.players = room.players.filter((p) => p !== session.playerId);
-      // If room is now empty, clean it up.
       if (room.players.length === 0) {
         store.rooms.delete(roomCode);
       } else {
-        // Transfer host if the host left.
         if (room.hostId === session.playerId && room.players.length > 0) {
           room.hostId = room.players[0]!;
         }
         broadcastRoomUpdate(roomCode);
       }
+    } else if (room.phase === 'PLAYING') {
+      // Explicit leave from an active game: remove the player fully so the turn
+      // timer's transport.send loop no longer targets their socket in the new room.
+      room.players = room.players.filter((p) => p !== session.playerId);
+      const graceTimer = room.gracePeriodTimers.get(session.playerId);
+      if (graceTimer !== undefined) {
+        clearTimeout(graceTimer);
+        room.gracePeriodTimers.delete(session.playerId);
+      }
+      room.disconnectedAt.delete(session.playerId);
+      if (room.players.length < MIN_PLAYERS_TO_START) {
+        clearTurnTimer(room);
+        room.phase = 'DONE';
+        room.completedAt = Date.now();
+      } else {
+        broadcastRoomUpdate(roomCode);
+      }
     }
-    // For PLAYING/DONE rooms, the seat is kept; only the socket leaves the room channel.
+    // For DONE rooms: no seat changes needed, just detach the socket below.
   }
 
   socket.leave(roomCode);
