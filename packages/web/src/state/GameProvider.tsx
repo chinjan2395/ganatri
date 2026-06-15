@@ -79,6 +79,15 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
   const [error, setError] = useState<string | null>(null);
   const eventId = useRef(0);
   const roomPhaseRef = useRef<RoomUpdatePayload['phase'] | null>(null);
+  // Refs for the trick-reveal freeze: keep the board visible for a beat after
+  // TRICK_WON / CUT before applying the cleared-trick STATE_UPDATE.
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  const turnTimeoutMsRef = useRef(turnTimeoutMs);
+  turnTimeoutMsRef.current = turnTimeoutMs;
+  const trickFreezeUntilRef = useRef<number>(0);
+  const pendingStateUpdateRef = useRef<StateUpdatePayload | null>(null);
+  const trickFreezeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     function onConnect(): void {
@@ -102,6 +111,14 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       setDisconnectedPlayers(new Set(payload.disconnectedPlayers));
       if (payload.playerNames) setPlayerNames(payload.playerNames);
       if (payload.phase === 'LOBBY') {
+        // Cancel any active trick freeze so stale pending updates don't bleed
+        // into the next game.
+        if (trickFreezeTimerRef.current !== null) {
+          clearTimeout(trickFreezeTimerRef.current);
+          trickFreezeTimerRef.current = null;
+        }
+        trickFreezeUntilRef.current = 0;
+        pendingStateUpdateRef.current = null;
         setView(null);
         setEventLog([]);
         setLastEvent(null);
@@ -115,8 +132,46 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       const logged: LoggedEvent = { id: eventId.current++, event: payload.event };
       setEventLog((log) => [...log.slice(-49), logged]);
       setLastEvent(payload.event);
+
+      // Optimistically show the played card in the trick area immediately in
+      // Part 2. Without this, other players see a gap between CARD_PLAYED and
+      // the STATE_UPDATE that carries the official trick state.
+      if (payload.event.type === 'CARD_PLAYED' && viewRef.current?.phase === 'PART_2') {
+        const { player, card } = payload.event;
+        setView((prev) => {
+          if (!prev || prev.phase !== 'PART_2') return prev;
+          // Guard against duplicates if the STATE_UPDATE arrives first.
+          if (prev.trick.some((tp) => tp.player === player)) return prev;
+          return { ...prev, trick: [...prev.trick, { player, card, isCut: false }] };
+        });
+      }
+
+      // After a trick resolves (TRICK_WON) or is cut, freeze the view for a
+      // short window so all players can see the completed trick before the board
+      // clears. The queued STATE_UPDATE is applied once the freeze expires.
+      if (payload.event.type === 'TRICK_WON' || payload.event.type === 'CUT') {
+        const freezeMs = payload.event.type === 'TRICK_WON' ? 1500 : 2000;
+        trickFreezeUntilRef.current = Date.now() + freezeMs;
+        if (trickFreezeTimerRef.current !== null) clearTimeout(trickFreezeTimerRef.current);
+        trickFreezeTimerRef.current = setTimeout(() => {
+          trickFreezeTimerRef.current = null;
+          trickFreezeUntilRef.current = 0;
+          const pending = pendingStateUpdateRef.current;
+          if (pending !== null) {
+            pendingStateUpdateRef.current = null;
+            setView(pending.view);
+            setTurnStartedAt(pending.turnStartedAt ?? null);
+            setTurnTimeoutMs(pending.turnTimeoutMs);
+          }
+        }, freezeMs);
+      }
     }
     function onStateUpdate(payload: StateUpdatePayload): void {
+      if (Date.now() < trickFreezeUntilRef.current) {
+        // Trick freeze is active — hold the update until the freeze expires.
+        pendingStateUpdateRef.current = payload;
+        return;
+      }
       setView(payload.view);
       setTurnStartedAt(payload.turnStartedAt ?? null);
       setTurnTimeoutMs(payload.turnTimeoutMs);
@@ -155,6 +210,10 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       socket.off(EVENTS.STATE_UPDATE, onStateUpdate);
       socket.off(EVENTS.PLAYER_DISCONNECTED, onPlayerDisconnected);
       socket.off(EVENTS.PLAYER_RECONNECTED, onPlayerReconnected);
+      if (trickFreezeTimerRef.current !== null) {
+        clearTimeout(trickFreezeTimerRef.current);
+        trickFreezeTimerRef.current = null;
+      }
     };
   }, []);
 
@@ -178,8 +237,18 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
   const makeMove = useCallback(async (move: Move): Promise<boolean> => {
     const ack = await netMakeMove(move);
     if (ack.ok) {
-      setView(ack.view);
-      setTurnStartedAt(ack.turnStartedAt);
+      if (Date.now() < trickFreezeUntilRef.current) {
+        // The ack arrives after TRICK_WON/CUT set the freeze. Queue the view
+        // so the trick stays visible until the freeze expires.
+        pendingStateUpdateRef.current = {
+          view: ack.view,
+          turnStartedAt: ack.turnStartedAt,
+          turnTimeoutMs: turnTimeoutMsRef.current,
+        };
+      } else {
+        setView(ack.view);
+        setTurnStartedAt(ack.turnStartedAt);
+      }
       return true;
     }
     setError(ack.message || ack.error);
