@@ -76,43 +76,43 @@ export function Hand({ hand, selectedId, legalIds, canAct, onSelect, onReorder, 
   if (onReorder) {
     const ids = hand.map((c) => cardId(c));
     return (
-      <Reorder.Group
-        as="div"
-        axis="x"
-        values={ids}
-        onReorder={onReorder}
-        className="hand hand--grid"
-        role="group"
-        aria-label="Your hand — drag to rearrange"
-        ref={ref}
-      >
-        {hand.map((card) => {
-          const id = cardId(card);
-          const legal = legalIds === null ? canAct : legalIds.has(id);
-          const disabled = !canAct || !legal;
-          return (
-            <Reorder.Item
-              key={id}
-              value={id}
-              as="div"
-              className="hand__slot hand__slot--grid"
-              layout="position"
-              style={{ cursor: 'grab', touchAction: 'none' }}
-              whileDrag={{ scale: 1.12, y: -12, zIndex: 30, cursor: 'grabbing' }}
-              transition={{ type: 'spring', stiffness: 360, damping: 26 }}
-            >
-              <Card
-                card={card}
-                selected={selectedId === id}
-                legal={canAct && legal}
-                disabled={disabled}
-                highlighted={highlightedIds?.has(id) ?? false}
-                onClick={() => onSelect(id)}
-              />
-            </Reorder.Item>
-          );
-        })}
-      </Reorder.Group>
+      <div className="hand hand--grid-wrap" ref={ref}>
+        <Reorder.Group
+          as="div"
+          axis="x"
+          values={ids}
+          onReorder={onReorder}
+          className="hand--grid"
+          role="group"
+          aria-label="Your hand — drag to rearrange"
+        >
+          {hand.map((card) => {
+            const id = cardId(card);
+            const legal = legalIds === null ? canAct : legalIds.has(id);
+            const disabled = !canAct || !legal;
+            return (
+              <Reorder.Item
+                key={id}
+                value={id}
+                as="div"
+                className="hand__slot hand__slot--grid"
+                style={{ cursor: 'grab', touchAction: 'none' }}
+                whileDrag={{ scale: 1.12, y: -12, zIndex: 30, cursor: 'grabbing' }}
+                transition={{ type: 'spring', stiffness: 360, damping: 26 }}
+              >
+                <Card
+                  card={card}
+                  selected={selectedId === id}
+                  legal={canAct && legal}
+                  disabled={disabled}
+                  highlighted={highlightedIds?.has(id) ?? false}
+                  onClick={() => onSelect(id)}
+                />
+              </Reorder.Item>
+            );
+          })}
+        </Reorder.Group>
+      </div>
     );
   }
 
@@ -121,34 +121,35 @@ export function Hand({ hand, selectedId, legalIds, canAct, onSelect, onReorder, 
 
   return (
     <div className={fanClass} role="group" aria-label="Your hand" ref={ref}>
-      <AnimatePresence initial={false}>
-        {hand.map((card, i) => {
-          const id = cardId(card);
-          const legal = legalIds === null ? canAct : legalIds.has(id);
-          const disabled = !canAct || !legal;
-          return (
-            <motion.div
-              key={id}
-              className="hand__slot"
-              layout="position"
-              style={needsWrap ? undefined : { marginLeft: i === 0 ? 0 : -overlap }}
-              initial={{ opacity: 0, y: 18, scale: 0.85 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -28, scale: 0.8 }}
-              transition={{ type: 'spring', stiffness: 360, damping: 26 }}
-            >
-              <Card
-                card={card}
-                selected={selectedId === id}
-                legal={canAct && legal}
-                disabled={disabled}
-                highlighted={highlightedIds?.has(id) ?? false}
-                onClick={() => onSelect(id)}
-              />
-            </motion.div>
-          );
-        })}
-      </AnimatePresence>
+      <motion.div className="hand__fan-inner" layout="position">
+        <AnimatePresence initial={false} mode="popLayout">
+          {hand.map((card, i) => {
+            const id = cardId(card);
+            const legal = legalIds === null ? canAct : legalIds.has(id);
+            const disabled = !canAct || !legal;
+            return (
+              <motion.div
+                key={id}
+                className="hand__slot"
+                style={needsWrap ? undefined : { marginLeft: i === 0 ? 0 : -overlap }}
+                initial={{ opacity: 0, y: 18, scale: 0.85 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -28, scale: 0.8 }}
+                transition={{ type: 'spring', stiffness: 360, damping: 26 }}
+              >
+                <Card
+                  card={card}
+                  selected={selectedId === id}
+                  legal={canAct && legal}
+                  disabled={disabled}
+                  highlighted={highlightedIds?.has(id) ?? false}
+                  onClick={() => onSelect(id)}
+                />
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+      </motion.div>
     </div>
   );
 }

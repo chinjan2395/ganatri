@@ -3,7 +3,16 @@
   justify-content: center;
   align-items: flex-end;
   width: 100%;
+  max-width: 100%;
   padding: 14px 12px 10px;
+}
+
+/* Inner fan cluster — shrink-wrap so the outer hand can center it after cards change */
+.hand__fan-inner {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  width: max-content;
+  max-width: 100%;
 }
 
 /* ── Part 1: single-row overlap fan ────────────────────────────────────────── */
@@ -12,9 +21,12 @@
 }
 
 /* Fallback: when max overlap is still not enough, wrap into extra rows */
-.hand--wrap {
+.hand--wrap .hand__fan-inner {
   flex-wrap: wrap;
+  justify-content: center;
   gap: 5px;
+}
+.hand--wrap {
   align-items: center;
 }
 /* In wrap mode each slot loses the computed negative margin */
@@ -22,16 +34,26 @@
   margin-left: 0 !important;
 }
 
+/* Part 2 grid — outer centers the shrink-wrapped reorder group */
+.hand--grid-wrap {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  max-width: 100%;
+  padding: 14px 12px 10px;
+}
+
 /* ── Part 2: compact drag-to-reorder grid ───────────────────────────────────── */
 .hand--grid {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
   flex-wrap: wrap;
   justify-content: center;
-  align-content: flex-start;
+  align-content: center;
   gap: 5px 4px;
-  padding: 10px 8px 14px;
+  padding: 0;
   align-items: flex-end;
-  /* Smaller cards so more fit per row */
-  --card-w: clamp(38px, 10.5vw, 52px);
 }
 
 /* ── Shared slot rules ─────────────────────────────────────────────────────── */
@@ -63,7 +85,10 @@
 }
 
 .hand--empty {
+  width: 100%;
   padding: 24px;
   font-style: italic;
+  text-align: center;
   color: var(--text-dim);
+  justify-content: center;
 }

@@ -24,42 +24,49 @@
   box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.35);
 }
 
-/* Inside the flat board: transparent panel, tight spacing, cards float on the felt */
+/* Inside the flat board: transparent panel, gap-based multi-row layout */
 .game__board .board {
   gap: 4px;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 .game__board .board__table,
 .game__board .board__trick {
+  flex: 1;
   min-height: 0;
   padding: 4px;
   background: transparent;
   border: none;
   box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
 }
-.game__board .board__table-cards {
-  gap: 4px;
-}
-.game__board .board__trick {
-  gap: 8px;
-}
-.board__table-cards {
+
+.board__table-cards,
+.board__trick {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   justify-content: center;
+  align-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
 }
 
-.board__table-cards > * + * {
-  margin-left: -10px;
+.game__board .board__table-cards,
+.game__board .board__trick {
+  gap: 6px;
 }
 
-.game__board .board__table-cards > * + * {
-  margin-left: -8px;
+.board__table-cards > *,
+.board__trick-play {
+  flex: 0 0 auto;
 }
-.board__trick {
-  gap: 12px;
-  flex-wrap: wrap;
-}
+
 .board__trick-play {
   display: flex;
   flex-direction: column;
@@ -83,9 +90,26 @@
   box-shadow: 0 0 8px rgba(226, 92, 92, 0.7);
 }
 .board__empty {
+  width: 100%;
+  margin: 0;
+  padding: 8px 12px;
   font-style: italic;
+  text-align: center;
 }
 
+
+/* Led-suit indicator (Part 2) — sits above trick, not stretched */
+.game__board .board__led {
+  flex: 0 0 auto;
+  text-align: center;
+  width: 100%;
+}
+
+.board__led .muted {
+  display: inline-block;
+  width: 100%;
+  text-align: center;
+}
 
 /* Led-suit indicator (Part 2) */
 .board__led {
@@ -93,5 +117,6 @@
   font-weight: 600;
   font-family: var(--font-display);
   letter-spacing: 0.5px;
+  text-align: center;
+  width: 100%;
 }
-

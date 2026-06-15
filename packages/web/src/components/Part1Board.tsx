@@ -200,32 +200,35 @@ export function Part1Board({ view, onMove, onSelectionChange }: Part1BoardProps)
   return (
     <div className="board">
       <div className="board__table board__table--felt" aria-label="Table cards">
-        {view.table.length === 0 && <div className="board__empty muted">Table is empty</div>}
-        <div className="board__table-cards">
-          <AnimatePresence initial={false}>
-            {view.table.map((card) => {
-              const id = cardId(card);
-              const highlighted = chosenSet.has(id);
-              const clickable = (liveSelection?.confirmed && liveSelection.options.some((s) => s.includes(id))) ?? false;
-              return (
-                <motion.div
-                  key={id}
-                  layout="position"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.6 }}
-                  transition={{ type: 'spring', stiffness: 340, damping: 24 }}
-                >
-                  <Card
-                    card={card}
-                    highlighted={highlighted}
-                    onClick={clickable ? () => clickTableCard(id) : undefined}
-                  />
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
-        </div>
+        {view.table.length === 0 ? (
+          <div className="board__empty muted">Table is empty</div>
+        ) : (
+          <div className="board__table-cards">
+            <AnimatePresence initial={false}>
+              {view.table.map((card) => {
+                const id = cardId(card);
+                const highlighted = chosenSet.has(id);
+                const clickable = (liveSelection?.confirmed && liveSelection.options.some((s) => s.includes(id))) ?? false;
+                return (
+                  <motion.div
+                    key={id}
+                    layout="position"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.6 }}
+                    transition={{ type: 'spring', stiffness: 340, damping: 24 }}
+                  >
+                    <Card
+                      card={card}
+                      highlighted={highlighted}
+                      onClick={clickable ? () => clickTableCard(id) : undefined}
+                    />
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
 
     </div>

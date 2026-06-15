@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Card, Suit } from '@ganatri/engine';
 import './CapturedPile.css';
 
@@ -17,41 +18,32 @@ export function CapturedPile({ cards }: { cards: readonly Card[] }): React.React
   for (const c of cards) bySuit[c.suit].push(c);
   for (const s of SUIT_ORDER) bySuit[s].sort(rankSort);
 
-  return (
+  return createPortal(
     <div className="cpile">
-      {/* Card-icon trigger */}
       <button
         className="cpile__btn"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-label={`My captures: ${cards.length}`}
       >
-        {/* Stacked card SVG icon */}
-        <svg className="cpile__icon" viewBox="0 0 20 24" width="20" height="24" aria-hidden="true">
-          {/* Back card, tilted */}
+        <svg className="cpile__icon" viewBox="0 0 20 24" width="22" height="26" aria-hidden="true">
           <rect
             x="5" y="1" width="13" height="18" rx="2.5" ry="2.5"
             fill="rgba(20,38,27,0.85)" stroke="rgba(231,195,74,0.35)" strokeWidth="1"
             transform="rotate(-10 11.5 10)"
           />
-          {/* Front card */}
           <rect
             x="2" y="5" width="13" height="18" rx="2.5" ry="2.5"
             fill="rgba(18,34,24,0.95)" stroke="rgba(231,195,74,0.8)" strokeWidth="1.2"
           />
-          {/* Suit glyph centred on front card */}
           <text
             x="8.5" y="18" textAnchor="middle" fontSize="9"
             fill="var(--gold-rim)" fontWeight="bold"
           >♦</text>
         </svg>
-
-        {/* Count badge */}
         <span className="cpile__count">{cards.length}</span>
-        <span className="cpile__chevron">{open ? '▲' : '▼'}</span>
       </button>
 
-      {/* Floating breakdown panel — opens upward */}
       {open && (
         <div className="cpile__panel">
           <div className="cpile__rows">
@@ -76,6 +68,7 @@ export function CapturedPile({ cards }: { cards: readonly Card[] }): React.React
           </div>
         </div>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
