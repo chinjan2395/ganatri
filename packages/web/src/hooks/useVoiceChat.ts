@@ -59,7 +59,7 @@ export function useVoiceChat(
   const [pttActive, setPttActiveState] = useState(false);
   const [speaking, setSpeaking] = useState<Set<string>>(new Set());
   const [permissionDenied, setPermissionDenied] = useState(false);
-  // State (not ref) so peer-connection effect re-runs when stream becomes available
+  // State (not ref) so peer-connection effect re-runs when stream becomes available.
   const [localStreamReady, setLocalStreamReady] = useState(false);
 
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -71,13 +71,16 @@ export function useVoiceChat(
   const analyserCleanupRef = useRef<Map<string, () => void>>(new Map());
   // Audio elements whose .play() was blocked by the browser (iOS autoplay policy).
   const pendingPlayRef = useRef<Set<HTMLAudioElement>>(new Set());
-  // ICE candidates queued while waiting for setRemoteDescription (Safari strict ordering).
+  // Offers that arrived before the RTCPeerConnection was created (same-device
+  // race: localhost socket round-trip is ~0ms, faster than a React useEffect).
+  const pendingOffersRef = useRef<Map<string, RTCSessionDescriptionInit>>(new Map());
+  // ICE candidates queued while pc doesn't exist yet OR remoteDescription isn't
+  // set yet (Safari rejects addIceCandidate before setRemoteDescription).
   const iceCandidateQueuesRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
 
   // ── speaking detection ──────────────────────────────────────────────────
 
   const startSpeakingDetection = useCallback((playerId: string, stream: MediaStream) => {
-    // One analyser per player; skip if already running.
     if (analyserCleanupRef.current.has(playerId)) return;
 
     const ctx = audioCtxRef.current ?? new AudioContext();
@@ -164,7 +167,6 @@ export function useVoiceChat(
   // ── play remote stream through an <audio> element ──────────────────────
 
   const playRemoteStream = useCallback((peerId: string, stream: MediaStream) => {
-    // Reuse existing element if one already exists for this peer.
     let el = audioElementsRef.current.get(peerId);
     if (!el) {
       el = document.createElement('audio');
@@ -223,8 +225,7 @@ export function useVoiceChat(
 
   // ── ICE candidate queue helper ──────────────────────────────────────────
 
-  // Safari requires remoteDescription to be set before addIceCandidate. Flush
-  // any queued candidates once setRemoteDescription has completed.
+  // Flush queued ICE candidates once setRemoteDescription has completed.
   const flushIceCandidateQueue = useCallback((pc: RTCPeerConnection, peerId: string) => {
     const queue = iceCandidateQueuesRef.current.get(peerId);
     if (!queue) return;
@@ -234,11 +235,29 @@ export function useVoiceChat(
     }
   }, []);
 
+  // ── apply a received offer to a peer connection ─────────────────────────
+
+  // Extracted so it can be called both from the socket handler and from the
+  // peer-setup effect when a buffered offer is drained.
+  const applyOffer = useCallback((pc: RTCPeerConnection, peerId: string, offer: RTCSessionDescriptionInit) => {
+    void pc.setRemoteDescription(offer)
+      .then(() => {
+        flushIceCandidateQueue(pc, peerId);
+        return pc.createAnswer();
+      })
+      .then(answer => pc.setLocalDescription(answer))
+      .then(() => {
+        const payload: VoiceAnswerPayload = {
+          targetPlayerId: peerId,
+          answer: pc.localDescription as RTCSessionDescriptionInit,
+        };
+        socket.emit(EVENTS.VOICE_ANSWER, payload);
+      });
+  }, [flushIceCandidateQueue]);
+
   // ── build/tear-down peer connections when player list or stream changes ─
 
   useEffect(() => {
-    // localStreamReady is the state-based trigger ensuring this re-runs after
-    // getUserMedia resolves even if roomPlayers didn't change.
     if (!myPlayerId || !localStreamReady || !localStreamRef.current) return;
 
     const stream = localStreamRef.current;
@@ -252,6 +271,7 @@ export function useVoiceChat(
         peers.get(pid)?.close();
         peers.delete(pid);
         iceCandidateQueuesRef.current.delete(pid);
+        pendingOffersRef.current.delete(pid);
         stopSpeakingDetection(pid);
         removeRemoteAudio(pid);
       }
@@ -298,9 +318,17 @@ export function useVoiceChat(
         }
       };
 
-      // Initiator rule: higher-sorted playerId sends the offer.
-      // This ensures exactly one side initiates per pair, avoiding glare.
-      if (myPlayerId > peerId) {
+      // Check whether a signaling message arrived before this effect ran.
+      // On same-device connections (localhost socket ~0ms), the offer can
+      // arrive before React fires this useEffect.
+      const bufferedOffer = pendingOffersRef.current.get(peerId);
+      if (bufferedOffer) {
+        pendingOffersRef.current.delete(peerId);
+        // We are the responder — process the buffered offer now that pc exists.
+        applyOffer(pc, peerId, bufferedOffer);
+      } else if (myPlayerId > peerId) {
+        // Initiator rule: higher-sorted playerId sends the offer.
+        // Ensures exactly one side initiates per pair, avoiding glare.
         void pc.createOffer()
           .then(offer => pc.setLocalDescription(offer))
           .then(() => {
@@ -312,27 +340,19 @@ export function useVoiceChat(
           });
       }
     }
-  }, [myPlayerId, roomPlayers, localStreamReady, startSpeakingDetection, stopSpeakingDetection, playRemoteStream, removeRemoteAudio]);
+  }, [myPlayerId, roomPlayers, localStreamReady, applyOffer, startSpeakingDetection, stopSpeakingDetection, playRemoteStream, removeRemoteAudio]);
 
   // ── socket: handle relayed signaling ───────────────────────────────────
 
   useEffect(() => {
     function onOffer({ sourcePlayerId, offer }: VoiceOfferRelayPayload) {
       const pc = peersRef.current.get(sourcePlayerId);
-      if (!pc) return;
-      void pc.setRemoteDescription(offer)
-        .then(() => {
-          flushIceCandidateQueue(pc, sourcePlayerId);
-          return pc.createAnswer();
-        })
-        .then(answer => pc.setLocalDescription(answer))
-        .then(() => {
-          const payload: VoiceAnswerPayload = {
-            targetPlayerId: sourcePlayerId,
-            answer: pc.localDescription as RTCSessionDescriptionInit,
-          };
-          socket.emit(EVENTS.VOICE_ANSWER, payload);
-        });
+      if (!pc) {
+        // pc doesn't exist yet — buffer the offer until the peer-setup effect runs.
+        pendingOffersRef.current.set(sourcePlayerId, offer);
+        return;
+      }
+      applyOffer(pc, sourcePlayerId, offer);
     }
 
     function onAnswer({ sourcePlayerId, answer }: VoiceAnswerRelayPayload) {
@@ -345,10 +365,10 @@ export function useVoiceChat(
 
     function onIce({ sourcePlayerId, candidate }: VoiceIceRelayPayload) {
       const pc = peersRef.current.get(sourcePlayerId);
-      if (!pc) return;
-      if (!pc.remoteDescription) {
-        // Queue until setRemoteDescription completes — Safari rejects addIceCandidate
-        // if called before the remote description is set.
+      // Queue if pc doesn't exist yet OR remoteDescription isn't set yet.
+      // Safari rejects addIceCandidate before setRemoteDescription; same-device
+      // connections can deliver candidates before the pc is even created.
+      if (!pc || !pc.remoteDescription) {
         const queue = iceCandidateQueuesRef.current.get(sourcePlayerId) ?? [];
         queue.push(candidate);
         iceCandidateQueuesRef.current.set(sourcePlayerId, queue);
@@ -365,7 +385,7 @@ export function useVoiceChat(
       socket.off(EVENTS.VOICE_ANSWER_RELAY, onAnswer);
       socket.off(EVENTS.VOICE_ICE_RELAY, onIce);
     };
-  }, [flushIceCandidateQueue]);
+  }, [applyOffer, flushIceCandidateQueue]);
 
   // ── mute / PTT sync ─────────────────────────────────────────────────────
 
@@ -435,6 +455,7 @@ export function useVoiceChat(
       for (const pc of peersRef.current.values()) pc.close();
       peersRef.current.clear();
       iceCandidateQueuesRef.current.clear();
+      pendingOffersRef.current.clear();
       pendingPlayRef.current.clear();
       for (const [pid] of audioElementsRef.current) removeRemoteAudio(pid);
       audioCtxRef.current?.close();
