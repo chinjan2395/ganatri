@@ -1,58 +1,115 @@
-import { createContext, useContext } from 'react';
+import { createContext, memo, useContext, useMemo } from 'react';
 import { useGame } from './GameProvider';
-import { useVoiceChat, type VoiceChatState } from '../hooks/useVoiceChat';
+import { useVoiceChat, type VoiceChatActions, type VoiceChatState } from '../hooks/useVoiceChat';
 import '../components/VoicePttFab.css';
 
-const VoiceChatContext = createContext<VoiceChatState | null>(null);
+// ── Two separate contexts ──────────────────────────────────────────────────
+//
+// VoiceChatContext  — stable (actions + muted/deafened/mode/pttActive).
+//   Only changes when the user interacts with voice controls. GameScreen and
+//   other heavy consumers subscribe here and are NOT re-rendered by speaking.
+//
+// VoiceSpeakingContext — fast-updating (the speaking Set).
+//   Updates up to ~5× per second as players start/stop talking. Only tiny
+//   per-player wrapper components subscribe here.
 
-function VoicePttFab({ state }: { state: VoiceChatState }) {
+const VoiceChatContext = createContext<VoiceChatActions | null>(null);
+const VoiceSpeakingContext = createContext<ReadonlySet<string>>(new Set());
+
+// Stable empty array avoids creating a new reference on every render when room
+// is null, which would otherwise cause the peer-setup effect to re-run.
+const EMPTY_PLAYERS: readonly string[] = [];
+
+// ── VoicePttFab ─────────────────────────────────────────────────────────────
+
+interface VoicePttFabProps {
+  pttActive: boolean;
+  setPttActive: (active: boolean) => void;
+}
+
+const VoicePttFab = memo(function VoicePttFab({ pttActive, setPttActive }: VoicePttFabProps) {
   function onTouchStart(e: React.TouchEvent) {
     e.preventDefault();
-    state.setPttActive(true);
+    setPttActive(true);
   }
   function onTouchEnd(e: React.TouchEvent) {
     e.preventDefault();
-    state.setPttActive(false);
+    setPttActive(false);
   }
 
   return (
     <button
-      className={`voice-ptt-fab${state.pttActive ? ' voice-ptt-fab--active' : ''}`}
-      onMouseDown={() => state.setPttActive(true)}
-      onMouseUp={() => state.setPttActive(false)}
-      onMouseLeave={() => state.setPttActive(false)}
+      className={`voice-ptt-fab${pttActive ? ' voice-ptt-fab--active' : ''}`}
+      onMouseDown={() => setPttActive(true)}
+      onMouseUp={() => setPttActive(false)}
+      onMouseLeave={() => setPttActive(false)}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
-      onTouchCancel={() => state.setPttActive(false)}
-      aria-label={state.pttActive ? 'Talking' : 'Hold to talk'}
+      onTouchCancel={() => setPttActive(false)}
+      aria-label={pttActive ? 'Talking' : 'Hold to talk'}
     >
-      <span className="voice-ptt-fab__icon">{state.pttActive ? '🎙️' : '🔇'}</span>
-      <span className="voice-ptt-fab__label">{state.pttActive ? 'talking' : 'hold to talk'}</span>
+      <span className="voice-ptt-fab__icon">{pttActive ? '🎙️' : '🔇'}</span>
+      <span className="voice-ptt-fab__label">{pttActive ? 'talking' : 'hold to talk'}</span>
     </button>
   );
-}
+});
+
+// ── VoiceChatProvider ────────────────────────────────────────────────────────
 
 export function VoiceChatProvider({ children }: { children: React.ReactNode }): React.ReactNode {
   const { session, room } = useGame();
 
-  const players = room?.players ?? [];
+  // Stable array reference — prevents the peer-setup effect from re-running
+  // every render just because `room?.players ?? []` would create a new array.
+  const roomPlayers = room?.players;
+  const players = useMemo(() => roomPlayers ?? EMPTY_PLAYERS, [roomPlayers]);
+
   const myId = session?.playerId ?? null;
+  const state: VoiceChatState = useVoiceChat(myId, players);
 
-  const state = useVoiceChat(myId, players);
+  // Memoize the stable (action) slice of voice state. This value only changes
+  // when the user actually interacts with voice controls, not on every speaking
+  // update — so GameScreen (a consumer of this context) won't re-render during
+  // normal voice activity.
+  const stableCtx = useMemo<VoiceChatActions>(() => ({
+    muted: state.muted,
+    deafened: state.deafened,
+    mode: state.mode,
+    pttActive: state.pttActive,
+    permissionDenied: state.permissionDenied,
+    toggleMute: state.toggleMute,
+    toggleDeafen: state.toggleDeafen,
+    toggleMode: state.toggleMode,
+    setPttActive: state.setPttActive,
+  }), [
+    state.muted, state.deafened, state.mode, state.pttActive, state.permissionDenied,
+    state.toggleMute, state.toggleDeafen, state.toggleMode, state.setPttActive,
+  ]);
 
-  // Show the FAB only when in a room and using PTT mode.
   const showFab = !!room && !state.permissionDenied && state.mode === 'ptt';
 
   return (
-    <VoiceChatContext.Provider value={state}>
-      {children}
-      {showFab && <VoicePttFab state={state} />}
+    <VoiceChatContext.Provider value={stableCtx}>
+      <VoiceSpeakingContext.Provider value={state.speaking}>
+        {children}
+        {showFab && (
+          <VoicePttFab pttActive={state.pttActive} setPttActive={state.setPttActive} />
+        )}
+      </VoiceSpeakingContext.Provider>
     </VoiceChatContext.Provider>
   );
 }
 
-export function useVoiceChatContext(): VoiceChatState {
+/** Returns the stable voice actions (muted/deafened/mode/pttActive + callbacks).
+ *  Does NOT include the speaking set — use useVoiceSpeaking() for that. */
+export function useVoiceChatContext(): VoiceChatActions {
   const ctx = useContext(VoiceChatContext);
   if (!ctx) throw new Error('useVoiceChatContext must be used inside VoiceChatProvider');
   return ctx;
+}
+
+/** Returns the fast-updating speaking Set. Subscribe here (not via useVoiceChatContext)
+ *  to avoid re-rendering large components on every speaking-state change. */
+export function useVoiceSpeaking(): ReadonlySet<string> {
+  return useContext(VoiceSpeakingContext);
 }
