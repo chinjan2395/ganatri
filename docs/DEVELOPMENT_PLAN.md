@@ -1,6 +1,6 @@
 # Ganatri — Phasewise Development Plan
 
-Last updated: 2026-06-15 (CapturedPile fix — view.myCapturedCards + portaled FAB)  
+Last updated: 2026-06-15 (Voice chat: Perfect Negotiation + recovery + Cloudflare TURN)  
 All 163 tests passing (140 engine + 23 server).
 
 ---
@@ -185,9 +185,12 @@ All 163 tests passing (140 engine + 23 server).
 | 5.5 Client: RoomScreen voice UI (mic button, mode toggle, per-seat speaking ring)      | ✅      | `RoomScreen.tsx` + `RoomScreen.css` — PTT/open modes, green speaking ring                 |
 | 5.6 Client: GameScreen voice indicators (mute button in HUD, speaking ring on avatars) | ✅      | `GameScreen.tsx` + `GameScreen.css` — `.game__voice-btn`, `.game__player-wrap--speaking`  |
 | 5.7 Testing: manual multi-tab smoke test                                               | ⬜      | Requires microphone; open two tabs, join same room, verify audio + speaking indicators    |
+| 5.8 Cross-browser/mobile fixes (iOS autoplay+AudioContext, sampleRate ideal, ICE order) | ✅      | `useVoiceChat.ts` — gesture-based audio unlock, `sampleRate:{ideal}`, ICE queue            |
+| 5.9 Robust signaling: Perfect Negotiation + failure recovery (restartIce, watchdog, reconnect rebuild) | ✅ | `useVoiceChat.ts` — fixes intermittent "works sometimes" connects                  |
+| 5.10 TURN: Cloudflare Realtime TURN, server-minted short-lived creds via socket ack     | ✅      | `server/src/iceConfig.ts`, `VOICE_ICE_SERVERS` event; env-gated, STUN fallback             |
 
 
-**Note:** STUN only (`stun:stun.l.google.com:19302`). TURN deferred to post-v1 — strict symmetric NAT environments will fail silently.
+**Note:** ICE config now served by the server (`voice_ice_servers` ack): STUN always, plus Cloudflare TURN when `CLOUDFLARE_TURN_KEY_ID`/`CLOUDFLARE_TURN_API_TOKEN` are set (free tier 1 TB/mo). Falls back to STUN-only when unset — symmetric/cellular NAT may then fail.
 
 ---
 
@@ -213,6 +216,6 @@ All 163 tests passing (140 engine + 23 server).
 | Phase 2 — Server     | ✅ Complete (23 tests)                                                                   |
 | Phase 3 — Web Client | ✅ Complete (player names wired, all components functional)                              |
 | Phase 4 — Polish     | ✅ Complete (animations, mobile polish; deployment user-handled via Render + Cloudflare) |
-| Phase 5 — Voice Chat | 🟡 Core implemented; manual smoke test pending                                          |
+| Phase 5 — Voice Chat | 🟡 Core + cross-browser fixes + Perfect Negotiation recovery + Cloudflare TURN; smoke test pending |
 
 
