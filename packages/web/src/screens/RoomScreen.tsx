@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGame } from '../state/GameProvider';
-import { useVoiceChatContext } from '../state/VoiceChatProvider';
+import { useVoiceChatContext, useVoiceSpeaking } from '../state/VoiceChatProvider';
 import logo from '../assets/ganatri-logo.png';
 import './RoomScreen.css';
 
@@ -19,10 +19,10 @@ interface SeatSlotProps {
   playerId: string;
   hostId: string;
   playerNames: Record<string, string>;
-  speaking: Set<string>;
 }
 
-function SeatSlot({ pid, seatIndex, playerId, hostId, playerNames, speaking }: SeatSlotProps) {
+function SeatSlot({ pid, seatIndex, playerId, hostId, playerNames }: SeatSlotProps) {
+  const speaking = useVoiceSpeaking();
   const isSpeaking = pid ? speaking.has(pid) : false;
   return (
     <div className={`room__seat room__seat--${seatIndex}`}>
@@ -152,7 +152,6 @@ export function RoomScreen(): React.ReactNode {
             playerId={session.playerId}
             hostId={room.hostId}
             playerNames={playerNames}
-            speaking={voice.speaking}
           />
         ))}
       </div>
