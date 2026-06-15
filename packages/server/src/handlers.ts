@@ -22,9 +22,11 @@ import {
   type VoiceOfferPayload,
   type VoiceAnswerPayload,
   type VoiceIcePayload,
+  type RequestIceServersAck,
   EVENTS,
 } from './protocol.js';
 import { getConfig, isAdminEmail, updateConfig } from './config.js';
+import { getIceServers } from './iceConfig.js';
 import {
   type RoomState,
   type SessionState,
@@ -422,6 +424,14 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
     }
     updateConfig(patch);
     ack({ ok: true });
+  });
+
+  // Voice chat: hand out ICE servers (STUN + minted Cloudflare TURN creds).
+  // TURN credentials are short-lived and generated server-side; the Cloudflare
+  // API token never reaches the client.
+  socket.on(EVENTS.VOICE_ICE_SERVERS, (ack: (res: RequestIceServersAck) => void) => {
+    if (typeof ack !== 'function') return;
+    void getIceServers().then((iceServers) => ack({ iceServers }));
   });
 
   // Voice chat signaling relay — forward WebRTC offer/answer/ICE to the target
