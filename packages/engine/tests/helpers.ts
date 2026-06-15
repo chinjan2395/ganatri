@@ -59,6 +59,7 @@ export function p1(opts: P1Opts): GameState {
     },
     part2: null,
     rankings: null,
+    seed: 0,
   };
 }
 
@@ -71,6 +72,9 @@ export interface P2Opts {
   safeOrder?: readonly PlayerId[];
   trick?: readonly TrickPlay[];
   ledSuit?: Suit | null;
+  removedPool?: string;
+  cutStreak?: number;
+  redistributionCount?: number;
 }
 
 /** Build a targeted PART_2 GameState. */
@@ -99,6 +103,9 @@ export function p2(optsOrHands: P2Opts | Record<PlayerId, string>, turn?: Player
     trick: opts.trick ?? [],
     ledSuit: opts.ledSuit ?? null,
     safeOrder: opts.safeOrder ?? [],
+    removedPool: cs(opts.removedPool ?? ''),
+    cutStreak: opts.cutStreak ?? 0,
+    redistributionCount: opts.redistributionCount ?? 0,
   };
   const derivedTurn = opts.turn !== undefined ? opts.turn : seating[0]!;
   return {
@@ -109,6 +116,7 @@ export function p2(optsOrHands: P2Opts | Record<PlayerId, string>, turn?: Player
     part1: null,
     part2,
     rankings: null,
+    seed: 0,
   };
 }
 

@@ -221,6 +221,8 @@ describe('Part 2 — trick won (all followed suit)', () => {
     const part2 = afterFollow.state.part2!;
     expect(sortedIds(part2.hands['a']!)).toEqual(['2H']);
     expect(sortedIds(part2.hands['b']!)).toEqual(['3H']);
+    expect(sortedIds(part2.removedPool)).toEqual(['5S', '8S']);
+    expect(part2.cutStreak).toBe(0);
     // Neither S card should appear anywhere.
     const allCards = [...part2.hands['a']!, ...part2.hands['b']!];
     expect(allCards.every((card) => card.suit !== 'S')).toBe(true);

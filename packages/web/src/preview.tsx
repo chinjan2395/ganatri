@@ -69,6 +69,7 @@ const view: PlayerView = {
   ledSuit: phase === 'PART_2' ? 'S' : null,
   safeOrder: phase === 'PART_2' && seating.length > 2 ? [seating[2]!] : [],
   rankings: null,
+  removedCount: phase === 'PART_2' ? 6 : 0,
 };
 
 // Captured-card history (Part 1) so the CapturedPile shows content.

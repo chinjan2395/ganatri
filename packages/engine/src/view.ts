@@ -35,5 +35,6 @@ export function viewFor(state: GameState, player: PlayerId): PlayerView {
     ledSuit: part2?.ledSuit ?? null,
     safeOrder: part2?.safeOrder ?? [],
     rankings: state.rankings,
+    removedCount: part2?.removedPool.length ?? 0,
   };
 }

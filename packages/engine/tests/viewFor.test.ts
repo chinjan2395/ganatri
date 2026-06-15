@@ -48,7 +48,7 @@ describe('viewFor — redaction', () => {
   });
 
   it('Part 2 view: hand from part2.hands, part1 fields zeroed', () => {
-    const state2 = p2({ a: '2S AH', b: '3H' });
+    const state2 = p2({ hands: { a: '2S AH', b: '3H' }, removedPool: '4C 5D' });
     const view = viewFor(state2, 'a');
     expect(sortedIds(view.hand)).toEqual(['2S', 'AH']);
     expect(view.handCounts).toEqual({ a: 2, b: 1 });
@@ -58,6 +58,7 @@ describe('viewFor — redaction', () => {
     expect(view.ledSuit).toBeNull();
     expect(view.safeOrder).toEqual([]);
     expect(view.rankings).toBeNull();
+    expect(view.removedCount).toBe(2);
   });
 
   it('carries phase/turn/seating/you', () => {

@@ -341,10 +341,10 @@ function applyTrick(state: GameState, player: PlayerId, cardStr: CardId): MoveRe
   // Trick not yet complete; advance turn.
   const nextTurn = nextActivePart2(state.seating, player, part2.safeOrder);
   const newPart2: Part2State = {
+    ...part2,
     hands: updatedHands,
     trick: newTrick,
     ledSuit,
-    safeOrder: part2.safeOrder,
   };
   return { ok: true, state: { ...state, turn: nextTurn, part2: newPart2 }, events };
 }
@@ -415,10 +415,12 @@ function resolveCut(
 
   // Reset trick and ledSuit.
   const newPart2: Part2State = {
+    ...part2,
     hands: handsAfterPickup,
     trick: [],
     ledSuit: null,
     safeOrder,
+    cutStreak: part2.cutStreak + 1,
   };
 
   // Check game-over conditions.
@@ -488,10 +490,13 @@ function resolveTrickWon(
 
   // Reset trick and ledSuit.
   const newPart2: Part2State = {
+    ...part2,
     hands: part2.hands,
     trick: [],
     ledSuit: null,
     safeOrder,
+    removedPool: [...part2.removedPool, ...cancelled],
+    cutStreak: 0,
   };
 
   // Check game-over conditions.
