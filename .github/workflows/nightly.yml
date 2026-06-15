@@ -1,0 +1,125 @@
+name: Ganatri Nightly Build
+
+on:
+  schedule:
+    - cron: '30 19 * * *'  # 01:00 IST (19:30 UTC previous day)
+  workflow_dispatch:        # manual "Run workflow" button for testing
+
+# Prevent overlapping runs
+concurrency:
+  group: ganatri-nightly
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Create working branch
+        id: branch
+        run: |
+          BRANCH="nightly/$(date +%Y-%m-%d)"
+          git checkout -b "$BRANCH"
+          echo "name=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Run Claude on next phase
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            You are working autonomously overnight on the Ganatri project.
+            No human is available — make safe, conservative decisions.
+
+            STEP 1 — Read state and context:
+            - Read docs/nightly/STATE.md (current phase, status, blockers, sequencing notes).
+            - Read docs/DEVELOPMENT_PLAN.md to understand what each phase contains.
+            - Read CLAUDE.md for project conventions and agent routing guidance.
+            - Read docs/GAME_RULES.md before touching any game logic.
+
+            STEP 2 — Pick exactly ONE unit of work:
+            - If STATE.md says BLOCKED, stop immediately — do not attempt to work around the blocker.
+            - Otherwise implement the next NOT_STARTED or IN_PROGRESS item from the current phase.
+            - Do NOT start a second phase. One coherent unit of work per run, finished cleanly.
+            - If the current phase has pull-forward sub-items (like the Phase 7 urgent fixes), tackle
+              them one at a time in the listed order, updating STATE.md after each one.
+
+            STEP 3 — Implement via agents (follow CLAUDE.md exactly):
+            You are the coordinator. Do NOT write code directly — delegate to the correct agent:
+            - packages/engine work → spawn Agent with subagent_type="rules-engine-dev"
+            - packages/server work → spawn Agent with subagent_type="backend-dev"
+            - packages/web work → spawn Agent with subagent_type="frontend-dev"
+            - After implementation is done → spawn Agent with subagent_type="code-reviewer" to verify
+            Parallelize independent tasks across agents where possible.
+            After all agents complete, run `npm test` yourself to confirm everything passes.
+            If tests still fail after 2 fix attempts via agents, STOP and record BLOCKED.
+
+            STEP 4 — Update docs/nightly/STATE.md:
+            - If the work unit is done and tests pass:
+                - If more pull-forward items remain, update "Notes for Next Run" to reflect the next item.
+                - If the entire current phase is done, set status COMPLETE, move it to "Completed Phases",
+                  and set "Current Phase" to the next one with status NOT_STARTED.
+            - If blocked: set status BLOCKED and write a clear, specific entry under
+              "Blockers / Needs Human Input" — include file paths, error messages, what you tried.
+            - Always fill in "Last Run" with today's date, outcome, and a one-line summary.
+            - Also update docs/DEVELOPMENT_PLAN.md: mark completed tasks ✅, in-progress 🟡.
+
+            STEP 5 — Commit:
+            - Stage all changed files (code + STATE.md + DEVELOPMENT_PLAN.md).
+            - Commit with a message like: "Nightly: <Phase name> — <task title> (complete|partial|blocked)"
+
+            Hard rules:
+            - Branch only — never touch main directly.
+            - Prefer correctness over completeness. A clean partial result with an honest BLOCKED note
+              is better than broken code committed to the branch.
+            - Never skip tests. Never use --no-verify.
+            - If you are unsure about a game rule, mark BLOCKED and ask — do not guess.
+          claude_args: >-
+            --model claude-opus-4-8
+            --max-turns 60
+            --allowedTools Edit,Read,Write,Bash,Agent
+
+      - name: Push branch
+        run: git push origin "${{ steps.branch.outputs.name }}"
+
+      - name: Open Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if git rev-parse --verify origin/main >/dev/null 2>&1 && \
+             [ "$(git rev-list --count origin/main..HEAD)" -gt 0 ]; then
+            gh pr create \
+              --base main \
+              --head "${{ steps.branch.outputs.name }}" \
+              --title "Nightly build — $(date +%Y-%m-%d)" \
+              --body "$(cat <<'EOF'
+          ## Autonomous nightly run
+
+          See \`docs/nightly/STATE.md\` for what was done, what's next, and any blockers.
+
+          **Review before merging** — check diff for correctness against game rules in \`docs/GAME_RULES.md\`.
+
+          🤖 Generated with [Claude Code](https://claude.ai/claude-code)
+          EOF
+          )" \
+            || echo "PR may already exist; skipping."
+          else
+            echo "No changes this run — no PR created."
+          fi
