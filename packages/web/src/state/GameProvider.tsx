@@ -78,6 +78,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
   const [playerNames, setPlayerNames] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const eventId = useRef(0);
+  const roomPhaseRef = useRef<RoomUpdatePayload['phase'] | null>(null);
 
   useEffect(() => {
     function onConnect(): void {
@@ -95,6 +96,8 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       });
     }
     function onRoomUpdate(payload: RoomUpdatePayload): void {
+      const prevPhase = roomPhaseRef.current;
+      roomPhaseRef.current = payload.phase;
       setRoom(payload);
       setDisconnectedPlayers(new Set(payload.disconnectedPlayers));
       if (payload.playerNames) setPlayerNames(payload.playerNames);
@@ -102,8 +105,8 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
         setView(null);
         setEventLog([]);
         setLastEvent(null);
-      } else if (payload.phase === 'PLAYING') {
-        // A new game started (either first start or play-again). Clear stale events.
+      } else if (payload.phase === 'PLAYING' && prevPhase !== 'PLAYING') {
+        // Fresh game only — not on disconnect/reconnect room updates mid-play.
         setEventLog([]);
         setLastEvent(null);
       }

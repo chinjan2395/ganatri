@@ -62,7 +62,9 @@ const view: PlayerView = {
   table: phase === 'PART_1' ? tableP1 : [],
   stockCount: phase === 'PART_1' ? 21 : 0,
   captureCounts,
-  myCapturedCards: [],
+  myCapturedCards: phase === 'PART_1'
+    ? [c('Q', 'D'), c('5', 'D'), c('8', 'H'), c('2', 'C'), c('6', 'C'), c('K', 'C')]
+    : [],
   trick: phase === 'PART_2' ? trickP2 : [],
   ledSuit: phase === 'PART_2' ? 'S' : null,
   safeOrder: phase === 'PART_2' && seating.length > 2 ? [seating[2]!] : [],
