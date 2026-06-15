@@ -114,6 +114,18 @@ export interface VoiceIceRelayPayload {
   candidate: RTCIceCandidateInit;
 }
 
+/** A single ICE (STUN/TURN) server entry. Compatible with RTCIceServer. */
+export interface IceServerConfig {
+  urls: string | string[];
+  username?: string;
+  credential?: string;
+}
+
+/** Server → Client (ack): ICE servers for building RTCPeerConnections. */
+export interface RequestIceServersAck {
+  iceServers: IceServerConfig[];
+}
+
 export const EVENTS = {
   CREATE_ROOM: 'create_room',
   JOIN_ROOM: 'join_room',
@@ -132,6 +144,7 @@ export const EVENTS = {
   VOICE_OFFER: 'voice_offer',
   VOICE_ANSWER: 'voice_answer',
   VOICE_ICE: 'voice_ice_candidate',
+  VOICE_ICE_SERVERS: 'voice_ice_servers',
 
   // Voice chat relay (Server → Client)
   VOICE_OFFER_RELAY: 'voice_offer_relay',

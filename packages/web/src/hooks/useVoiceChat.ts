@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { socket } from '../net/socket';
+import { socket, requestIceServers } from '../net/socket';
 import {
   EVENTS,
   type VoiceOfferPayload,
@@ -25,6 +25,7 @@ export interface VoiceChatState {
   setPttActive: (active: boolean) => void;
 }
 
+// Fallback used until the server hands over its ICE config (STUN + TURN).
 const STUN_SERVERS: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },
 ];
@@ -32,6 +33,11 @@ const STUN_SERVERS: RTCIceServer[] = [
 const SPEAKING_POLL_MS = 100;
 const SPEAKING_THRESHOLD_DB = -50;
 const SPEAKING_DEBOUNCE_MS = 150;
+
+// If a peer connection hasn't reached "connected" within this window, force a
+// recovery (ICE restart → fresh offer). Catches silently-dropped offers — the
+// server relay drops signaling if the target socket isn't registered yet.
+const CONNECT_WATCHDOG_MS = 8_000;
 
 // Explicit constraints: disable browser noise suppression and AGC because
 // they make voices sound muffled/robotic. Echo cancellation stays on to
@@ -49,6 +55,20 @@ const AUDIO_CONSTRAINTS: MediaTrackConstraints = {
 // Boost Opus above its conservative default (~32 kbps) for clearer speech.
 const OPUS_MAX_BITRATE_BPS = 128_000;
 
+// Per-peer connection + Perfect Negotiation bookkeeping.
+interface PeerCtx {
+  pc: RTCPeerConnection;
+  // Politeness decides who yields on an offer collision (glare). The lower
+  // playerId is polite (rolls back); the higher is impolite (ignores). Both
+  // sides compute this identically, so exactly one yields.
+  polite: boolean;
+  makingOffer: boolean;
+  ignoreOffer: boolean;
+  // ICE candidates that arrived before remoteDescription was set.
+  iceQueue: RTCIceCandidateInit[];
+  watchdog: ReturnType<typeof setTimeout> | null;
+}
+
 export function useVoiceChat(
   myPlayerId: string | null,
   roomPlayers: readonly string[],
@@ -61,22 +81,28 @@ export function useVoiceChat(
   const [permissionDenied, setPermissionDenied] = useState(false);
   // State (not ref) so peer-connection effect re-runs when stream becomes available.
   const [localStreamReady, setLocalStreamReady] = useState(false);
+  // ICE servers come from the server (STUN + minted Cloudflare TURN creds).
+  // Gate peer creation on this so every connection is built with TURN available.
+  const [iceServersReady, setIceServersReady] = useState(false);
 
   const localStreamRef = useRef<MediaStream | null>(null);
+  // Latest ICE servers; read by createPeer (ref so the callback stays stable).
+  const iceServersRef = useRef<RTCIceServer[]>(STUN_SERVERS);
   // Mirror deafened in a ref so playRemoteStream (a stable callback) can read it.
   const deafenedRef = useRef(false);
-  const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const peersRef = useRef<Map<string, PeerCtx>>(new Map());
   const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserCleanupRef = useRef<Map<string, () => void>>(new Map());
   // Audio elements whose .play() was blocked by the browser (iOS autoplay policy).
   const pendingPlayRef = useRef<Set<HTMLAudioElement>>(new Set());
-  // Offers that arrived before the RTCPeerConnection was created (same-device
-  // race: localhost socket round-trip is ~0ms, faster than a React useEffect).
-  const pendingOffersRef = useRef<Map<string, RTCSessionDescriptionInit>>(new Map());
-  // ICE candidates queued while pc doesn't exist yet OR remoteDescription isn't
-  // set yet (Safari rejects addIceCandidate before setRemoteDescription).
-  const iceCandidateQueuesRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
+  // Signaling that arrived before the PeerCtx was created (same-device race:
+  // localhost socket round-trip is faster than a React effect). Replayed in
+  // arrival order once the peer is built.
+  type BufferedSignal =
+    | { kind: 'description'; description: RTCSessionDescriptionInit }
+    | { kind: 'ice'; candidate: RTCIceCandidateInit };
+  const pendingSignalsRef = useRef<Map<string, BufferedSignal[]>>(new Map());
 
   // ── speaking detection ──────────────────────────────────────────────────
 
@@ -223,158 +249,251 @@ export function useVoiceChat(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── ICE candidate queue helper ──────────────────────────────────────────
+  // ── fetch ICE servers (STUN + Cloudflare TURN) from the server ──────────
 
-  // Flush queued ICE candidates once setRemoteDescription has completed.
-  const flushIceCandidateQueue = useCallback((pc: RTCPeerConnection, peerId: string) => {
-    const queue = iceCandidateQueuesRef.current.get(peerId);
-    if (!queue) return;
-    iceCandidateQueuesRef.current.delete(peerId);
-    for (const candidate of queue) {
-      void pc.addIceCandidate(candidate);
+  // Always resolves: on error we keep the STUN-only fallback so voice still
+  // works on the same network even if TURN credentials are unavailable.
+  const loadIceServers = useCallback(async () => {
+    try {
+      const ack = await requestIceServers();
+      if (ack?.iceServers?.length) {
+        iceServersRef.current = ack.iceServers as RTCIceServer[];
+      }
+    } catch {
+      // keep STUN fallback
     }
   }, []);
 
-  // ── apply a received offer to a peer connection ─────────────────────────
-
-  // Extracted so it can be called both from the socket handler and from the
-  // peer-setup effect when a buffered offer is drained.
-  const applyOffer = useCallback((pc: RTCPeerConnection, peerId: string, offer: RTCSessionDescriptionInit) => {
-    void pc.setRemoteDescription(offer)
-      .then(() => {
-        flushIceCandidateQueue(pc, peerId);
-        return pc.createAnswer();
-      })
-      .then(answer => pc.setLocalDescription(answer))
-      .then(() => {
-        const payload: VoiceAnswerPayload = {
-          targetPlayerId: peerId,
-          answer: pc.localDescription as RTCSessionDescriptionInit,
-        };
-        socket.emit(EVENTS.VOICE_ANSWER, payload);
-      });
-  }, [flushIceCandidateQueue]);
-
-  // ── build/tear-down peer connections when player list or stream changes ─
-
   useEffect(() => {
-    if (!myPlayerId || !localStreamReady || !localStreamRef.current) return;
+    let cancelled = false;
+    void loadIceServers().finally(() => {
+      if (!cancelled) setIceServersReady(true);
+    });
+    return () => { cancelled = true; };
+  }, [loadIceServers]);
 
-    const stream = localStreamRef.current;
-    const peers = peersRef.current;
-    const currentPeers = new Set(peers.keys());
-    const desiredPeers = new Set(roomPlayers.filter(p => p !== myPlayerId));
+  // ── Perfect Negotiation receive logic ───────────────────────────────────
 
-    // Remove stale connections (player left the room)
-    for (const pid of currentPeers) {
-      if (!desiredPeers.has(pid)) {
-        peers.get(pid)?.close();
-        peers.delete(pid);
-        iceCandidateQueuesRef.current.delete(pid);
-        pendingOffersRef.current.delete(pid);
-        stopSpeakingDetection(pid);
-        removeRemoteAudio(pid);
-      }
+  const flushIce = useCallback((ctx: PeerCtx) => {
+    const queue = ctx.iceQueue;
+    ctx.iceQueue = [];
+    for (const candidate of queue) {
+      void ctx.pc.addIceCandidate(candidate).catch(() => {});
     }
+  }, []);
 
-    // Create new connections (player joined the room)
-    for (const peerId of desiredPeers) {
-      if (peers.has(peerId)) continue;
+  // Handles both offers and answers (distinguished by description.type),
+  // following the WebRTC "Perfect Negotiation" pattern so simultaneous offers
+  // (glare) and renegotiation resolve without deadlock.
+  const handleDescription = useCallback(
+    async (ctx: PeerCtx, peerId: string, description: RTCSessionDescriptionInit) => {
+      const { pc } = ctx;
+      const offerCollision =
+        description.type === 'offer' &&
+        (ctx.makingOffer || pc.signalingState !== 'stable');
 
-      const pc = new RTCPeerConnection({ iceServers: STUN_SERVERS });
-      peers.set(peerId, pc);
+      ctx.ignoreOffer = !ctx.polite && offerCollision;
+      if (ctx.ignoreOffer) return;
 
-      // Add local audio track so the peer can hear us.
-      stream.getAudioTracks().forEach(track => pc.addTrack(track, stream));
+      try {
+        // setRemoteDescription performs an implicit rollback for the polite
+        // peer when it has a local offer pending (collision).
+        await pc.setRemoteDescription(description);
+        flushIce(ctx);
+        if (description.type === 'offer') {
+          await pc.setLocalDescription(); // implicit createAnswer
+          const payload: VoiceAnswerPayload = {
+            targetPlayerId: peerId,
+            answer: pc.localDescription as RTCSessionDescriptionInit,
+          };
+          socket.emit(EVENTS.VOICE_ANSWER, payload);
+        }
+      } catch {
+        // Swallow — the connection watchdog will force recovery if needed.
+      }
+    },
+    [flushIce],
+  );
 
-      // When remote audio arrives: play it AND detect speaking.
-      pc.ontrack = (ev) => {
-        const remoteStream = ev.streams[0];
-        if (!remoteStream) return;
-        playRemoteStream(peerId, remoteStream);
-        startSpeakingDetection(peerId, remoteStream);
-      };
+  const handleIce = useCallback(async (ctx: PeerCtx, candidate: RTCIceCandidateInit) => {
+    // Queue until remoteDescription is set — Safari rejects addIceCandidate
+    // before then, and signaling can briefly arrive out of order.
+    if (!ctx.pc.remoteDescription) {
+      ctx.iceQueue.push(candidate);
+      return;
+    }
+    try {
+      await ctx.pc.addIceCandidate(candidate);
+    } catch {
+      // Ignore — expected when we deliberately ignored a colliding offer.
+    }
+  }, []);
 
-      // Once connected, bump Opus bitrate above its conservative default.
-      pc.onconnectionstatechange = () => {
-        if (pc.connectionState !== 'connected') return;
+  // ── create / tear down a single peer connection ─────────────────────────
+
+  const closePeer = useCallback((peerId: string) => {
+    const ctx = peersRef.current.get(peerId);
+    if (!ctx) return;
+    if (ctx.watchdog) clearTimeout(ctx.watchdog);
+    ctx.pc.onnegotiationneeded = null;
+    ctx.pc.onicecandidate = null;
+    ctx.pc.ontrack = null;
+    ctx.pc.onconnectionstatechange = null;
+    ctx.pc.oniceconnectionstatechange = null;
+    ctx.pc.close();
+    peersRef.current.delete(peerId);
+    pendingSignalsRef.current.delete(peerId);
+    stopSpeakingDetection(peerId);
+    removeRemoteAudio(peerId);
+  }, [stopSpeakingDetection, removeRemoteAudio]);
+
+  const createPeer = useCallback((peerId: string, stream: MediaStream, myId: string) => {
+    if (peersRef.current.has(peerId)) return;
+
+    const pc = new RTCPeerConnection({ iceServers: iceServersRef.current });
+    const ctx: PeerCtx = {
+      pc,
+      polite: myId < peerId,
+      makingOffer: false,
+      ignoreOffer: false,
+      iceQueue: [],
+      watchdog: null,
+    };
+    peersRef.current.set(peerId, ctx);
+
+    const armWatchdog = () => {
+      if (ctx.watchdog) clearTimeout(ctx.watchdog);
+      ctx.watchdog = setTimeout(() => {
+        if (pc.connectionState === 'connected' || pc.connectionState === 'closed') return;
+        // Stuck (likely a dropped offer or stalled ICE) — force recovery.
+        try { pc.restartIce(); } catch { /* not connected yet */ }
+        armWatchdog();
+      }, CONNECT_WATCHDOG_MS);
+    };
+
+    // Perfect Negotiation: react to anything that needs (re)negotiation —
+    // initial track add, ICE restart, reconnect. Both sides may fire this;
+    // glare is resolved on the receive side.
+    pc.onnegotiationneeded = async () => {
+      try {
+        ctx.makingOffer = true;
+        await pc.setLocalDescription(); // implicit createOffer
+        const payload: VoiceOfferPayload = {
+          targetPlayerId: peerId,
+          offer: pc.localDescription as RTCSessionDescriptionInit,
+        };
+        socket.emit(EVENTS.VOICE_OFFER, payload);
+      } catch {
+        // Swallow — watchdog recovers.
+      } finally {
+        ctx.makingOffer = false;
+      }
+    };
+
+    pc.onicecandidate = (ev) => {
+      if (ev.candidate) {
+        const payload: VoiceIcePayload = {
+          targetPlayerId: peerId,
+          candidate: ev.candidate.toJSON(),
+        };
+        socket.emit(EVENTS.VOICE_ICE, payload);
+      }
+    };
+
+    pc.ontrack = (ev) => {
+      const remoteStream = ev.streams[0];
+      if (!remoteStream) return;
+      playRemoteStream(peerId, remoteStream);
+      startSpeakingDetection(peerId, remoteStream);
+    };
+
+    pc.onconnectionstatechange = () => {
+      const st = pc.connectionState;
+      if (st === 'connected') {
+        if (ctx.watchdog) { clearTimeout(ctx.watchdog); ctx.watchdog = null; }
+        // Bump Opus bitrate above its conservative default.
         for (const sender of pc.getSenders()) {
           if (sender.track?.kind !== 'audio') continue;
           const params = sender.getParameters();
           if (params.encodings.length === 0) params.encodings.push({});
           params.encodings[0]!.maxBitrate = OPUS_MAX_BITRATE_BPS;
-          void sender.setParameters(params);
+          void sender.setParameters(params).catch(() => {});
         }
-      };
+      } else if (st === 'failed') {
+        try { pc.restartIce(); } catch { /* noop */ }
+        armWatchdog();
+      }
+    };
 
-      // Relay ICE candidates via server.
-      pc.onicecandidate = (ev) => {
-        if (ev.candidate) {
-          const payload: VoiceIcePayload = {
-            targetPlayerId: peerId,
-            candidate: ev.candidate.toJSON(),
-          };
-          socket.emit(EVENTS.VOICE_ICE, payload);
-        }
-      };
+    pc.oniceconnectionstatechange = () => {
+      // Some browsers surface ICE death here rather than on connectionState.
+      if (pc.iceConnectionState === 'failed') {
+        try { pc.restartIce(); } catch { /* noop */ }
+        armWatchdog();
+      }
+    };
 
-      // Check whether a signaling message arrived before this effect ran.
-      // On same-device connections (localhost socket ~0ms), the offer can
-      // arrive before React fires this useEffect.
-      const bufferedOffer = pendingOffersRef.current.get(peerId);
-      if (bufferedOffer) {
-        pendingOffersRef.current.delete(peerId);
-        // We are the responder — process the buffered offer now that pc exists.
-        applyOffer(pc, peerId, bufferedOffer);
-      } else if (myPlayerId > peerId) {
-        // Initiator rule: higher-sorted playerId sends the offer.
-        // Ensures exactly one side initiates per pair, avoiding glare.
-        void pc.createOffer()
-          .then(offer => pc.setLocalDescription(offer))
-          .then(() => {
-            const payload: VoiceOfferPayload = {
-              targetPlayerId: peerId,
-              offer: pc.localDescription as RTCSessionDescriptionInit,
-            };
-            socket.emit(EVENTS.VOICE_OFFER, payload);
-          });
+    // Add local audio track → fires onnegotiationneeded for the initial offer.
+    stream.getAudioTracks().forEach(track => pc.addTrack(track, stream));
+
+    // Replay any signaling that arrived before this peer existed (in order).
+    const pending = pendingSignalsRef.current.get(peerId);
+    if (pending) {
+      pendingSignalsRef.current.delete(peerId);
+      for (const sig of pending) {
+        if (sig.kind === 'description') void handleDescription(ctx, peerId, sig.description);
+        else void handleIce(ctx, sig.candidate);
       }
     }
-  }, [myPlayerId, roomPlayers, localStreamReady, applyOffer, startSpeakingDetection, stopSpeakingDetection, playRemoteStream, removeRemoteAudio]);
+
+    armWatchdog();
+  }, [playRemoteStream, startSpeakingDetection, handleDescription, handleIce]);
+
+  // ── build/tear-down peer connections when player list or stream changes ─
+
+  useEffect(() => {
+    if (!myPlayerId || !localStreamReady || !iceServersReady || !localStreamRef.current) return;
+
+    const stream = localStreamRef.current;
+    const currentPeers = new Set(peersRef.current.keys());
+    const desiredPeers = new Set(roomPlayers.filter(p => p !== myPlayerId));
+
+    // Remove stale connections (player left the room).
+    for (const pid of currentPeers) {
+      if (!desiredPeers.has(pid)) closePeer(pid);
+    }
+
+    // Create new connections (player joined the room).
+    for (const peerId of desiredPeers) {
+      createPeer(peerId, stream, myPlayerId);
+    }
+  }, [myPlayerId, roomPlayers, localStreamReady, iceServersReady, createPeer, closePeer]);
 
   // ── socket: handle relayed signaling ───────────────────────────────────
 
   useEffect(() => {
+    function bufferSignal(peerId: string, signal: BufferedSignal) {
+      const list = pendingSignalsRef.current.get(peerId) ?? [];
+      list.push(signal);
+      pendingSignalsRef.current.set(peerId, list);
+    }
+
     function onOffer({ sourcePlayerId, offer }: VoiceOfferRelayPayload) {
-      const pc = peersRef.current.get(sourcePlayerId);
-      if (!pc) {
-        // pc doesn't exist yet — buffer the offer until the peer-setup effect runs.
-        pendingOffersRef.current.set(sourcePlayerId, offer);
-        return;
-      }
-      applyOffer(pc, sourcePlayerId, offer);
+      const ctx = peersRef.current.get(sourcePlayerId);
+      if (!ctx) { bufferSignal(sourcePlayerId, { kind: 'description', description: offer }); return; }
+      void handleDescription(ctx, sourcePlayerId, offer);
     }
 
     function onAnswer({ sourcePlayerId, answer }: VoiceAnswerRelayPayload) {
-      const pc = peersRef.current.get(sourcePlayerId);
-      if (!pc) return;
-      void pc.setRemoteDescription(answer).then(() => {
-        flushIceCandidateQueue(pc, sourcePlayerId);
-      });
+      const ctx = peersRef.current.get(sourcePlayerId);
+      if (!ctx) { bufferSignal(sourcePlayerId, { kind: 'description', description: answer }); return; }
+      void handleDescription(ctx, sourcePlayerId, answer);
     }
 
     function onIce({ sourcePlayerId, candidate }: VoiceIceRelayPayload) {
-      const pc = peersRef.current.get(sourcePlayerId);
-      // Queue if pc doesn't exist yet OR remoteDescription isn't set yet.
-      // Safari rejects addIceCandidate before setRemoteDescription; same-device
-      // connections can deliver candidates before the pc is even created.
-      if (!pc || !pc.remoteDescription) {
-        const queue = iceCandidateQueuesRef.current.get(sourcePlayerId) ?? [];
-        queue.push(candidate);
-        iceCandidateQueuesRef.current.set(sourcePlayerId, queue);
-        return;
-      }
-      void pc.addIceCandidate(candidate);
+      const ctx = peersRef.current.get(sourcePlayerId);
+      if (!ctx) { bufferSignal(sourcePlayerId, { kind: 'ice', candidate }); return; }
+      void handleIce(ctx, candidate);
     }
 
     socket.on(EVENTS.VOICE_OFFER_RELAY, onOffer);
@@ -385,7 +504,29 @@ export function useVoiceChat(
       socket.off(EVENTS.VOICE_ANSWER_RELAY, onAnswer);
       socket.off(EVENTS.VOICE_ICE_RELAY, onIce);
     };
-  }, [applyOffer, flushIceCandidateQueue]);
+  }, [handleDescription, handleIce]);
+
+  // ── reconnect: rebuild peers after the signaling socket reconnects ──────
+
+  // On a socket reconnect the old PeerCtx objects may be tied to a dead session
+  // and never recover on their own. Tear them all down; the peer-setup effect
+  // re-creates them from the next room_update.
+  useEffect(() => {
+    function onReconnect() {
+      for (const pid of [...peersRef.current.keys()]) closePeer(pid);
+      // Refresh ICE credentials (TURN creds may have expired), then rebuild.
+      void loadIceServers().finally(() => {
+        const stream = localStreamRef.current;
+        if (myPlayerId && stream) {
+          for (const peerId of roomPlayers.filter(p => p !== myPlayerId)) {
+            createPeer(peerId, stream, myPlayerId);
+          }
+        }
+      });
+    }
+    socket.io.on('reconnect', onReconnect);
+    return () => { socket.io.off('reconnect', onReconnect); };
+  }, [myPlayerId, roomPlayers, createPeer, closePeer, loadIceServers]);
 
   // ── mute / PTT sync ─────────────────────────────────────────────────────
 
@@ -449,15 +590,22 @@ export function useVoiceChat(
   // ── full cleanup on unmount ──────────────────────────────────────────────
 
   useEffect(() => {
+    const peers = peersRef.current;
+    const analysers = analyserCleanupRef.current;
+    const audioEls = audioElementsRef.current;
+    const pendingPlay = pendingPlayRef.current;
+    const pendingSignals = pendingSignalsRef.current;
     return () => {
-      for (const cleanup of analyserCleanupRef.current.values()) cleanup();
-      analyserCleanupRef.current.clear();
-      for (const pc of peersRef.current.values()) pc.close();
-      peersRef.current.clear();
-      iceCandidateQueuesRef.current.clear();
-      pendingOffersRef.current.clear();
-      pendingPlayRef.current.clear();
-      for (const [pid] of audioElementsRef.current) removeRemoteAudio(pid);
+      for (const cleanup of analysers.values()) cleanup();
+      analysers.clear();
+      for (const ctx of peers.values()) {
+        if (ctx.watchdog) clearTimeout(ctx.watchdog);
+        ctx.pc.close();
+      }
+      peers.clear();
+      pendingSignals.clear();
+      pendingPlay.clear();
+      for (const [pid] of audioEls) removeRemoteAudio(pid);
       audioCtxRef.current?.close();
       audioCtxRef.current = null;
     };

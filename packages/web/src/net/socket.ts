@@ -15,6 +15,7 @@ import {
   type MakeMoveAck,
   type MakeMovePayload,
   type RequestStateAck,
+  type RequestIceServersAck,
   type StartGameAck,
 } from '../protocol';
 
@@ -72,4 +73,8 @@ export function makeMove(move: Move): Promise<MakeMoveAck> {
 
 export function requestState(): Promise<RequestStateAck> {
   return emitAck<RequestStateAck>(EVENTS.REQUEST_STATE);
+}
+
+export function requestIceServers(): Promise<RequestIceServersAck> {
+  return emitAck<RequestIceServersAck>(EVENTS.VOICE_ICE_SERVERS);
 }
