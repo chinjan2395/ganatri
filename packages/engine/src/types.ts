@@ -81,7 +81,7 @@ export interface PlayerView {
   readonly table: readonly Card[];
   readonly stockCount: number;
   readonly captureCounts: Readonly<Record<PlayerId, number>>;
-  /** Always empty — captures are tracked via events, not in the static view. */
+  /** Own capture pile (Part 1 only); opponents see counts via `captureCounts` only. */
   readonly myCapturedCards: readonly Card[];
   // Part 2
   readonly trick: readonly TrickPlay[];
