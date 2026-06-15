@@ -14,12 +14,12 @@ import {
 
 export type VoiceMode = 'ptt' | 'open';
 
-export interface VoiceChatState {
+/** Stable voice actions — only changes on explicit user interaction, never from speaking. */
+export interface VoiceChatActions {
   muted: boolean;
   deafened: boolean;
   mode: VoiceMode;
   pttActive: boolean;
-  speaking: Set<string>;
   permissionDenied: boolean;
   toggleMute: () => void;
   toggleDeafen: () => void;
@@ -27,12 +27,17 @@ export interface VoiceChatState {
   setPttActive: (active: boolean) => void;
 }
 
+/** Full state returned by useVoiceChat — includes the fast-updating speaking set. */
+export interface VoiceChatState extends VoiceChatActions {
+  speaking: Set<string>;
+}
+
 // Fallback used until the server hands over its ICE config (STUN + TURN).
 const STUN_SERVERS: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },
 ];
 
-const SPEAKING_POLL_MS = 100;
+const SPEAKING_POLL_MS = 200;
 const SPEAKING_THRESHOLD_DB = -50;
 const SPEAKING_DEBOUNCE_MS = 150;
 
@@ -118,7 +123,7 @@ export function useVoiceChat(
 
     const source = ctx.createMediaStreamSource(stream);
     const analyser = ctx.createAnalyser();
-    analyser.fftSize = 512;
+    analyser.fftSize = 128; // 128 samples is plenty for RMS voice detection; was 512
     source.connect(analyser);
     // Note: we do NOT connect analyser to ctx.destination — remote audio is
     // played via <audio> elements; local audio should not echo back.
