@@ -36,12 +36,14 @@ const SPEAKING_DEBOUNCE_MS = 150;
 // Explicit constraints: disable browser noise suppression and AGC because
 // they make voices sound muffled/robotic. Echo cancellation stays on to
 // prevent acoustic feedback when testing on the same machine.
+// sampleRate uses { ideal } so iOS Safari doesn't throw OverconstrainedError
+// when the device's native rate differs from 48000.
 const AUDIO_CONSTRAINTS: MediaTrackConstraints = {
   echoCancellation: true,
   noiseSuppression: false,
   autoGainControl: false,
-  sampleRate: 48000,   // Opus native rate — avoids resampling artifacts
-  channelCount: 1,     // mono is fine for voice chat
+  sampleRate: { ideal: 48000 },
+  channelCount: 1,
 };
 
 // Boost Opus above its conservative default (~32 kbps) for clearer speech.
@@ -67,6 +69,10 @@ export function useVoiceChat(
   const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserCleanupRef = useRef<Map<string, () => void>>(new Map());
+  // Audio elements whose .play() was blocked by the browser (iOS autoplay policy).
+  const pendingPlayRef = useRef<Set<HTMLAudioElement>>(new Set());
+  // ICE candidates queued while waiting for setRemoteDescription (Safari strict ordering).
+  const iceCandidateQueuesRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
 
   // ── speaking detection ──────────────────────────────────────────────────
 
@@ -127,6 +133,34 @@ export function useVoiceChat(
     });
   }, []);
 
+  // ── iOS audio unlock ────────────────────────────────────────────────────
+
+  // iOS Safari starts AudioContext suspended and blocks audio autoplay outside
+  // of a user gesture. Resume the context and retry any blocked audio elements.
+  const unlockAudio = useCallback(() => {
+    if (audioCtxRef.current?.state === 'suspended') {
+      void audioCtxRef.current.resume();
+    }
+    for (const el of [...pendingPlayRef.current]) {
+      void el.play()
+        .then(() => { pendingPlayRef.current.delete(el); })
+        .catch(() => {});
+    }
+  }, []);
+
+  // Persistent document-level listeners ensure any user gesture (including the
+  // first touch after page load) unlocks audio and retries blocked elements.
+  // Persistent (not once) so new peers added after the first gesture also unlock.
+  useEffect(() => {
+    const handler = () => unlockAudio();
+    document.addEventListener('touchstart', handler, { passive: true });
+    document.addEventListener('click', handler);
+    return () => {
+      document.removeEventListener('touchstart', handler);
+      document.removeEventListener('click', handler);
+    };
+  }, [unlockAudio]);
+
   // ── play remote stream through an <audio> element ──────────────────────
 
   const playRemoteStream = useCallback((peerId: string, stream: MediaStream) => {
@@ -143,13 +177,16 @@ export function useVoiceChat(
     }
     el.srcObject = stream;
     void el.play().catch(() => {
-      // Autoplay was blocked — will start playing on next user interaction.
+      // iOS Safari blocks autoplay outside of a user gesture — queue for
+      // the next user interaction (handled by the document-level listener above).
+      pendingPlayRef.current.add(el!);
     });
   }, []);
 
   const removeRemoteAudio = useCallback((peerId: string) => {
     const el = audioElementsRef.current.get(peerId);
     if (el) {
+      pendingPlayRef.current.delete(el);
       el.srcObject = null;
       el.remove();
       audioElementsRef.current.delete(peerId);
@@ -184,6 +221,19 @@ export function useVoiceChat(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── ICE candidate queue helper ──────────────────────────────────────────
+
+  // Safari requires remoteDescription to be set before addIceCandidate. Flush
+  // any queued candidates once setRemoteDescription has completed.
+  const flushIceCandidateQueue = useCallback((pc: RTCPeerConnection, peerId: string) => {
+    const queue = iceCandidateQueuesRef.current.get(peerId);
+    if (!queue) return;
+    iceCandidateQueuesRef.current.delete(peerId);
+    for (const candidate of queue) {
+      void pc.addIceCandidate(candidate);
+    }
+  }, []);
+
   // ── build/tear-down peer connections when player list or stream changes ─
 
   useEffect(() => {
@@ -201,6 +251,7 @@ export function useVoiceChat(
       if (!desiredPeers.has(pid)) {
         peers.get(pid)?.close();
         peers.delete(pid);
+        iceCandidateQueuesRef.current.delete(pid);
         stopSpeakingDetection(pid);
         removeRemoteAudio(pid);
       }
@@ -270,7 +321,10 @@ export function useVoiceChat(
       const pc = peersRef.current.get(sourcePlayerId);
       if (!pc) return;
       void pc.setRemoteDescription(offer)
-        .then(() => pc.createAnswer())
+        .then(() => {
+          flushIceCandidateQueue(pc, sourcePlayerId);
+          return pc.createAnswer();
+        })
         .then(answer => pc.setLocalDescription(answer))
         .then(() => {
           const payload: VoiceAnswerPayload = {
@@ -284,12 +338,22 @@ export function useVoiceChat(
     function onAnswer({ sourcePlayerId, answer }: VoiceAnswerRelayPayload) {
       const pc = peersRef.current.get(sourcePlayerId);
       if (!pc) return;
-      void pc.setRemoteDescription(answer);
+      void pc.setRemoteDescription(answer).then(() => {
+        flushIceCandidateQueue(pc, sourcePlayerId);
+      });
     }
 
     function onIce({ sourcePlayerId, candidate }: VoiceIceRelayPayload) {
       const pc = peersRef.current.get(sourcePlayerId);
       if (!pc) return;
+      if (!pc.remoteDescription) {
+        // Queue until setRemoteDescription completes — Safari rejects addIceCandidate
+        // if called before the remote description is set.
+        const queue = iceCandidateQueuesRef.current.get(sourcePlayerId) ?? [];
+        queue.push(candidate);
+        iceCandidateQueuesRef.current.set(sourcePlayerId, queue);
+        return;
+      }
       void pc.addIceCandidate(candidate);
     }
 
@@ -301,7 +365,7 @@ export function useVoiceChat(
       socket.off(EVENTS.VOICE_ANSWER_RELAY, onAnswer);
       socket.off(EVENTS.VOICE_ICE_RELAY, onIce);
     };
-  }, []);
+  }, [flushIceCandidateQueue]);
 
   // ── mute / PTT sync ─────────────────────────────────────────────────────
 
@@ -370,6 +434,8 @@ export function useVoiceChat(
       analyserCleanupRef.current.clear();
       for (const pc of peersRef.current.values()) pc.close();
       peersRef.current.clear();
+      iceCandidateQueuesRef.current.clear();
+      pendingPlayRef.current.clear();
       for (const [pid] of audioElementsRef.current) removeRemoteAudio(pid);
       audioCtxRef.current?.close();
       audioCtxRef.current = null;
