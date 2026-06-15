@@ -1,6 +1,6 @@
 # Ganatri — Phasewise Development Plan
 
-Last updated: 2026-06-15 (Voice chat: single-initiator negotiation + renegotiate recovery)  
+Last updated: 2026-06-15 (Specced Part 2 stalemate redistribution — Clarification #11 / CALCULATIONS.md §4.6, not yet implemented)  
 All 163 tests passing (140 engine + 23 server).
 
 ---
@@ -20,6 +20,7 @@ All 163 tests passing (140 engine + 23 server).
 
 | Task                                                                       | Status | Notes                          |
 | -------------------------------------------------------------------------- | ------ | ------------------------------ |
+| Calculations/flow/rules reference doc (single source of truth)             | ✅      | `docs/CALCULATIONS.md`         |
 | Card types: `Suit`, `Rank`, `Card`, `CardId`, `summationValue`             | ✅      | `src/cards.ts`                 |
 | Game state types: `GameState`, `Part1State`, `Part2State`, `Phase`         | ✅      | `src/types.ts`                 |
 | Seedable RNG (`mulberry32`)                                                | ✅      | `src/rng.ts`                   |
@@ -37,6 +38,7 @@ All 163 tests passing (140 engine + 23 server).
 | Part 2 cut detection: cutter leads, highest led-suit holder picks up       | ✅      | `src/game.ts`                  |
 | Part 2 safe/out logic; zero-capture players immediately safe               | ✅      | `src/game.ts`                  |
 | Part 2 simultaneous-finish edge cases (Clarification #10)                  | ✅      | `src/game.ts`                  |
+| Part 2 stalemate redistribution (Clarification #11)                        | ⬜      | spec in `CALCULATIONS.md` §4.6; `game.ts`/`types.ts`/`view.ts` + `redistribution.test.ts` |
 | `legalMoves` / `legalPart2Cards` helpers                                   | ✅      | `src/game.ts`                  |
 | `viewFor(state, playerId)` — redacted `PlayerView`                         | ✅      | `src/view.ts`                  |
 | `applyMove(state, player, move)` — pure, returns new state + events        | ✅      | `src/game.ts`                  |
