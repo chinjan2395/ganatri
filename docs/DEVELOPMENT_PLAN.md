@@ -1,6 +1,6 @@
 # Ganatri — Phasewise Development Plan
 
-Last updated: 2026-06-15 (Phase 5 voice chat implemented)  
+Last updated: 2026-06-15 (CapturedPile fix — view.myCapturedCards + portaled FAB)  
 All 163 tests passing (140 engine + 23 server).
 
 ---
@@ -141,7 +141,7 @@ All 163 tests passing (140 engine + 23 server).
 | Part 2: show player names in trick display                                 | ✅      | `Part2Board` receives `playerNames` prop; shows in trick play at line 103 |
 | `OpponentSeat` — avatar, hand count, capture count, safe badge, disconnect | ✅      | `src/components/OpponentSeat.tsx`                                         |
 | OpponentSeat: show player names (not shortId)                              | ✅      | Uses `displayName` prop from parent with fallback to `shortId(playerId)`  |
-| `CapturedPile` — scrollable fan of captured cards (Part 1)                 | ✅      | `src/components/CapturedPile.tsx`                                         |
+| `CapturedPile` — floating FAB with suit breakdown panel (Part 1)           | ✅      | Fixed bottom-left FAB (mirrors PTT mic); no hand-section layout slot        |
 | `TurnTimer` — countdown bar, configurable duration                         | ✅      | `src/components/TurnTimer.tsx`                                            |
 | `EndScreen` — rankings (winner → loser), play again / leave                | ✅      | `src/components/EndScreen.tsx`                                            |
 | EndScreen: show player names                                               | ✅      | Receives `playerNames` prop; shows in winner spotlight and rankings       |
@@ -163,6 +163,8 @@ All 163 tests passing (140 engine + 23 server).
 | Part 1 → Part 2 transition animation / screen banner                                                              | ✅      | Full-screen overlay with spring animation (380/22); text: "PART 2 — THE CUT"; 2.5s duration                |
 | Sound effects (optional)                                                                                          | ⬜      | Not in requirements; add only if desired                                                                   |
 | Mobile layout testing & fine-tuning                                                                               | ✅      | Responsive breakpoints added: 375px (avatar shrinking); 44px min button height; Hand overlap reflow tested |
+| Room/lobby scroll within locked viewport (Start game, Leave visible on short screens)                             | ✅      | `.center-screen` scroll + flex spacers; RoomScreen table uses real compact sizes instead of scale hack       |
+| Flat play area — remove oval/rim, gap-based multi-row table cards, locked card sizes per session                  | ✅      | `GameScreen.css` flat board; `Boards.css` no overlap; `GameScreen.tsx` locks `--card-table-w` / `--card-hand-w` |
 | Production deployment (server on Render, web on Cloudflare)                                                       | ⬜      | User will handle Render + Cloudflare setup; see `.env.example` files for required vars                     |
 | Environment config for production URLs                                                                            | ⬜      | `.env.example` files complete; production vars to be set in Render + Cloudflare environments               |
 
