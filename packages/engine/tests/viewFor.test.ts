@@ -27,16 +27,24 @@ describe('viewFor — redaction', () => {
   });
 
   it('serialized view leaks no hidden card ids', () => {
-    const json = JSON.stringify(viewFor(state, 'a'));
-    for (const hidden of ['3H', '4D', '9C', 'QC', 'JH', '5S', '6D', '6H']) {
+    const view = viewFor(state, 'a');
+    const json = JSON.stringify(view);
+    for (const hidden of ['3H', '4D', '9C', 'QC', 'JH', '5S']) {
       expect(json).not.toContain(`"${hidden.slice(0, -1)}","suit":"${hidden.slice(-1)}"`);
     }
-    // Stronger: rebuild every card object string present and compare to allowed set.
-    expect(json).toContain('"rank":"7","suit":"S"'); // own hand visible
-    expect(json).toContain('"rank":"K","suit":"D"'); // table visible
+    // Own hand, table, and capture pile visible to you.
+    expect(json).toContain('"rank":"7","suit":"S"');
+    expect(json).toContain('"rank":"K","suit":"D"');
+    expect(json).toContain('"rank":"6","suit":"D"');
+    expect(json).toContain('"rank":"6","suit":"H"');
     expect(json).not.toContain('"rank":"Q"'); // stock hidden
     expect(json).not.toContain('"rank":"3"'); // opponent hand hidden
-    expect(json).not.toContain('"rank":"6"'); // capture piles hidden
+  });
+
+  it('exposes own capture pile in myCapturedCards', () => {
+    const view = viewFor(state, 'a');
+    expect(sortedIds(view.myCapturedCards)).toEqual(['6D', '6H']);
+    expect(viewFor(state, 'b').myCapturedCards).toEqual([]);
   });
 
   it('Part 2 view: hand from part2.hands, part1 fields zeroed', () => {
