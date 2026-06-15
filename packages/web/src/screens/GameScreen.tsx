@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { AnimatePresence, motion } from 'framer-motion';
 import { cardId, type CardId, type Card as CardModel, type GameEvent, type Phase } from '@ganatri/engine';
 import { useGame } from '../state/GameProvider';
-import { useVoiceChatContext } from '../state/VoiceChatProvider';
+import { useVoiceChatContext, useVoiceSpeaking } from '../state/VoiceChatProvider';
 import { OpponentSeat } from '../components/OpponentSeat';
 import { Part1Board, type Part1SelectionState } from '../components/Part1Board';
 import { Part2Board, type Part2SelectionState } from '../components/Part2Board';
@@ -55,6 +55,17 @@ type CutAnimData = {
   playerIndex: number;
   isYou: boolean;
 };
+
+// Tiny wrapper that subscribes ONLY to the fast-updating speaking context so
+// GameScreen itself doesn't re-render whenever a player starts or stops talking.
+function PlayerWrap({ pid, children }: { pid: string; children: React.ReactNode }): React.ReactNode {
+  const speaking = useVoiceSpeaking();
+  return (
+    <div className={`game__player-wrap${speaking.has(pid) ? ' game__player-wrap--speaking' : ''}`}>
+      {children}
+    </div>
+  );
+}
 
 type HandState = Part1SelectionState | Part2SelectionState;
 
@@ -259,7 +270,7 @@ export function GameScreen(): React.ReactNode {
           const captureCount = view.phase === 'PART_1' ? view.captureCounts[pid] ?? 0 : undefined;
           const safeIndex = view.safeOrder.indexOf(pid);
           return (
-            <div key={pid} className={`game__player-wrap${voice.speaking.has(pid) ? ' game__player-wrap--speaking' : ''}`}>
+            <PlayerWrap key={pid} pid={pid}>
               <OpponentSeat
                 playerId={pid}
                 displayName={nameFor(pid)}
@@ -272,7 +283,7 @@ export function GameScreen(): React.ReactNode {
                 disconnected={isYou ? false : disconnectedPlayers.has(pid)}
                 compact
               />
-            </div>
+            </PlayerWrap>
           );
         })}
       </div>
