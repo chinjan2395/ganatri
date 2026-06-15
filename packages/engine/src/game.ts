@@ -71,6 +71,7 @@ export function createGame(seating: readonly PlayerId[], seed: number | string):
     part1: { hands, stock, table: [], capturePiles, lastCapturer: null },
     part2: null,
     rankings: null,
+    seed,
   };
 }
 
@@ -189,8 +190,14 @@ function endPart1(state: GameState, part1: Part1State, events: GameEvent[]): Mov
   const swept = part1.table;
   const piles: Record<PlayerId, readonly Card[]> = { ...part1.capturePiles };
   const sweeper = part1.lastCapturer; // null ⇒ nobody captured all game ⇒ discard (Clarification 5)
+  // Discarded sweep cards (no-capturer case) seed the Part 2 removed pool so
+  // they can re-enter play via stalemate redistribution (§4.6). When there is
+  // a sweeper, those cards go into their pile instead and the pool starts empty.
+  let removedPool: readonly Card[] = [];
   if (sweeper !== null && swept.length > 0) {
     piles[sweeper] = [...(piles[sweeper] ?? []), ...swept];
+  } else if (sweeper === null && swept.length > 0) {
+    removedPool = [...swept];
   }
   events.push({ type: 'PART1_ENDED', sweeper, swept });
 
@@ -203,7 +210,15 @@ function endPart1(state: GameState, part1: Part1State, events: GameEvent[]): Mov
   for (const p of safeOrder) events.push({ type: 'PLAYER_SAFE', player: p });
   const holders = order.filter((p) => hands[p]!.length > 0);
 
-  const part2: Part2State = { hands, trick: [], ledSuit: null, safeOrder };
+  const part2: Part2State = {
+    hands,
+    trick: [],
+    ledSuit: null,
+    safeOrder,
+    removedPool,
+    cutStreak: 0,
+    redistributionCount: 0,
+  };
 
   if (holders.length <= 1) {
     // One holder ⇒ they lose immediately; zero holders ⇒ no loser.
@@ -300,10 +315,10 @@ function applyTrick(state: GameState, player: PlayerId, cardStr: CardId): MoveRe
       );
     }
     const newPart2: Part2State = {
+      ...part2,
       hands: updatedHands,
       trick: newTrick,
       ledSuit,
-      safeOrder: part2.safeOrder,
     };
     return { ok: true, state: { ...state, turn: nextTurn, part2: newPart2 }, events };
   }
