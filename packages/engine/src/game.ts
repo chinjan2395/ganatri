@@ -434,11 +434,78 @@ function resolveCut(
     ? nextNonSafeClockwise(state.seating, cutter, safeOrder)
     : cutter;
 
+  // Stalemate detection (§4.6): a long run of no-cancel cuts means the remaining
+  // active players keep cutting and no hand ever drains, so the game can loop
+  // forever. `activeAfter` here is ≥2 (the ≤1 game-over case returned above) and
+  // each such player still holds cards. Top them all back up to 5 from the
+  // removed pool; the current leader continues.
+  const threshold = Math.max(2, activeAfter.length);
+  if (newPart2.cutStreak >= threshold) {
+    if (newPart2.removedPool.length === 0) {
+      // Nothing left to redeal — the stalemate cannot be broken. End as a draw
+      // (no loser), matching the zero-active outcome in resolveGameOver.
+      return resolveGameOver(state, newPart2, safeOrder, activeAfter, events);
+    }
+    return redistributeHands(state, newPart2, nextLeader, events);
+  }
+
   return {
     ok: true,
     state: { ...state, turn: nextLeader, part2: newPart2 },
     events,
   };
+}
+
+/**
+ * Stalemate redistribution (§4.6). Reshuffle the removed pool with a seeded RNG
+ * (deterministic per game seed + redistribution count) and deal round-robin, one
+ * card at a time clockwise from `leader`, to each active player holding fewer
+ * than 5 cards, until every active player reaches 5 or the pool is exhausted.
+ * Players already at ≥5 are skipped (top-up floor, not a cap). The current leader
+ * continues; safeOrder and rankings are unchanged.
+ */
+function redistributeHands(
+  state: GameState,
+  part2: Part2State,
+  leader: PlayerId,
+  events: GameEvent[],
+): MoveResult {
+  const rng = createRng(`${state.seed}#redeal${part2.redistributionCount}`);
+  const pool = shuffle(part2.removedPool, rng);
+  const hands: Record<PlayerId, readonly Card[]> = { ...part2.hands };
+  const active = state.seating.filter((p) => !part2.safeOrder.includes(p));
+  // Round-robin order: active players clockwise starting from the leader.
+  const ordered = rotateFrom(state.seating, leader).filter((p) => active.includes(p));
+  const dealt: Record<PlayerId, number> = {};
+  for (const p of ordered) dealt[p] = 0;
+
+  let idx = 0;
+  let progressed = true;
+  while (idx < pool.length && progressed) {
+    progressed = false;
+    for (const p of ordered) {
+      if (idx >= pool.length) break;
+      if ((hands[p] ?? []).length < HAND_SIZE) {
+        hands[p] = [...(hands[p] ?? []), pool[idx]!];
+        dealt[p] = (dealt[p] ?? 0) + 1;
+        idx++;
+        progressed = true;
+      }
+    }
+  }
+
+  const remaining = pool.slice(idx);
+  const newPart2: Part2State = {
+    ...part2,
+    hands,
+    trick: [],
+    ledSuit: null,
+    removedPool: remaining,
+    cutStreak: 0,
+    redistributionCount: part2.redistributionCount + 1,
+  };
+  events.push({ type: 'HANDS_REDISTRIBUTED', dealt, poolRemaining: remaining.length });
+  return { ok: true, state: { ...state, turn: leader, part2: newPart2 }, events };
 }
 
 /**

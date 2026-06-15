@@ -28,6 +28,7 @@ export interface GameState {
   readonly part1: Part1State | null;
   readonly part2: Part2State | null;
   readonly rankings: readonly PlayerId[] | null;  // winner → loser, set at GAME_OVER
+  readonly seed: number | string;                 // retained for deterministic §4.6 redistribution sub-seeds
 }
 
 export interface Part1State {
@@ -45,6 +46,9 @@ export interface Part2State {
   readonly trick: readonly TrickPlay[];
   readonly ledSuit: Suit | null;
   readonly safeOrder: readonly PlayerId[];        // order players emptied (safe)
+  readonly removedPool: readonly Card[];          // cards out of play (Part 1 discards + cancelled tricks); §4.6 redeal source
+  readonly cutStreak: number;                     // consecutive no-cancel cuts; resets on a cancellation
+  readonly redistributionCount: number;           // §4.6 redistributions performed (sub-seed counter)
 }
 
 // ---------- moves (client intents) ----------
@@ -61,6 +65,7 @@ export type GameEvent =
   | { type: 'TRICK_WON';    winner: PlayerId; cancelled: readonly Card[] }
   | { type: 'CUT';          cutter: PlayerId; pickerUpper: PlayerId; pickedUp: readonly Card[] }
   | { type: 'PLAYER_SAFE';  player: PlayerId }
+  | { type: 'HANDS_REDISTRIBUTED'; dealt: Readonly<Record<PlayerId, number>>; poolRemaining: number }  // §4.6 stalemate top-up; per-player counts only
   | { type: 'GAME_OVER';    rankings: readonly PlayerId[] };
 
 // ---------- results ----------
@@ -101,6 +106,7 @@ export interface PlayerView {
   readonly ledSuit: Suit | null;
   readonly safeOrder: readonly PlayerId[];
   readonly rankings: readonly PlayerId[] | null;
+  readonly removedCount: number;                              // §4.6 removed-pool size (count only, never identities)
 }
 export function viewFor(state: GameState, player: PlayerId): PlayerView;
 ```

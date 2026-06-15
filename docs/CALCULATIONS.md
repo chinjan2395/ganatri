@@ -1,6 +1,6 @@
 # Ganatri — Calculations & Flow Reference (Single Source of Truth)
 
-> **Last updated:** 2026-06-15 (§4.5 outcome rule made explicit; §4.6 confirmed multi-player via sim)
+> **Last updated:** 2026-06-16 (§4.6 stalemate redistribution implemented + tested; fixes multi-player non-termination)
 >
 > **Purpose.** This document is the **one place** that explains *how every calculation, flow
 > decision, and rule resolution is actually computed* in Ganatri. When you need to change a
@@ -222,7 +222,7 @@ cards only if you hold any, else your whole hand (cut allowed).
 Triggered when every **active** (non-safe) player has played to the trick and **no cut occurred**.
 
 - **Winner:** the **highest** `RANK_ORDER` card **among led-suit cards** in the trick. (Off-suit cards cannot win; in a no-cut trick everyone followed suit anyway.)
-- **Cancellation:** all played cards leave play. **Today** they are removed permanently; **once §4.6 ships** they move to the Part 2 `removedPool` (recoverable only via stalemate redistribution) and `cutStreak` resets to 0. Emit `TRICK_WON { winner, cancelled }`.
+- **Cancellation:** all played cards leave play — they move to the Part 2 `removedPool` (recoverable only via stalemate redistribution, §4.6) and `cutStreak` resets to 0. Emit `TRICK_WON { winner, cancelled }`.
 - **Safe tracking:** any player whose hand became empty *on this trick* is added to `safeOrder`, **in the order they played in the trick** (Clarification 10). Each emits `PLAYER_SAFE`.
 - **Next lead:** the winner leads. If the winner just emptied their hand (now safe), the lead passes **clockwise to the next non-safe player** (`nextNonSafeClockwise`; Clarification 8).
 - Then the game-over check (§4.5) runs.
@@ -266,11 +266,12 @@ Checked after every resolved trick or cut. Let `activeAfter` = players not in `s
 
 ---
 
-## 4.6 Part 2 stalemate redistribution — **PLANNED (not yet implemented)**
+## 4.6 Part 2 stalemate redistribution — **IMPLEMENTED**
 
-> **Status:** designed, **not yet built**. This section is the authoritative spec; the engine,
-> types, events, and tests in §0/§8/§9 must be added to match it. Defaults marked **(tunable)**
-> are engineering decisions open to confirmation; everything else is fixed rule intent.
+> **Status:** built and tested (`game.ts` `redistributeHands` + the trigger in `resolveCut`;
+> `tests/redistribution.test.ts`). This section is the authoritative spec; code matches it.
+> Defaults marked **(tunable)** are engineering decisions open to confirmation; everything else
+> is fixed rule intent.
 
 ### The gap this closes
 
@@ -324,11 +325,9 @@ play**, kept in a new field `removedPool` (new `Part2State` field):
 
 > **This changes the §4.3 "permanently removed" semantics.** Cancelled cards are no longer gone
 > forever — they move to `removedPool` and can re-enter play **only** via a redistribution.
-> Update §4.3's wording when this ships: "cancelled → moved to `removedPool`" rather than
-> "removed permanently." Everything stays inside a single 52-card deck; no new/duplicate cards
-> are ever introduced.
+> Everything stays inside a single 52-card deck; no new/duplicate cards are ever introduced.
 
-### Redistribution algorithm (`redistributeHands`, new in `game.ts`)
+### Redistribution algorithm (`redistributeHands` in `game.ts`)
 
 ```
 1. Reshuffle removedPool with a SEEDED RNG (determinism — see note below).
@@ -351,29 +350,25 @@ no redistribution is possible: declare the deadlocked active players a **draw** 
 [...safeOrder]` with **no loser**, phase → `GAME_OVER` (consistent with §4.5's
 zero-active outcome). **(tunable)**
 
-### Determinism requirement
+### Determinism
 
-`applyMove` is currently pure with no access to the seed, but redistribution must shuffle
-deterministically (the determinism contract, §2). Required state additions to support this:
+`applyMove` stays pure with no global RNG: `GameState.seed` retains the value passed to
+`createGame`, and `Part2State.redistributionCount` (starts 0, increments per redistribution)
+yields a distinct sub-seed each time — `createRng(`${state.seed}#redeal${count}`)`. Same seed +
+same moves ⇒ same redistributions, so all seeded tests stay reproducible.
 
-- Thread the game `seed` through to Part 2 (e.g. store it on `GameState`), and
-- Keep a `redistributionCount` (new `Part2State` field, starts 0, increments per redistribution)
-  so each redistribution derives a distinct sub-seed, e.g. `createRng(`${seed}#redeal${n}`)`.
+### Implementation map
 
-Same seed + same moves ⇒ same redistributions, so all seeded tests stay reproducible.
-
-### Required additions (must land together)
-
-- **`types.ts`** — `Part2State` gains `removedPool: readonly Card[]`, `cutStreak: number`,
-  `redistributionCount: number`; `GameState` gains `seed` (or equivalent); new `GameEvent`
-  `HANDS_REDISTRIBUTED` (see §8).
-- **`game.ts`** — seed `removedPool` in `endPart1`; append cancelled cards in `resolveTrickWon`;
-  increment/reset `cutStreak`; new `redistributeHands`; threshold check after `resolveCut`.
-- **`view.ts`** — expose `removedPool` as a **count only** (`removedCount`), never identities
-  (§7). A client may see card identities only for cards dealt **into its own** hand.
-- **Tests** — new `redistribution.test.ts` (see §9).
-- **`GAME_RULES.md`** — add as §7 Clarification #11 (player-facing rule), and **`ENGINE_API.md`**
-  for the new types/event.
+- **`types.ts`** — `Part2State` has `removedPool: readonly Card[]`, `cutStreak: number`,
+  `redistributionCount: number`; `GameState` has `seed: number | string`; `GameEvent` includes
+  `HANDS_REDISTRIBUTED { dealt; poolRemaining }` (§8); `PlayerView` has `removedCount` (§7).
+- **`game.ts`** — `endPart1` seeds `removedPool` with the no-capturer discard; `resolveTrickWon`
+  appends cancelled cards and resets `cutStreak`; `resolveCut` increments `cutStreak` and, after
+  the game-over check, fires the threshold trigger; `redistributeHands` performs the top-up.
+- **`view.ts`** — exposes `removedPool` as `removedCount` only; identities of dealt cards reach a
+  client only via its own `hand` after the redistribution.
+- **Tests** — `tests/redistribution.test.ts` (incl. the 3-/4-player termination regression and
+  the original `s5` hang).
 
 ---
 
@@ -424,7 +419,7 @@ source of truth — state is. See `types.ts` `GameEvent`:
 `CARD_PLAYED`, `CAPTURED` (includes the played card), `CARD_DRAWN` (identity redacted),
 `PART1_ENDED` (`sweeper` null ⇒ discarded), `TRICK_WON`, `CUT`, `PLAYER_SAFE`, `GAME_OVER`.
 
-**Planned (with §4.6):** `HANDS_REDISTRIBUTED { dealt: Record<PlayerId, number>; poolRemaining: number }`
+`HANDS_REDISTRIBUTED { dealt: Record<PlayerId, number>; poolRemaining: number }` (§4.6)
 — announces a stalemate top-up. Per-player **counts only**; a client learns the identities of
 cards dealt to it via the next `viewFor` (its own hand), never opponents' or pool cards (§7).
 
@@ -467,7 +462,7 @@ Located in `packages/engine/tests/`:
 | `legalMoves.test.ts` | exhaustive legal-move generation |
 | `viewFor.test.ts` | redaction guarantees |
 | `smoke.test.ts` | full game playthrough |
-| `redistribution.test.ts` *(planned, §4.6)* | 2-player no-shared-suit stalemate detection, `cutStreak` increment/reset, seeded redistribution top-up to 5, current-leader-continues, pool-exhaustion draw fallback, `removedPool` redaction |
+| `redistribution.test.ts` (§4.6) | `cutStreak` increment/reset, threshold trigger, seeded top-up to 5, ≥5-not-trimmed, current-leader-continues, pool-exhaustion best-effort + empty-pool draw, `removedCount` redaction, determinism, purity, and the 3-/4-player termination + `s5` regressions |
 
 **When you change a rule:** update this doc, change the relevant engine file, and update the
 matching test(s). Show `npm test` passing before declaring the change done (per `CLAUDE.md`
