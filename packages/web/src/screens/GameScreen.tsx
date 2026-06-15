@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cardId, type CardId, type Card as CardModel, type GameEvent, type Phase } from '@ganatri/engine';
 import { useGame } from '../state/GameProvider';
@@ -56,18 +56,6 @@ type CutAnimData = {
   isYou: boolean;
 };
 
-function getLocalCapturedCards(eventLog: readonly { event: GameEvent }[], playerId: string): readonly CardModel[] {
-  const captured: CardModel[] = [];
-  for (const { event } of eventLog) {
-    if (event.type === 'CAPTURED' && event.player === playerId) {
-      captured.push(...event.cards);
-    } else if (event.type === 'PART1_ENDED') {
-      break;
-    }
-  }
-  return captured;
-}
-
 type HandState = Part1SelectionState | Part2SelectionState;
 
 const DEFAULT_HAND_STATE: HandState = {
@@ -81,7 +69,7 @@ const DEFAULT_HAND_STATE: HandState = {
 };
 
 export function GameScreen(): React.ReactNode {
-  const { view, room, session, lastEvent, eventLog, disconnectedPlayers, playerNames, turnStartedAt, turnTimeoutMs, makeMove, startGame, leaveRoom } = useGame();
+  const { view, room, session, lastEvent, disconnectedPlayers, playerNames, turnStartedAt, turnTimeoutMs, makeMove, startGame, leaveRoom } = useGame();
   const voice = useVoiceChatContext();
   const [flash, setFlash] = useState<Flash | null>(null);
   const [cutAnimData, setCutAnimData] = useState<CutAnimData | null>(null);
@@ -89,10 +77,21 @@ export function GameScreen(): React.ReactNode {
   const [handState, setHandState] = useState<HandState>(DEFAULT_HAND_STATE);
   const [handOrder, setHandOrder] = useState<CardId[]>([]);
   const prevPhase = useRef<Phase | undefined>();
+  const gameRef = useRef<HTMLDivElement>(null);
   const [showPhaseTransition, setShowPhaseTransition] = useState(false);
   // Stable ref so the lastEvent effect can read the current view without depending on it.
   const viewRef = useRef(view);
   viewRef.current = view;
+
+  useLayoutEffect(() => {
+    const el = gameRef.current;
+    if (!el) return;
+    const vw = window.innerWidth;
+    const tableW = Math.round(Math.min(64, Math.max(48, vw * 0.13)));
+    const handW = Math.round(tableW * 1.12);
+    el.style.setProperty('--card-table-w', `${tableW}px`);
+    el.style.setProperty('--card-hand-w', `${handW}px`);
+  }, []);
 
   useEffect(() => {
     if (!view?.phase) return;
@@ -161,7 +160,7 @@ export function GameScreen(): React.ReactNode {
 
   if (view.phase === 'GAME_OVER') {
     return (
-      <div className="game">
+      <div className="game" ref={gameRef}>
         <EndScreen
           rankings={view.rankings}
           you={view.you}
@@ -194,7 +193,7 @@ export function GameScreen(): React.ReactNode {
   })();
 
   return (
-    <div className="game">
+    <div className="game" ref={gameRef}>
 
       {/* ── HUD: independent floating pills ── */}
       <header className="game__hud">
@@ -324,7 +323,7 @@ export function GameScreen(): React.ReactNode {
         </AnimatePresence>
       </div>
 
-      {/* ── Hand section: hint + hand + captures ── */}
+      {/* ── Hand section: hint + hand ── */}
       <div className="game__hand-section">
         {handState.hint && <div className="game__hint">{handState.hint}</div>}
 
@@ -339,16 +338,12 @@ export function GameScreen(): React.ReactNode {
             highlightedIds={highlightedIds}
           />
         </div>
-
-        {view.phase === 'PART_1' && (() => {
-          const captured = getLocalCapturedCards(eventLog, view.you);
-          return captured.length > 0 ? (
-            <div className="game__captures">
-              <CapturedPile cards={captured} />
-            </div>
-          ) : null;
-        })()}
       </div>
+
+      {/* ── Captured pile FAB (Part 1) — portaled, floats above hand ── */}
+      {view.phase === 'PART_1' && view.myCapturedCards.length > 0 && (
+        <CapturedPile cards={view.myCapturedCards} />
+      )}
 
       {/* ── Full-screen CUT animation ── */}
       <AnimatePresence>

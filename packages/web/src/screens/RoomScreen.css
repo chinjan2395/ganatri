@@ -378,11 +378,40 @@
   line-height: 1;
 }
 
-/* ── Mobile scale-down ──────────────────────────────── */
+/* ── Compact layouts — real dimensions (not scale) so scroll height is honest ── */
 @media (max-width: 680px) {
   .room__table-area {
-    transform: scale(0.68);
-    transform-origin: center top;
-    margin-bottom: -120px;
+    width: min(95vw, 440px);
+    height: 260px;
+  }
+
+  .room__oval {
+    width: 220px;
+    height: 118px;
+  }
+
+  .room__seat-card {
+    padding: 6px 10px;
+    min-width: 76px;
+  }
+
+  .room__seat-suit {
+    font-size: 20px;
+  }
+}
+
+@media (max-height: 700px) {
+  .room__logo {
+    width: min(150px, 42vw);
+  }
+
+  .room__table-area {
+    width: min(95vw, 400px);
+    height: 230px;
+  }
+
+  .room__oval {
+    width: 200px;
+    height: 108px;
   }
 }
