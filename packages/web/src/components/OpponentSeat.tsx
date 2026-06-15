@@ -1,4 +1,3 @@
-import { AnimatePresence, motion } from 'framer-motion';
 import type { PlayerId } from '@ganatri/engine';
 import './OpponentSeat.css';
 
@@ -39,66 +38,55 @@ export function OpponentSeat(props: OpponentSeatProps): React.ReactNode {
   if (compact) classes.push('seat--compact');
 
   const label = displayName || shortId(playerId);
-
-  // Status below the avatar — priority: offline > turn > safe > waiting
-  let status: { text: string; tone: string } | null = null;
-  if (disconnected) status = { text: 'offline', tone: 'offline' };
-  else if (isTurn) status = { text: isYou ? 'your turn' : 'next', tone: 'turn' };
-  else if (isSafe) status = { text: `safe${safeRank ? ` #${safeRank}` : ''}`, tone: 'safe' };
-  else status = { text: 'waiting', tone: 'waiting' };
-
+  const showCaptures = captureCount !== undefined && captureCount > 0;
   const avatarStyle = { '--seat-hue': hueFor(playerId) } as React.CSSProperties;
 
   return (
     <div className={classes.join(' ')}>
-      {/* YOU badge — shown only for the local player */}
-      {isYou && <div className="seat__you-tag">YOU</div>}
+      <span className="seat__name" title={label}>
+        {label}
+      </span>
 
-      {/* Name + hand count stacked */}
-      <div className="seat__info">
-        <span className="seat__name">{label}</span>
-        <span className="seat__count-row">
-          <span className="seat__count-icon">🃏</span>
-          <span className="seat__count-num">{handCount}</span>
-        </span>
-      </div>
-
-      {/* Crown indicator — shown only when it's this player's turn */}
       {isTurn && (
         <div className="seat__turn-crown">
           <span className="seat__turn-crown-icon">{isYou ? '♛' : '▼'}</span>
         </div>
       )}
 
-      {/* Circular avatar */}
       <div className="seat__avatar" style={avatarStyle}>
         <span className="seat__initials">{label.slice(0, 2).toUpperCase()}</span>
-
-        {captureCount !== undefined && captureCount > 0 && (
-          <span className="seat__cap" title="captured cards">
-            {captureCount}
-          </span>
-        )}
-
         {disconnected && <div className="seat__overlay" />}
       </div>
 
-      {/* Status badge */}
-      <div className="seat__status">
-        <AnimatePresence mode="wait">
-          {status && (
-            <motion.span
-              key={status.tone}
-              className={`seat__status-badge seat__status-badge--${status.tone}`}
-              initial={{ opacity: 0, y: -3 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 3 }}
-              transition={{ duration: 0.15 }}
-            >
-              {status.text}
-            </motion.span>
-          )}
-        </AnimatePresence>
+      <div className="seat__stats">
+        {disconnected ? (
+          <span className="seat__stat-badge seat__stat-badge--offline">offline</span>
+        ) : (
+          <>
+            <span className="seat__stat" title="Cards in hand">
+              <span className="seat__stat-icon" aria-hidden>
+                🃏
+              </span>
+              <span className="seat__stat-val">{handCount}</span>
+            </span>
+            {showCaptures && (
+              <span className="seat__stat seat__stat--capture" title="Captured cards">
+                <span className="seat__stat-icon" aria-hidden>
+                  ⬡
+                </span>
+                <span className="seat__stat-val">{captureCount}</span>
+              </span>
+            )}
+            {isSafe && (
+              <span className="seat__stat seat__stat--safe" title="Safe player">
+                <span className="seat__stat-icon" aria-hidden>
+                  ✓
+                </span>
+                <span className="seat__stat-val">{safeRank ?? '—'}</span>
+              </span>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

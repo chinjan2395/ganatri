@@ -5,16 +5,17 @@
 
 .game {
   flex: 1;
-  display: flex;
-  flex-direction: column;
+  /* Grid reserves HUD + players + hand at natural height; board fills the rest */
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   position: relative;        /* anchor for action-bar absolute */
   gap: 0;
-  padding: 6px 8px 0;       /* hand-area carries its own bottom padding */
+  padding: 6px 8px env(safe-area-inset-bottom, 0px);
   width: 100%;
   max-width: 860px;
   margin: 0 auto;
   min-height: 0;
-  height: 100dvh;
+  height: 100%;
   overflow: hidden;
   /* Full-bleed felt: spotlight in the play area, vignette at the edges */
   background:
@@ -289,32 +290,97 @@
 /* ── Open felt card area — cards sit on a soft spotlit play-zone ── */
 .game__board {
   position: relative;
-  flex: 1 1 0;
-  min-height: 100px;
+  min-height: 0;
+  max-height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 6px 0 4px;
   padding: 12px;
+  overflow: visible;
   --card-w: clamp(50px, 14vw, 74px);
+  --table-ellipse-x: clamp(22px, 10%, 88px);
+  --table-ellipse-y: clamp(14px, 6%, 30px);
+  --table-rim-x: clamp(18px, 9%, 78px);
+  --table-rim-y: clamp(10px, 5%, 26px);
   background: transparent;
 }
-/* Soft elliptical play-zone behind the cards — gives the felt a focal point */
+/* DEMO: maroon patterned felt — centered ellipse only */
 .game__board::before {
   content: '';
   position: absolute;
-  inset: 6% 7%;
+  inset: var(--table-ellipse-y) var(--table-ellipse-x);
   border-radius: 48% / 42%;
-  background: radial-gradient(ellipse at 50% 44%, rgba(70, 162, 105, 0.45), rgba(18, 74, 42, 0) 72%);
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(210, 75, 85, 0.35) 0%, transparent 58%),
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 210, 190, 0.07) 0px,
+      rgba(255, 210, 190, 0.07) 1px,
+      transparent 1px,
+      transparent 13px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 210, 190, 0.07) 0px,
+      rgba(255, 210, 190, 0.07) 1px,
+      transparent 1px,
+      transparent 13px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.1) 0px,
+      rgba(0, 0, 0, 0.1) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    linear-gradient(168deg, #8f2430 0%, #6b1820 42%, #4a0f14 78%, #3d0c10 100%);
   box-shadow:
-    inset 0 0 70px rgba(0, 0, 0, 0.32),
-    0 0 0 1px rgba(231, 195, 74, 0.06);
+    inset 0 0 0 2px rgba(35, 7, 9, 0.5),
+    inset 0 0 0 5px rgba(231, 195, 74, 0.1),
+    inset 0 0 70px rgba(0, 0, 0, 0.38),
+    0 0 0 1px rgba(231, 195, 74, 0.18),
+    0 10px 28px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+  z-index: 0;
+}
+.game__board::after {
+  content: '';
+  position: absolute;
+  inset: var(--table-rim-y) var(--table-rim-x);
+  border-radius: 49% / 43%;
+  background:
+    radial-gradient(
+      ellipse at 50% 50%,
+      transparent 0%,
+      transparent 68%,
+      rgba(45, 8, 12, 0.72) 69%,
+      rgba(231, 195, 74, 0.78) 70%,
+      rgba(255, 240, 185, 0.72) 71%,
+      rgba(112, 45, 22, 0.7) 73%,
+      transparent 76%
+    ),
+    linear-gradient(110deg, transparent 18%, rgba(255, 245, 205, 0.2) 32%, transparent 44%, transparent 62%, rgba(255, 245, 205, 0.12) 72%, transparent 84%);
+  box-shadow:
+    inset 0 0 18px rgba(255, 235, 170, 0.12),
+    inset 0 0 36px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(231, 195, 74, 0.16),
+    0 8px 22px rgba(0, 0, 0, 0.24);
   pointer-events: none;
   z-index: 0;
 }
 .game__board > * {
   position: relative;
   z-index: 1;
+}
+.game__board > .board {
+  width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  scrollbar-width: none;
+}
+.game__board > .board::-webkit-scrollbar {
+  display: none;
 }
 
 /* ── Turn hint — sits at the top of the hand section ── */
@@ -341,19 +407,16 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 2px 8px 12px;
+  padding: 2px 8px max(12px, env(safe-area-inset-bottom, 0px));
   --card-w: clamp(52px, 15vw, 72px);
-  max-height: clamp(120px, 26vh, 230px);
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
+  overflow: visible;
   /* Soft shadow grounding the held cards at the bottom of the felt */
   background: radial-gradient(ellipse 78% 130% at 50% 125%, rgba(0, 0, 0, 0.4), transparent 72%);
 }
 
-/* Part 2: grid layout — allow up to ~40 vh so 20+ cards wrap into visible rows;
-   scroll only if hand is truly huge (25+ cards in 3+ rows). */
+/* Part 2: grid layout — cap height so the board still gets room; scroll if huge. */
 .game__hand-area--reorder {
-  max-height: clamp(180px, 42vh, 340px);
+  max-height: clamp(140px, 34vh, 300px);
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
@@ -415,6 +478,34 @@
 /* ============================================================
    Responsive tweaks
    ============================================================ */
+
+/* Short viewports: shrink the play area so the hand always fits */
+@media (max-height: 700px) {
+  .game__board {
+    --card-w: clamp(42px, 11vw, 58px);
+    margin: 4px 0 2px;
+    padding: 8px;
+  }
+  .game__hand-area {
+    --card-w: clamp(46px, 13.5vw, 64px);
+  }
+  .game__players {
+    padding: 6px 8px 4px;
+  }
+}
+
+@media (max-height: 580px) {
+  .game__board {
+    --card-w: clamp(36px, 9.5vw, 48px);
+    margin: 2px 0;
+    padding: 4px;
+  }
+  .game__hand-area {
+    --card-w: clamp(40px, 12vw, 56px);
+    padding-bottom: 8px;
+  }
+}
+
 /* Very small devices: 375px width — reduce avatar sizes */
 @media (max-width: 375px) {
   .game__players {
