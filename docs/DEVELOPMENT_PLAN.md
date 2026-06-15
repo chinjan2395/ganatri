@@ -1,7 +1,7 @@
 # Ganatri — Phasewise Development Plan
 
-Last updated: 2026-06-15 (Specced Part 2 stalemate redistribution — Clarification #11 / CALCULATIONS.md §4.6, not yet implemented)  
-All 163 tests passing (140 engine + 23 server).
+Last updated: 2026-06-15 (Fixed `PlayerView.removedCount` build contract; stalemate redistribution remains planned)  
+All 164 tests passing (141 engine + 23 server).
 
 ---
 
@@ -40,7 +40,7 @@ All 163 tests passing (140 engine + 23 server).
 | Part 2 simultaneous-finish edge cases (Clarification #10)                  | ✅      | `src/game.ts`                  |
 | Part 2 stalemate redistribution (Clarification #11)                        | ⬜      | spec in `CALCULATIONS.md` §4.6; `game.ts`/`types.ts`/`view.ts` + `redistribution.test.ts` |
 | `legalMoves` / `legalPart2Cards` helpers                                   | ✅      | `src/game.ts`                  |
-| `viewFor(state, playerId)` — redacted `PlayerView`                         | ✅      | `src/view.ts`                  |
+| `viewFor(state, playerId)` — redacted `PlayerView`                         | ✅      | `src/view.ts`; includes `removedCount` only |
 | `applyMove(state, player, move)` — pure, returns new state + events        | ✅      | `src/game.ts`                  |
 | `GameEvent` union (CAPTURED, CUT, TRICK_WON, PLAYER_SAFE, etc.)            | ✅      | `src/types.ts`                 |
 | Unit tests: capture options (25 tests)                                     | ✅      | `tests/captureOptions.test.ts` |
@@ -49,7 +49,7 @@ All 163 tests passing (140 engine + 23 server).
 | Unit tests: createGame, viewFor, legalMoves, transitions, smoke (42 tests) | ✅      | `tests/*.test.ts`              |
 
 
-**Test count: 140 / 140 passing.**
+**Test count: 141 / 141 passing.**
 
 ---
 
