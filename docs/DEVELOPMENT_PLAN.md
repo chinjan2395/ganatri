@@ -1,7 +1,7 @@
 # Ganatri — Phasewise Development Plan
 
-Last updated: 2026-06-15 (Fixed `PlayerView.removedCount` build contract; stalemate redistribution remains planned)  
-All 164 tests passing (141 engine + 23 server).
+Last updated: 2026-06-16 (Reordered: DB is now Phase 6, Improvements demoted to Phase 7)  
+All 176 tests passing (153 engine + 23 server).
 
 ---
 
@@ -38,7 +38,7 @@ All 164 tests passing (141 engine + 23 server).
 | Part 2 cut detection: cutter leads, highest led-suit holder picks up       | ✅      | `src/game.ts`                  |
 | Part 2 safe/out logic; zero-capture players immediately safe               | ✅      | `src/game.ts`                  |
 | Part 2 simultaneous-finish edge cases (Clarification #10)                  | ✅      | `src/game.ts`                  |
-| Part 2 stalemate redistribution (Clarification #11)                        | ⬜      | spec in `CALCULATIONS.md` §4.6; `game.ts`/`types.ts`/`view.ts` + `redistribution.test.ts` |
+| Part 2 stalemate redistribution (Clarification #11)                        | ✅      | `game.ts` `redistributeHands` + `resolveCut` trigger; fixes multi-player non-termination |
 | `legalMoves` / `legalPart2Cards` helpers                                   | ✅      | `src/game.ts`                  |
 | `viewFor(state, playerId)` — redacted `PlayerView`                         | ✅      | `src/view.ts`; includes `removedCount` only |
 | `applyMove(state, player, move)` — pure, returns new state + events        | ✅      | `src/game.ts`                  |
@@ -47,9 +47,10 @@ All 164 tests passing (141 engine + 23 server).
 | Unit tests: applyMove Part 1 (20 tests)                                    | ✅      | `tests/applyMove.test.ts`      |
 | Unit tests: Part 2 full (56 tests)                                         | ✅      | `tests/part2.test.ts`          |
 | Unit tests: createGame, viewFor, legalMoves, transitions, smoke (42 tests) | ✅      | `tests/*.test.ts`              |
+| Unit tests: stalemate redistribution (12 tests)                            | ✅      | `tests/redistribution.test.ts` |
 
 
-**Test count: 141 / 141 passing.**
+**Test count: 153 / 153 passing.**
 
 ---
 
@@ -197,15 +198,238 @@ All 164 tests passing (141 engine + 23 server).
 
 ---
 
+## Phase 6 — Persistence, Accounts, Statistics & Analytics
+
+**Goal:** Move from purely in-memory server state to a persistent data layer so the game can store user identities, durable game records, per-player statistics, and product analytics — and survive server restarts. This is the largest architectural change since v1: it introduces a database, optional accounts, and several new screens.
+
+This phase is a **planning backlog with embedded decisions** — items marked **🔷 DECISION** must be resolved (with the owner) before the dependent build tasks can be scoped. Recommendations are given inline. Nothing here is started; later we will split this into an executable, sequenced plan.
+
+### Guiding architectural principles
+
+- **Keep the DB behind an interface.** Mirror the existing `GameTransport` abstraction: introduce a `GameStore` / repository interface and make today's in-memory `store.ts` one implementation (`MemoryStore`). The Postgres-backed implementation (`PostgresStore`) plugs in behind the same interface so the engine and handlers never import the DB directly. This preserves the "server delegates, engine is pure" rule.
+- **Persistence is additive, not in the hot path.** Game-move validation stays in-memory and synchronous (engine-authoritative). DB writes (game records, events, stats) happen asynchronously / write-through so a slow DB never blocks gameplay.
+- **Accounts are optional first.** Guests can still play with no signup; an account only adds durable identity, stats, and history. Avoid forcing auth into the critical path of "create room → play".
+- **No PII in analytics.** Analytics events reference opaque user IDs only; display names / emails live in the accounts tables with stricter access.
+- **Strict TypeScript end-to-end.** Schema types must be inferred (Drizzle/Prisma) so the DB layer is as type-safe as the engine.
+
+### 6a — Database foundation & infrastructure
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| 🔷 DECISION: database engine | ⬜ | **Recommend PostgreSQL** — relational integrity for games/players/stats, strong aggregate/analytics queries (window functions, `GROUP BY`), JSONB for event payloads. SQLite acceptable only for single-instance/dev. |
+| 🔷 DECISION: ORM / query layer | ⬜ | **Recommend Drizzle ORM** (TS-first, SQL-like, fully inferred types, lightweight migrations) given "TS strict everywhere" + pure-engine philosophy. **Prisma** is the batteries-included alternative (mature migrations, Studio GUI) at the cost of a heavier runtime/codegen step. |
+| 🔷 DECISION: managed Postgres host | ⬜ | Options: **Railway Postgres** (MCP already available here), **Neon** (serverless, branching, generous free tier), **Supabase** (Postgres + auth + storage bundled — attractive if we also adopt its auth). Server is on Render today; pick a host with low latency to Render region. |
+| New `packages/db` workspace package (or `packages/server/src/db`) | ⬜ | Houses schema, migrations, repository implementations. Keep importable by server only — never by `packages/engine`. |
+| Connection pooling | ⬜ | Use a pooled client (pg `Pool` / Neon serverless driver / pgBouncer). Size pool for Render instance + future horizontal scaling (ties to Phase 7g). |
+| Environment config & secrets | ⬜ | `DATABASE_URL` + pool size in `.env.example`; wire into existing `config.ts`. Never commit credentials. |
+| Migration tooling & workflow | ⬜ | Drizzle Kit (`drizzle-kit generate`/`migrate`) or Prisma Migrate. Migrations checked into repo; one source of truth for schema. |
+| Local dev database | ⬜ | `docker-compose.yml` with Postgres for local dev, or Neon dev branch. Document setup in README. |
+| Migration CI gate | ⬜ | CI fails if schema drifts from migrations / migration not applied; no deploy without a clean migration check. |
+
+### 6b — Data-access layer & schema
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Define `GameStore` / repository interface | ⬜ | Methods for sessions, rooms, users, games, events, stats. Mirrors `GameTransport` pattern; all handlers depend on the interface, not a concrete store. |
+| Refactor in-memory `store.ts` → `MemoryStore` impl | ⬜ | Today's store becomes one implementation; keeps existing tests green and gives a fast no-DB mode for unit tests. |
+| Implement `PostgresStore` | ⬜ | Real persistence behind the same interface; selected via env (`STORE=memory\|postgres`). |
+| Schema: `users` | ⬜ | id (uuid), display_name, email (nullable for guests), auth fields, avatar, created_at, last_seen_at, is_guest flag. |
+| Schema: `auth_sessions` | ⬜ | Persisted session/refresh tokens replacing today's purely in-memory session UUIDs; expiry, device info, revoked flag. |
+| Schema: `rooms` | ⬜ | room_code, host_user_id, status (lobby/playing/done/abandoned), config snapshot, created_at, closed_at. |
+| Schema: `games` | ⬜ | room_id, seed, seating order, player_count, config snapshot, started_at, ended_at, duration, outcome summary, winner, abandoned flag. |
+| Schema: `game_players` (join) | ⬜ | game_id, user_id (nullable for guests), seat_index, display_name snapshot, final_rank, safe_order, was_cut, captures, result (win/loss/abandon). |
+| Schema: `game_events` / move log | ⬜ | game_id, seq, ts, actor_user_id, event type + JSONB payload (mirrors engine `GameEvent`). Granularity decision below. |
+| 🔷 DECISION: event-log granularity | ⬜ | Full move-by-move log (enables replay + rich analytics, larger storage) **vs** summary-only (cheaper, no replay). Recommend full log gated behind a flag so it can be disabled. |
+| Schema: `player_stats` (aggregate) | ⬜ | user_id, games_played/won/lost/abandoned, sum of finish positions, captures, cuts_given/received, times_safe, total_play_time, rating, streak fields, updated_at. |
+| Schema: `analytics_events` | ⬜ | If self-hosting analytics (see 6f): event name, anonymous user id, ts, JSONB props. Otherwise external sink. |
+| Indexes, FKs & constraints | ⬜ | Index hot query paths (leaderboard sort, match history by user, events by game+seq); FKs with sensible `ON DELETE` for account deletion. |
+| Dev seed / fixtures | ⬜ | Script to populate sample users/games/stats for local UI work. |
+| Repository integration tests | ⬜ | Test `PostgresStore` against a real/ephemeral Postgres (testcontainers or Neon branch); keep `MemoryStore` unit-tested. |
+
+### 6c — User accounts & authentication
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| 🔷 DECISION: account model | ⬜ | **Recommend guest-first with optional upgrade**: every player gets a persistent guest user row keyed by a long-lived client token; signing up "claims" that guest and keeps its stats. Avoids gating play behind auth. |
+| 🔷 DECISION: auth method | ⬜ | Options: email + password (own hashing), **passwordless magic link** (no password storage), **Google OAuth** (lowest friction, no password reset flow), or **Supabase Auth** (if Supabase chosen in 6a). Recommend Google OAuth + magic link; avoid storing passwords if possible. |
+| Password hashing (if password auth chosen) | ⬜ | Use **argon2id** (or bcrypt) via a vetted library — never custom crypto. Skip entirely if OAuth/magic-link only. |
+| Persisted auth sessions / token refresh | ⬜ | Replace ephemeral in-memory session token with DB-backed session + short-lived access + refresh, or signed JWT. Resolves Phase 7e "session token expiry". |
+| Wire accounts into existing session flow | ⬜ | `handlers.ts` session issue/restore reads/writes `auth_sessions`; socket reconnect re-validates against DB. |
+| Guest → registered upgrade flow | ⬜ | Merge guest user's games/stats into the new account on signup; handle the "already signed in elsewhere" case. |
+| Account settings | ⬜ | Edit display name + avatar, link/unlink OAuth, change email, delete account (ties to 6i). |
+| Auth brute-force / abuse protection | ⬜ | Rate-limit login/magic-link/OAuth callbacks per IP (extends Phase 7b rate-limiting). |
+| Replace ad-hoc name input with account name | ⬜ | When signed in, prefill display name from account; keep manual entry for guests. |
+
+### 6d — Game & event persistence
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Persist room lifecycle | ⬜ | Insert on `create_room`; update status on start / finish / abandon / expiry. |
+| Persist completed game records | ⬜ | On `GAME_OVER`, write `games` + `game_players` rows (seed, seating, config, duration, rankings). |
+| Persist outcomes & rankings | ⬜ | Winner, full finish order, safe order, who was cut, per-player capture counts. |
+| Write-through engine event log | ⬜ | Stream engine `GameEvent`s to `game_events` asynchronously; never block `applyMove`. Batch/queue writes. |
+| Server-restart recovery | ⬜ | Rehydrate in-progress games from DB on boot so a restart no longer silently drops active games (resolves Phase 7b "server state persistence"). |
+| Replay data model & reconstruction | ⬜ | Rebuild a game from `game_events` + seed to power a replay viewer (depends on full-log decision in 6b). |
+| Abandonment / forfeit recording | ⬜ | Distinguish completed vs abandoned games so stats don't punish disconnects unfairly (ties to Phase 7b auto-forfeit). |
+| Aggregation/backfill job | ⬜ | Job to (re)compute stats from game records — for fixing bugs or onboarding historical data. |
+
+### 6e — Player statistics
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| 🔷 DECISION: aggregation strategy | ⬜ | **Incremental** (update `player_stats` in a transaction on game-end — fast reads, must be idempotent) **vs batch recompute** (cron over `games`). Recommend incremental with a periodic reconcile job. |
+| Core counting stats | ⬜ | Games played/won/lost/abandoned, captures (Part 1), cuts given/received, times safe, time played. |
+| Derived metrics | ⬜ | Win rate, average finishing position, longest win streak, current streak. |
+| 🔷 DECISION: rating system | ⬜ | Optional skill rating: **ELO** (simple, 1v1-style adapted to multiplayer placement) or **Glicko-2** (handles uncertainty/inactivity). Skip for v1 of this phase if scope is tight. |
+| Leaderboard queries | ⬜ | Global + time-windowed (weekly/monthly) + (later) friends; paginated, indexed sort. |
+| Stats API endpoints / socket queries | ⬜ | `get_my_stats`, `get_leaderboard`, `get_match_history`; redact other players' private data. |
+| Idempotency on replays/recompute | ⬜ | Guard against double-counting if a game-end is processed twice (use game_id uniqueness). |
+
+### 6f — Analytics & telemetry
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| 🔷 DECISION: self-hosted vs third-party analytics | ⬜ | Self-host in `analytics_events` (full control, no third party, more build) **vs** **PostHog / Plausible** (fast, dashboards out of the box, privacy-friendly). Recommend PostHog (self-host or cloud) for product analytics; keep game-stat aggregates in our own DB. |
+| Define event taxonomy | ⬜ | `room_created`, `game_started`, `game_finished`, `game_abandoned`, `player_joined/left`, `turn_timed_out`, `voice_enabled`, `disconnect`, `reconnect`, `signup`, `guest_upgrade`. Stable names + versioned schema. |
+| Instrument server-side events | ⬜ | Emit from `handlers.ts` lifecycle points; anonymous user id only, no PII. |
+| Instrument key client events | ⬜ | Funnel-critical UI actions (create/join clicked, start clicked) the server can't see. |
+| Funnel & product metrics | ⬜ | create → start → finish funnel; abandonment rate; average game duration; players-per-game distribution. |
+| Engagement metrics | ⬜ | DAU/MAU, retention (D1/D7), peak concurrent rooms/players, voice-chat adoption rate. |
+| Operational metrics | ⬜ | Reconnect rate, turn-timeout frequency, average ICE-connect time / voice failure rate. |
+| Privacy-respecting collection | ⬜ | Document what is collected; no display names/emails in events; honor consent (ties to 6i). |
+
+### 6g — Frontend: profiles, stats & leaderboards
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Auth screens | ⬜ | Login / signup / "continue as guest", magic-link or OAuth button, password reset (if applicable). |
+| Account state in client | ⬜ | Extend `GameProvider` (or a new `AuthProvider`) with signed-in user; persist refresh token; gate account-only UI. |
+| Profile page | ⬜ | Avatar, display name, edit settings, link OAuth, delete account. |
+| Personal stats dashboard | ⬜ | Win rate, games played, avg finish, streaks, cuts/captures, charts. |
+| Match history list + detail | ⬜ | Paginated past games with opponents, result, duration; detail view per game. |
+| Replay viewer | ⬜ | Step through a finished game from the event log (depends on 6b/6d full-log decision). |
+| Global leaderboard screen | ⬜ | Ranked table with time-window filter; highlight current user. |
+| Display-name unification | ⬜ | Use account display name across RoomScreen/GameScreen/EndScreen when signed in. |
+
+### 6h — Admin analytics dashboard
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Extend `AdminScreen` with analytics views | ⬜ | Build on existing admin auth (harden first per Phase 7e). |
+| Live operations view | ⬜ | Active rooms/games, current concurrent players, in-flight voice sessions. |
+| KPI charts | ⬜ | DAU/MAU, games per day, avg duration, abandonment rate, signup conversions. |
+| User management | ⬜ | Search users, view stats, ban/suspend, reset/merge accounts. |
+| Data export | ⬜ | CSV/JSON export of games/stats for offline analysis. |
+| Secure admin data endpoints | ⬜ | All analytics/admin queries behind hardened admin auth + authorization checks. |
+
+### 6i — Privacy, retention & compliance
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Privacy policy & consent | ⬜ | Publish a policy; obtain consent for analytics where required; cookie/localStorage disclosure. |
+| Data export (right to access) | ⬜ | Let a user download their account data (GDPR/CCPA). |
+| Account deletion (right to erasure) | ⬜ | Hard-delete or anonymize user across users/game_players/events/stats; define FK `ON DELETE` behavior. |
+| Data retention policies | ⬜ | Purge/anonymize old analytics events and abandoned-room records on a schedule. |
+| PII handling & encryption at rest | ⬜ | Encrypt sensitive columns / rely on host encryption; restrict access to email/auth tables. |
+
+### 6j — Operations & hardening
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Automated backups & restore drills | ⬜ | Scheduled backups + a tested restore procedure before going live. |
+| DB monitoring & alerting | ⬜ | Connection saturation, slow queries, disk usage, error rate. |
+| Connection-pool sizing for scale | ⬜ | Coordinate pool size with Phase 7g horizontal scaling (Redis adapter + shared DB). |
+| Cost & free-tier monitoring | ⬜ | Watch row/storage/egress limits on chosen host; alert before hitting caps. |
+| Performance: query plans & N+1 guards | ⬜ | `EXPLAIN` hot queries (leaderboard, match history, stats); avoid per-row queries in loops. |
+
+> **Cross-phase note:** This phase absorbs and supersedes several Phase 7 (Improvements) items — 7b "Server state persistence" (→ 6a/6d), 7e "Session token expiry" (→ 6c), and the state-store half of 7g "Horizontal scaling / external state store" (→ 6a/6j). Internal sequencing: DB foundation (6a/6b) first, then persistence (6d), then accounts (6c), then stats/analytics/UI (6e–6h), then privacy/ops (6i/6j).
+>
+> **Prerequisite before starting this phase:** finish the outstanding Phase 5.7 voice multi-tab smoke test, and pull forward the urgent bug/security fixes called out in Phase 7's sequencing note (they should not wait behind this ~70-task epic).
+
+---
+
+## Phase 7 — Improvements & Hardening
+
+**Goal:** Address known gaps in performance, reliability, UX, security, testing, and infrastructure discovered during v1 development. Demoted below the DB phase (was Phase 6) because the database work is foundational and supersedes several items here — but a subset are urgent and should be pulled forward (see below).
+
+> **Sequencing note (2026-06-16):** The database work was promoted ahead of this phase (now Phase 6).
+>
+> - **Superseded by Phase 6 — do not build standalone:** 7b "Server state persistence" (the DB *is* the persistence), 7e "Session token expiry" (Phase 6c delivers DB-backed sessions), and the external-state-store half of 7g "Horizontal scaling". Building these on the in-memory model now would be throwaway work.
+> - **Pull forward — ship before/alongside Phase 6, do NOT wait behind the DB epic:** these are active gameplay/security bugs, not nice-to-haves — 7b "Auto-advance / forfeit on grace expiry" (players currently stuck indefinitely), 7b "Disclose auto-played move on timeout" (looks broken), 7d "Align trick-reveal freeze duration" (board clears before flash finishes), and 7e "Sanitize player names server-side".
+
+### 7a — Performance
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Memo-guard `Part1Board` and `Part2Board` with `React.memo` | ⬜ | Re-render on every game state update even when their slice of view hasn't changed |
+| Split `GameProvider` context into stable slices | ⬜ | Single `GameContextValue` invalidates all consumers on any state change; split e.g. `view` / `room` / `session` into separate contexts or `useSyncExternalStore` |
+| Memoize per-player derived props in `GameScreen` player row | ⬜ | `handCount`, `captureCount`, `isTurn`, `isSafe` etc. recreated every render; prevents `React.memo` on `OpponentSeat` from bailing out on game-state changes |
+
+### 7b — Reliability
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Server state persistence (Redis or flat-file snapshot) | ⬜ | **Superseded by Phase 6 (DB)** — do not build a separate snapshot; restart recovery comes from `game_events` rehydration in Phase 6d |
+| Auto-advance / forfeit when grace period expires during PLAYING | ⬜ | **Pull forward (urgent bug):** currently just logs; other players are stuck waiting indefinitely |
+| Disclose auto-played move to players on turn timeout | ⬜ | **Pull forward (urgent bug):** server picks `moves[0]` silently; feels like a bug; at minimum broadcast a toast "X's turn timed out" |
+| Rate-limit `create_room` and `join_room` per IP | ⬜ | Only `make_move` has a debounce; room flood is currently unprotected |
+| Clean up WebRTC peer connections when a player goes safe mid-Part-2 | ⬜ | Peers remain connected and consuming resources even after a player empties their hand |
+
+### 7c — Voice / WebRTC
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Visual peer-connection state indicator (connecting / connected / failed) | ⬜ | Players have no feedback when ICE negotiation is in progress or has silently failed |
+| Handle mic permission revocation mid-game | ⬜ | Permission denied is only caught at startup; OS can revoke it later with no UI feedback |
+| Guard TURN credential hand-out near TTL boundary | ⬜ | Cached creds shared across all clients; players joining seconds before expiry may receive already-expired credentials |
+
+### 7d — Game UX
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Sound effects (card play, trick won, cut, game over) | ⬜ | Noted in Phase 4 as optional; audio cues reduce need to watch board constantly |
+| Persist Part 2 hand reorder across reconnect | ⬜ | `handOrder` is local state; lost on reload / rejoin |
+| Align trick-reveal freeze duration with flash animation duration | ⬜ | **Pull forward:** freeze is 1 500 ms hardcoded; flash runs for 2 200 ms — board clears before flash finishes |
+| Prominent winner/loser reveal on end screen | ⬜ | Rankings list is shown but no celebration / commiseration animation differentiates 1st from last |
+| Lobby chat or ready-check | ⬜ | Players have no way to coordinate before the host starts the game |
+
+### 7e — Security
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Sanitize / validate player names server-side | ⬜ | **Pull forward:** 20-char limit enforced but no XSS check; safe now due to React escaping but one `dangerouslySetInnerHTML` would expose it |
+| Strengthen admin authentication | ⬜ | Email-only check; add a shared secret or signed token so any email can't spoof admin. (Do before Phase 6h admin analytics dashboard) |
+| Session token expiry | ⬜ | **Superseded by Phase 6c (DB-backed sessions)** — UUIDs never expire today; the persisted-session work in Phase 6c resolves this |
+
+### 7f — Testing
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Frontend component tests (React Testing Library or Playwright) | ⬜ | Zero frontend tests; React components, UI flows, and `GameProvider` socket handling all untested |
+| Server-client integration tests (full socket round-trip) | ⬜ | `handlers.test.ts` mocks transport; no test exercises real socket.io + engine end-to-end |
+| Expand Part 2 engine edge-case coverage | ⬜ | Cut-resolution edge cases, simultaneous safe players, and stalemate scenario have thin test coverage |
+
+### 7g — Infrastructure & Code Quality
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Health-check endpoint (`/healthz`) | ⬜ | Railway / Render need liveness probe; currently no dedicated endpoint |
+| Horizontal scaling path (Redis Socket.io adapter + external state store) | ⬜ | **Partially superseded:** the external state store is Phase 6 (DB); the Redis Socket.io adapter for fan-out across instances still belongs here |
+| CDN / cache headers for static assets | ⬜ | Vite bundle served from Node; a CDN (Cloudflare Pages or similar) would cut latency for remote players |
+| Split `handlers.ts` into focused modules | ⬜ | 850 lines covering rooms, sessions, game flow, admin, and voice signaling. (Best done as part of the Phase 6 store-interface refactor) |
+| Split `useVoiceChat.ts` into composable hooks | ⬜ | 720 lines; ICE/negotiation, speaking detection, mute/PTT, and audio elements each deserve their own hook |
+
+---
+
 ## Deferred (out of v1 scope)
 
 
-| Feature              | Reason                                                           |
-| -------------------- | ---------------------------------------------------------------- |
-| Offline / LAN mode   | Explicitly deferred; `GameTransport` interface is the hook point |
-| Persistent DB / auth | In-memory only for v1                                            |
-| Spectator mode       | Not in v1 requirements                                           |
-| Replay / history     | Not in v1 requirements                                           |
+| Feature              | Reason                                                                       |
+| -------------------- | ---------------------------------------------------------------------------- |
+| Offline / LAN mode   | Explicitly deferred; `GameTransport` interface is the hook point             |
+| Persistent DB / auth | **Now planned — see Phase 6** (no longer deferred)                           |
+| Spectator mode       | Not in v1 requirements                                                        |
+| Replay / history     | **Now planned — see Phase 6d/6g** (depends on event-log persistence decision) |
 
 
 ---
@@ -213,12 +437,14 @@ All 164 tests passing (141 engine + 23 server).
 ## Quick status summary
 
 
-| Phase                | Status                                                                                  |
-| -------------------- | --------------------------------------------------------------------------------------- |
-| Phase 1 — Engine     | ✅ Complete (140 tests)                                                                  |
-| Phase 2 — Server     | ✅ Complete (23 tests)                                                                   |
-| Phase 3 — Web Client | ✅ Complete (player names wired, all components functional)                              |
-| Phase 4 — Polish     | ✅ Complete (animations, mobile polish; deployment user-handled via Render + Cloudflare) |
-| Phase 5 — Voice Chat | 🟡 Core + cross-browser fixes + Perfect Negotiation recovery + Cloudflare TURN; smoke test pending |
+| Phase                        | Status                                                                                  |
+| ---------------------------- | --------------------------------------------------------------------------------------- |
+| Phase 1 — Engine             | ✅ Complete (141 tests)                                                                  |
+| Phase 2 — Server             | ✅ Complete (23 tests)                                                                   |
+| Phase 3 — Web Client         | ✅ Complete (player names wired, all components functional)                              |
+| Phase 4 — Polish             | ✅ Complete (animations, mobile polish; deployment user-handled via Render + Cloudflare) |
+| Phase 5 — Voice Chat         | 🟡 Core + cross-browser fixes + Perfect Negotiation recovery + Cloudflare TURN; smoke test pending |
+| Phase 6 — Persistence/DB     | ⬜ Detailed backlog; not started (~70 tasks + 7 decisions across 10 sub-phases 6a–6j). **Next major phase.** |
+| Phase 7 — Improvements       | ⬜ Backlog identified; not yet started (27 tasks across 7 sub-phases 7a–7g). Urgent bug/security items flagged "pull forward" |
 
 
