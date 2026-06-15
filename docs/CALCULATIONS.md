@@ -1,6 +1,6 @@
 # Ganatri — Calculations & Flow Reference (Single Source of Truth)
 
-> **Last updated:** 2026-06-15 (added §4.6 Part 2 stalemate redistribution — PLANNED)
+> **Last updated:** 2026-06-15 (§4.5 outcome rule made explicit; §4.6 confirmed multi-player via sim)
 >
 > **Purpose.** This document is the **one place** that explains *how every calculation, flow
 > decision, and rule resolution is actually computed* in Ganatri. When you need to change a
@@ -244,6 +244,14 @@ cut per trick; Clarification 7).
 
 ### 4.5 Game-over & rankings (`resolveGameOver`)
 
+> **The core outcome rule (all player counts, 2–4):** play **continues** until **exactly one
+> player still holds cards** — that player is the **loser** (ranked last). Everyone else is
+> ranked by the **order they emptied their hands** (earliest = best). The game is **never**
+> decided when only the *first* player empties; with 3–4 players it keeps going through the
+> middle finishers. Termination is guaranteed *except* in a no-cancellation stalemate among the
+> surviving active players — see §4.6 (confirmed to occur in 3–4 player games too, not only
+> standalone 2-player games).
+
 Checked after every resolved trick or cut. Let `activeAfter` = players not in `safeOrder`.
 
 - `activeAfter.length === 1` → that player is the **loser**; `rankings = [...safeOrder, loser]`.
@@ -272,8 +280,14 @@ as a cut: the leader plays the led suit, the other player has none of it and cut
 highest led-suit holder picks the cards back up. Cards only shuffle between the two hands and no
 hand is guaranteed to ever reach empty, so the round can **loop forever** — neither
 `resolveTrickWon` (never reached) nor `resolveGameOver` (never reached) terminates it.
-(The same no-progress loop can in principle occur with 3–4 players, so the mechanic below is
-defined generally, but the canonical trigger is the 2-player no-shared-suit case.)
+**This is confirmed to also occur in 3–4 player games**, not only standalone 2-player ones:
+once the earlier finishers go safe and the table reduces to a non-cancelling active subset
+(e.g. 3-player seed `s5` reduces to two players who keep cutting), the same loop appears and the
+game never reaches `GAME_OVER` to declare the loser. The mechanic below is therefore defined
+over the **currently-active player subset**, for any starting player count. Note the loop can
+arise even when the survivors *nominally share a suit* (unlucky/greedy play), which is why the
+trigger below counts **consecutive cuts** rather than testing for a shared suit — a
+shared-suit test would miss seed `s5`.
 
 ### The fix (rule)
 
