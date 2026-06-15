@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { PlayerId } from '@ganatri/engine';
 import './OpponentSeat.css';
 
@@ -27,7 +28,7 @@ function hueFor(id: PlayerId): number {
   return h;
 }
 
-export function OpponentSeat(props: OpponentSeatProps): React.ReactNode {
+export const OpponentSeat = memo(function OpponentSeat(props: OpponentSeatProps): React.ReactNode {
   const { playerId, displayName, isYou, handCount, captureCount, isTurn, isSafe, safeRank, disconnected, compact } =
     props;
   const classes = ['seat'];
@@ -90,4 +91,4 @@ export function OpponentSeat(props: OpponentSeatProps): React.ReactNode {
       </div>
     </div>
   );
-}
+});
