@@ -5,9 +5,11 @@ import {
   type VoiceOfferPayload,
   type VoiceAnswerPayload,
   type VoiceIcePayload,
+  type VoiceRenegotiatePayload,
   type VoiceOfferRelayPayload,
   type VoiceAnswerRelayPayload,
   type VoiceIceRelayPayload,
+  type VoiceRenegotiateRelayPayload,
 } from '../protocol';
 
 export type VoiceMode = 'ptt' | 'open';
@@ -55,15 +57,16 @@ const AUDIO_CONSTRAINTS: MediaTrackConstraints = {
 // Boost Opus above its conservative default (~32 kbps) for clearer speech.
 const OPUS_MAX_BITRATE_BPS = 128_000;
 
-// Per-peer connection + Perfect Negotiation bookkeeping.
+// Per-peer connection bookkeeping. We use a deterministic single-initiator
+// model (no glare): for each pair, exactly one side — the higher playerId —
+// creates offers. The other only answers. This removes the simultaneous-offer
+// collisions that left some pairs stuck in `have-local-offer` (one-way / no
+// audio for "some players but not others").
 interface PeerCtx {
   pc: RTCPeerConnection;
-  // Politeness decides who yields on an offer collision (glare). The lower
-  // playerId is polite (rolls back); the higher is impolite (ignores). Both
-  // sides compute this identically, so exactly one yields.
-  polite: boolean;
+  // True on the side responsible for creating/refreshing offers for this pair.
+  isInitiator: boolean;
   makingOffer: boolean;
-  ignoreOffer: boolean;
   // ICE candidates that arrived before remoteDescription was set.
   iceQueue: RTCIceCandidateInit[];
   watchdog: ReturnType<typeof setTimeout> | null;
@@ -100,7 +103,8 @@ export function useVoiceChat(
   // localhost socket round-trip is faster than a React effect). Replayed in
   // arrival order once the peer is built.
   type BufferedSignal =
-    | { kind: 'description'; description: RTCSessionDescriptionInit }
+    | { kind: 'offer'; description: RTCSessionDescriptionInit }
+    | { kind: 'answer'; description: RTCSessionDescriptionInit }
     | { kind: 'ice'; candidate: RTCIceCandidateInit };
   const pendingSignalsRef = useRef<Map<string, BufferedSignal[]>>(new Map());
 
@@ -282,34 +286,39 @@ export function useVoiceChat(
     }
   }, []);
 
-  // Handles both offers and answers (distinguished by description.type),
-  // following the WebRTC "Perfect Negotiation" pattern so simultaneous offers
-  // (glare) and renegotiation resolve without deadlock.
-  const handleDescription = useCallback(
-    async (ctx: PeerCtx, peerId: string, description: RTCSessionDescriptionInit) => {
+  // Responder side: an offer arrived → answer it. (Only the non-initiator
+  // receives offers in normal flow; we still handle late/duplicate offers,
+  // e.g. an ICE-restart re-offer, by re-applying and re-answering.)
+  const handleOffer = useCallback(
+    async (ctx: PeerCtx, peerId: string, offer: RTCSessionDescriptionInit) => {
       const { pc } = ctx;
-      const offerCollision =
-        description.type === 'offer' &&
-        (ctx.makingOffer || pc.signalingState !== 'stable');
-
-      ctx.ignoreOffer = !ctx.polite && offerCollision;
-      if (ctx.ignoreOffer) return;
-
       try {
-        // setRemoteDescription performs an implicit rollback for the polite
-        // peer when it has a local offer pending (collision).
-        await pc.setRemoteDescription(description);
+        await pc.setRemoteDescription(offer);
         flushIce(ctx);
-        if (description.type === 'offer') {
-          await pc.setLocalDescription(); // implicit createAnswer
-          const payload: VoiceAnswerPayload = {
-            targetPlayerId: peerId,
-            answer: pc.localDescription as RTCSessionDescriptionInit,
-          };
-          socket.emit(EVENTS.VOICE_ANSWER, payload);
-        }
-      } catch {
-        // Swallow — the connection watchdog will force recovery if needed.
+        await pc.setLocalDescription(); // implicit createAnswer
+        const payload: VoiceAnswerPayload = {
+          targetPlayerId: peerId,
+          answer: pc.localDescription as RTCSessionDescriptionInit,
+        };
+        socket.emit(EVENTS.VOICE_ANSWER, payload);
+      } catch (err) {
+        console.warn('[voice] handleOffer failed for peer', peerId, err);
+      }
+    },
+    [flushIce],
+  );
+
+  // Initiator side: an answer to our offer arrived.
+  const handleAnswer = useCallback(
+    async (ctx: PeerCtx, peerId: string, answer: RTCSessionDescriptionInit) => {
+      const { pc } = ctx;
+      // Only meaningful while we're waiting for an answer; ignore stale dups.
+      if (pc.signalingState !== 'have-local-offer') return;
+      try {
+        await pc.setRemoteDescription(answer);
+        flushIce(ctx);
+      } catch (err) {
+        console.warn('[voice] handleAnswer failed for peer', peerId, err);
       }
     },
     [flushIce],
@@ -325,7 +334,7 @@ export function useVoiceChat(
     try {
       await ctx.pc.addIceCandidate(candidate);
     } catch {
-      // Ignore — expected when we deliberately ignored a colliding offer.
+      // Ignore — candidate for a superseded negotiation.
     }
   }, []);
 
@@ -353,20 +362,41 @@ export function useVoiceChat(
     const pc = new RTCPeerConnection({ iceServers: iceServersRef.current });
     const ctx: PeerCtx = {
       pc,
-      polite: myId < peerId,
+      // Deterministic role: the higher playerId initiates for this pair. Both
+      // sides compute this identically, so exactly one offers — no glare.
+      isInitiator: myId > peerId,
       makingOffer: false,
-      ignoreOffer: false,
       iceQueue: [],
       watchdog: null,
     };
     peersRef.current.set(peerId, ctx);
 
+    // Recovery driver. Only the initiator can (re)offer; the responder asks the
+    // initiator to do so via a renegotiate signal. Either side can detect a
+    // stuck/failed connection, so recovery works regardless of who notices.
+    const recover = () => {
+      if (ctx.isInitiator) {
+        if (pc.signalingState === 'have-local-offer' && pc.localDescription) {
+          // Our offer was likely dropped before the peer's PC existed — resend.
+          socket.emit(EVENTS.VOICE_OFFER, {
+            targetPlayerId: peerId,
+            offer: pc.localDescription as RTCSessionDescriptionInit,
+          } satisfies VoiceOfferPayload);
+        } else {
+          // Connection degraded — ICE restart triggers a fresh offer.
+          try { pc.restartIce(); } catch { /* noop */ }
+        }
+      } else {
+        socket.emit(EVENTS.VOICE_RENEGOTIATE, { targetPlayerId: peerId } satisfies VoiceRenegotiatePayload);
+      }
+    };
+
     const armWatchdog = () => {
       if (ctx.watchdog) clearTimeout(ctx.watchdog);
       ctx.watchdog = setTimeout(() => {
         if (pc.connectionState === 'connected' || pc.connectionState === 'closed') return;
-        // Stuck (likely a dropped offer or stalled ICE) — force recovery.
-        try { pc.restartIce(); } catch { /* not connected yet */ }
+        console.debug('[voice] watchdog recovery for peer', peerId, 'state=', pc.connectionState);
+        recover();
         armWatchdog();
       }, CONNECT_WATCHDOG_MS);
     };
@@ -408,10 +438,11 @@ export function useVoiceChat(
       }
     };
 
-    // Perfect Negotiation: react to anything that needs (re)negotiation —
-    // initial track add, ICE restart, reconnect. Both sides may fire this;
-    // glare is resolved on the receive side.
+    // Only the initiator creates offers (initial track add + ICE restarts).
+    // The responder's negotiationneeded (from its own addTrack) is ignored —
+    // it answers the initiator's offer instead. This removes glare entirely.
     pc.onnegotiationneeded = async () => {
+      if (!ctx.isInitiator) return;
       try {
         ctx.makingOffer = true;
         await pc.setLocalDescription(); // implicit createOffer
@@ -420,8 +451,8 @@ export function useVoiceChat(
           offer: pc.localDescription as RTCSessionDescriptionInit,
         };
         socket.emit(EVENTS.VOICE_OFFER, payload);
-      } catch {
-        // Swallow — watchdog recovers.
+      } catch (err) {
+        console.warn('[voice] createOffer failed for peer', peerId, err);
       } finally {
         ctx.makingOffer = false;
       }
@@ -457,8 +488,9 @@ export function useVoiceChat(
           params.encodings[0]!.maxBitrate = OPUS_MAX_BITRATE_BPS;
           void sender.setParameters(params).catch(() => {});
         }
-      } else if (st === 'failed') {
-        try { pc.restartIce(); } catch { /* noop */ }
+      } else if (st === 'failed' || st === 'disconnected') {
+        console.debug('[voice] peer', peerId, 'connectionState=', st, '→ recovering');
+        recover();
         armWatchdog();
       }
     };
@@ -466,7 +498,8 @@ export function useVoiceChat(
     pc.oniceconnectionstatechange = () => {
       // Some browsers surface ICE death here rather than on connectionState.
       if (pc.iceConnectionState === 'failed') {
-        try { pc.restartIce(); } catch { /* noop */ }
+        console.debug('[voice] peer', peerId, 'iceConnectionState=failed → recovering');
+        recover();
         armWatchdog();
       }
     };
@@ -479,13 +512,14 @@ export function useVoiceChat(
     if (pending) {
       pendingSignalsRef.current.delete(peerId);
       for (const sig of pending) {
-        if (sig.kind === 'description') void handleDescription(ctx, peerId, sig.description);
+        if (sig.kind === 'offer') void handleOffer(ctx, peerId, sig.description);
+        else if (sig.kind === 'answer') void handleAnswer(ctx, peerId, sig.description);
         else void handleIce(ctx, sig.candidate);
       }
     }
 
     armWatchdog();
-  }, [playRemoteStream, startSpeakingDetection, handleDescription, handleIce]);
+  }, [playRemoteStream, startSpeakingDetection, handleOffer, handleAnswer, handleIce]);
 
   // ── build/tear-down peer connections when player list or stream changes ─
 
@@ -518,14 +552,14 @@ export function useVoiceChat(
 
     function onOffer({ sourcePlayerId, offer }: VoiceOfferRelayPayload) {
       const ctx = peersRef.current.get(sourcePlayerId);
-      if (!ctx) { bufferSignal(sourcePlayerId, { kind: 'description', description: offer }); return; }
-      void handleDescription(ctx, sourcePlayerId, offer);
+      if (!ctx) { bufferSignal(sourcePlayerId, { kind: 'offer', description: offer }); return; }
+      void handleOffer(ctx, sourcePlayerId, offer);
     }
 
     function onAnswer({ sourcePlayerId, answer }: VoiceAnswerRelayPayload) {
       const ctx = peersRef.current.get(sourcePlayerId);
-      if (!ctx) { bufferSignal(sourcePlayerId, { kind: 'description', description: answer }); return; }
-      void handleDescription(ctx, sourcePlayerId, answer);
+      if (!ctx) { bufferSignal(sourcePlayerId, { kind: 'answer', description: answer }); return; }
+      void handleAnswer(ctx, sourcePlayerId, answer);
     }
 
     function onIce({ sourcePlayerId, candidate }: VoiceIceRelayPayload) {
@@ -534,15 +568,32 @@ export function useVoiceChat(
       void handleIce(ctx, candidate);
     }
 
+    // A peer asked us (the initiator) to (re)start negotiation — e.g. it never
+    // received our offer, or its side detected a failure it can't fix itself.
+    function onRenegotiate({ sourcePlayerId }: VoiceRenegotiateRelayPayload) {
+      const ctx = peersRef.current.get(sourcePlayerId);
+      if (!ctx || !ctx.isInitiator) return;
+      if (ctx.pc.signalingState === 'have-local-offer' && ctx.pc.localDescription) {
+        socket.emit(EVENTS.VOICE_OFFER, {
+          targetPlayerId: sourcePlayerId,
+          offer: ctx.pc.localDescription as RTCSessionDescriptionInit,
+        } satisfies VoiceOfferPayload);
+      } else {
+        try { ctx.pc.restartIce(); } catch { /* noop */ }
+      }
+    }
+
     socket.on(EVENTS.VOICE_OFFER_RELAY, onOffer);
     socket.on(EVENTS.VOICE_ANSWER_RELAY, onAnswer);
     socket.on(EVENTS.VOICE_ICE_RELAY, onIce);
+    socket.on(EVENTS.VOICE_RENEGOTIATE_RELAY, onRenegotiate);
     return () => {
       socket.off(EVENTS.VOICE_OFFER_RELAY, onOffer);
       socket.off(EVENTS.VOICE_ANSWER_RELAY, onAnswer);
       socket.off(EVENTS.VOICE_ICE_RELAY, onIce);
+      socket.off(EVENTS.VOICE_RENEGOTIATE_RELAY, onRenegotiate);
     };
-  }, [handleDescription, handleIce]);
+  }, [handleOffer, handleAnswer, handleIce]);
 
   // ── reconnect: rebuild peers after the signaling socket reconnects ──────
 

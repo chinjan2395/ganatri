@@ -1,6 +1,6 @@
 # Ganatri — Phasewise Development Plan
 
-Last updated: 2026-06-15 (Voice chat: Perfect Negotiation + recovery + Cloudflare TURN)  
+Last updated: 2026-06-15 (Voice chat: single-initiator negotiation + renegotiate recovery)  
 All 163 tests passing (140 engine + 23 server).
 
 ---
@@ -188,6 +188,7 @@ All 163 tests passing (140 engine + 23 server).
 | 5.8 Cross-browser/mobile fixes (iOS autoplay+AudioContext, sampleRate ideal, ICE order) | ✅      | `useVoiceChat.ts` — gesture-based audio unlock, `sampleRate:{ideal}`, ICE queue            |
 | 5.9 Robust signaling: Perfect Negotiation + failure recovery (restartIce, watchdog, reconnect rebuild) | ✅ | `useVoiceChat.ts` — fixes intermittent "works sometimes" connects                  |
 | 5.10 TURN: Cloudflare Realtime TURN, server-minted short-lived creds via socket ack     | ✅      | `server/src/iceConfig.ts`, `VOICE_ICE_SERVERS` event; env-gated, STUN fallback             |
+| 5.11 Deterministic single-initiator negotiation (no glare) + renegotiate signal + diagnostics | ✅ | `useVoiceChat.ts`; `VOICE_RENEGOTIATE` event. Fixes "some pairs connect, others don't" / one-way audio |
 
 
 **Note:** ICE config now served by the server (`voice_ice_servers` ack): STUN always, plus Cloudflare TURN when `CLOUDFLARE_TURN_KEY_ID`/`CLOUDFLARE_TURN_API_TOKEN` are set (free tier 1 TB/mo). Falls back to STUN-only when unset — symmetric/cellular NAT may then fail.

@@ -22,6 +22,7 @@ import {
   type VoiceOfferPayload,
   type VoiceAnswerPayload,
   type VoiceIcePayload,
+  type VoiceRenegotiatePayload,
   type RequestIceServersAck,
   EVENTS,
 } from './protocol.js';
@@ -463,6 +464,15 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
       io.to(target.socketId).emit(EVENTS.VOICE_ICE_RELAY, {
         sourcePlayerId: session.playerId,
         candidate: payload.candidate,
+      });
+    }
+  });
+
+  socket.on(EVENTS.VOICE_RENEGOTIATE, (payload: VoiceRenegotiatePayload) => {
+    const target = getSessionByPlayerId(payload.targetPlayerId);
+    if (target?.socketId) {
+      io.to(target.socketId).emit(EVENTS.VOICE_RENEGOTIATE_RELAY, {
+        sourcePlayerId: session.playerId,
       });
     }
   });

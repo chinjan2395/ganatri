@@ -114,6 +114,16 @@ export interface VoiceIceRelayPayload {
   candidate: RTCIceCandidateInit;
 }
 
+/** Client → Server: ask a peer (the initiator) to (re)start negotiation. */
+export interface VoiceRenegotiatePayload {
+  targetPlayerId: string;
+}
+
+/** Server → Client: relayed renegotiation request from a peer. */
+export interface VoiceRenegotiateRelayPayload {
+  sourcePlayerId: string;
+}
+
 /** A single ICE (STUN/TURN) server entry. Compatible with RTCIceServer. */
 export interface IceServerConfig {
   urls: string | string[];
@@ -145,11 +155,13 @@ export const EVENTS = {
   VOICE_ANSWER: 'voice_answer',
   VOICE_ICE: 'voice_ice_candidate',
   VOICE_ICE_SERVERS: 'voice_ice_servers',
+  VOICE_RENEGOTIATE: 'voice_renegotiate',
 
   // Voice chat relay (Server → Client)
   VOICE_OFFER_RELAY: 'voice_offer_relay',
   VOICE_ANSWER_RELAY: 'voice_answer_relay',
   VOICE_ICE_RELAY: 'voice_ice_relay',
+  VOICE_RENEGOTIATE_RELAY: 'voice_renegotiate_relay',
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];
