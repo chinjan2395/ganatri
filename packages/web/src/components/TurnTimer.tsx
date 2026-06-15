@@ -4,9 +4,10 @@ import './TurnTimer.css';
 interface TurnTimerProps {
   turnStartedAt: number; // Unix ms
   durationMs: number; // Turn timeout in ms
+  freezeUntilMs?: number; // While Date.now() < this, display full time (client-side cosmetic only)
 }
 
-export function TurnTimer({ turnStartedAt, durationMs }: TurnTimerProps): React.ReactNode {
+export function TurnTimer({ turnStartedAt, durationMs, freezeUntilMs }: TurnTimerProps): React.ReactNode {
   const [remaining, setRemaining] = useState(() =>
     Math.max(0, durationMs - (Date.now() - turnStartedAt)),
   );
@@ -14,13 +15,15 @@ export function TurnTimer({ turnStartedAt, durationMs }: TurnTimerProps): React.
 
   useEffect(() => {
     const tick = (): void => {
-      const r = Math.max(0, durationMs - (Date.now() - turnStartedAt));
+      const now = Date.now();
+      const frozen = freezeUntilMs !== undefined && now < freezeUntilMs;
+      const r = frozen ? durationMs : Math.max(0, durationMs - (now - turnStartedAt));
       setRemaining(r);
-      if (r > 0) rafRef.current = requestAnimationFrame(tick);
+      if (r > 0 || frozen) rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [turnStartedAt, durationMs]);
+  }, [turnStartedAt, durationMs, freezeUntilMs]);
 
   const fraction = remaining / durationMs;
   const seconds = Math.ceil(remaining / 1000);

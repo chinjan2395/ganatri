@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGame } from '../state/GameProvider';
+import { useVoiceChatContext } from '../state/VoiceChatProvider';
 import logo from '../assets/ganatri-logo.png';
 import './RoomScreen.css';
 
@@ -18,16 +19,18 @@ interface SeatSlotProps {
   playerId: string;
   hostId: string;
   playerNames: Record<string, string>;
+  speaking: Set<string>;
 }
 
-function SeatSlot({ pid, seatIndex, playerId, hostId, playerNames }: SeatSlotProps) {
+function SeatSlot({ pid, seatIndex, playerId, hostId, playerNames, speaking }: SeatSlotProps) {
+  const isSpeaking = pid ? speaking.has(pid) : false;
   return (
     <div className={`room__seat room__seat--${seatIndex}`}>
       <AnimatePresence mode="wait">
         {pid ? (
           <motion.div
             key={pid}
-            className="room__seat-card"
+            className={`room__seat-card${isSpeaking ? ' room__seat-card--speaking' : ''}`}
             initial={{ x: -50, rotateZ: -6, opacity: 0 }}
             animate={{ x: 0, rotateZ: 0, opacity: 1 }}
             exit={{ x: 50, rotateZ: 6, opacity: 0 }}
@@ -42,6 +45,7 @@ function SeatSlot({ pid, seatIndex, playerId, hostId, playerNames }: SeatSlotPro
             <div className="room__seat-badges">
               {pid === playerId && <span className="room__seat-badge room__seat-you">you</span>}
               {pid === hostId && <span className="room__seat-host-crown">♛</span>}
+              {isSpeaking && <span className="room__seat-mic-active" aria-label="speaking">🎙️</span>}
             </div>
           </motion.div>
         ) : (
@@ -63,6 +67,7 @@ function SeatSlot({ pid, seatIndex, playerId, hostId, playerNames }: SeatSlotPro
 
 export function RoomScreen(): React.ReactNode {
   const { room, session, playerNames, startGame, leaveRoom } = useGame();
+  const voice = useVoiceChatContext();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -147,6 +152,7 @@ export function RoomScreen(): React.ReactNode {
             playerId={session.playerId}
             hostId={room.hostId}
             playerNames={playerNames}
+            speaking={voice.speaking}
           />
         ))}
       </div>
@@ -161,6 +167,49 @@ export function RoomScreen(): React.ReactNode {
         ))}
         <span className="room__pip-label muted">{room.players.length} / 4 players</span>
       </div>
+
+      {/* Voice chat controls */}
+      {voice.permissionDenied ? (
+        <div className="room__voice-denied">
+          🎤 Microphone blocked — voice chat unavailable
+        </div>
+      ) : (
+        <div className="room__voice-bar">
+          <button
+            className={`room__voice-btn${voice.muted && voice.mode === 'open' ? ' room__voice-btn--muted' : ''}`}
+            onMouseDown={() => { if (voice.mode === 'ptt') voice.setPttActive(true); }}
+            onMouseUp={() => { if (voice.mode === 'ptt') voice.setPttActive(false); }}
+            onMouseLeave={() => { if (voice.mode === 'ptt') voice.setPttActive(false); }}
+            onTouchStart={(e) => { if (voice.mode === 'ptt') { e.preventDefault(); voice.setPttActive(true); } }}
+            onTouchEnd={(e) => { if (voice.mode === 'ptt') { e.preventDefault(); voice.setPttActive(false); } }}
+            onTouchCancel={() => { if (voice.mode === 'ptt') voice.setPttActive(false); }}
+            onClick={() => { if (voice.mode === 'open') voice.toggleMute(); }}
+            title={voice.mode === 'ptt' ? 'Hold to talk' : (voice.muted ? 'Unmute' : 'Mute')}
+          >
+            {voice.mode === 'ptt'
+              ? (voice.pttActive ? '🎙️' : '🔇')
+              : (voice.muted ? '🔇' : '🎙️')}
+          </button>
+          {/* Speaker / deafen */}
+          <button
+            className={`room__voice-btn${voice.deafened ? ' room__voice-btn--muted' : ''}`}
+            onClick={voice.toggleDeafen}
+            title={voice.deafened ? 'Undeafen' : 'Deafen (mute audio output)'}
+          >
+            {voice.deafened ? '🔈' : '🔊'}
+          </button>
+          <button
+            className="room__voice-mode secondary"
+            onClick={voice.toggleMode}
+            title="Toggle push-to-talk / open mic"
+          >
+            {voice.mode === 'ptt' ? 'PTT' : 'MIC'}
+          </button>
+          {voice.mode === 'ptt' && (
+            <span className="room__voice-hint muted">Hold to talk</span>
+          )}
+        </div>
+      )}
 
       {isHost ? (
         <button

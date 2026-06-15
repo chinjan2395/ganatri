@@ -76,6 +76,44 @@ export interface PlayerReconnectedPayload {
   playerId: string;
 }
 
+// --- Voice chat signaling payloads (WebRTC peer mesh) ---
+
+/** Client → Server: send WebRTC offer to a specific peer. */
+export interface VoiceOfferPayload {
+  targetPlayerId: string;
+  offer: RTCSessionDescriptionInit;
+}
+
+/** Client → Server: send WebRTC answer to a specific peer. */
+export interface VoiceAnswerPayload {
+  targetPlayerId: string;
+  answer: RTCSessionDescriptionInit;
+}
+
+/** Client → Server: send ICE candidate to a specific peer. */
+export interface VoiceIcePayload {
+  targetPlayerId: string;
+  candidate: RTCIceCandidateInit;
+}
+
+/** Server → Client: relayed WebRTC offer from a peer. */
+export interface VoiceOfferRelayPayload {
+  sourcePlayerId: string;
+  offer: RTCSessionDescriptionInit;
+}
+
+/** Server → Client: relayed WebRTC answer from a peer. */
+export interface VoiceAnswerRelayPayload {
+  sourcePlayerId: string;
+  answer: RTCSessionDescriptionInit;
+}
+
+/** Server → Client: relayed ICE candidate from a peer. */
+export interface VoiceIceRelayPayload {
+  sourcePlayerId: string;
+  candidate: RTCIceCandidateInit;
+}
+
 export const EVENTS = {
   CREATE_ROOM: 'create_room',
   JOIN_ROOM: 'join_room',
@@ -89,6 +127,16 @@ export const EVENTS = {
   STATE_UPDATE: 'state_update',
   PLAYER_DISCONNECTED: 'player_disconnected',
   PLAYER_RECONNECTED: 'player_reconnected',
+
+  // Voice chat signaling (Client → Server)
+  VOICE_OFFER: 'voice_offer',
+  VOICE_ANSWER: 'voice_answer',
+  VOICE_ICE: 'voice_ice_candidate',
+
+  // Voice chat relay (Server → Client)
+  VOICE_OFFER_RELAY: 'voice_offer_relay',
+  VOICE_ANSWER_RELAY: 'voice_answer_relay',
+  VOICE_ICE_RELAY: 'voice_ice_relay',
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];

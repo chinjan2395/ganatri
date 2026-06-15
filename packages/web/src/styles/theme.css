@@ -41,11 +41,16 @@
   box-sizing: border-box;
 }
 
-html,
+html {
+  height: 100dvh;
+  overflow: hidden;   /* lock the scroll root at the dynamic viewport */
+}
+
 body,
 #root {
   margin: 0;
   height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -129,7 +134,8 @@ input {
 }
 
 .app-shell {
-  min-height: 100%;
+  height: 100%;        /* exact fit — no growth beyond the locked viewport */
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }

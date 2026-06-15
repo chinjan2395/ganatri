@@ -1,0 +1,67 @@
+/* Floating PTT button — bottom-right, above the hand card area */
+.voice-ptt-fab {
+  position: fixed;
+  bottom: calc(160px + env(safe-area-inset-bottom));
+  right: 16px;
+  z-index: 200;
+
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  background: rgba(10, 20, 14, 0.92);
+  backdrop-filter: blur(8px);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 0;
+
+  color: var(--text-dim);
+  cursor: pointer;
+  /* Prevent the OS scrolling/context-menu on long-press */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  transition: background 0.12s, border-color 0.12s, box-shadow 0.12s, transform 0.08s;
+}
+
+.voice-ptt-fab:active,
+.voice-ptt-fab--active {
+  transform: scale(0.94);
+  background: rgba(34, 197, 94, 0.25);
+  border-color: #22c55e;
+  box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.18), 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes ptt-ring-pulse {
+  0%   { box-shadow: 0 0 0 0   rgba(34, 197, 94, 0.5), 0 4px 20px rgba(0,0,0,0.5); }
+  70%  { box-shadow: 0 0 0 14px rgba(34, 197, 94, 0),  0 4px 20px rgba(0,0,0,0.5); }
+  100% { box-shadow: 0 0 0 0   rgba(34, 197, 94, 0),   0 4px 20px rgba(0,0,0,0.5); }
+}
+
+.voice-ptt-fab--active {
+  animation: ptt-ring-pulse 0.9s ease-out infinite;
+}
+
+.voice-ptt-fab__icon {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.voice-ptt-fab__label {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  line-height: 1;
+}
+
+.voice-ptt-fab--active .voice-ptt-fab__label {
+  color: #4ade80;
+}

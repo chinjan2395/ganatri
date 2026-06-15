@@ -63,6 +63,13 @@ export function OpponentSeat(props: OpponentSeatProps): React.ReactNode {
         </span>
       </div>
 
+      {/* Crown indicator — shown only when it's this player's turn */}
+      {isTurn && (
+        <div className="seat__turn-crown">
+          <span className="seat__turn-crown-icon">{isYou ? '♛' : '▼'}</span>
+        </div>
+      )}
+
       {/* Circular avatar */}
       <div className="seat__avatar" style={avatarStyle}>
         <span className="seat__initials">{label.slice(0, 2).toUpperCase()}</span>

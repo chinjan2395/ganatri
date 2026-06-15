@@ -19,6 +19,9 @@ import {
   type MakeMoveAck,
   type StartGameAck,
   type RequestStateAck,
+  type VoiceOfferPayload,
+  type VoiceAnswerPayload,
+  type VoiceIcePayload,
   EVENTS,
 } from './protocol.js';
 import { getConfig, isAdminEmail, updateConfig } from './config.js';
@@ -128,7 +131,7 @@ export function setupSocketHandlers(io: Server): void {
   transport = new SocketTransport(io);
 
   io.on('connection', (socket) => {
-    handleConnection(socket);
+    handleConnection(io, socket);
   });
 
   // Periodically delete DONE rooms that have passed their expiry window.
@@ -148,7 +151,7 @@ export function setupSocketHandlers(io: Server): void {
 // Connection handler
 // ---------------------------------------------------------------------------
 
-function handleConnection(socket: Socket): void {
+function handleConnection(io: Server, socket: Socket): void {
   // Resolve or create session.
   const incomingToken = socket.handshake.auth['token'] as string | undefined;
   let session: SessionState;
@@ -169,7 +172,7 @@ function handleConnection(socket: Socket): void {
   }
 
   // Register all event listeners for this socket.
-  registerSocketEvents(socket, session);
+  registerSocketEvents(io, socket, session);
 
   socket.on('disconnect', () => {
     store.adminSockets.delete(socket.id);
@@ -301,7 +304,7 @@ export function resetLastMoveTime(): void {
   lastMoveTime.clear();
 }
 
-function registerSocketEvents(socket: Socket, session: SessionState): void {
+function registerSocketEvents(io: Server, socket: Socket, session: SessionState): void {
   socket.on(EVENTS.CREATE_ROOM, (payloadOrAck: unknown, maybeAck?: (res: CreateRoomAck) => void) => {
     // Support both (payload, ack) and legacy (ack) call forms.
     let ack: (res: CreateRoomAck) => void;
@@ -419,6 +422,39 @@ function registerSocketEvents(socket: Socket, session: SessionState): void {
     }
     updateConfig(patch);
     ack({ ok: true });
+  });
+
+  // Voice chat signaling relay — forward WebRTC offer/answer/ICE to the target
+  // player's current socket. No room validation needed: callers only know peer
+  // player IDs from room_update, which already enforces room membership.
+  socket.on(EVENTS.VOICE_OFFER, (payload: VoiceOfferPayload) => {
+    const target = getSessionByPlayerId(payload.targetPlayerId);
+    if (target?.socketId) {
+      io.to(target.socketId).emit(EVENTS.VOICE_OFFER_RELAY, {
+        sourcePlayerId: session.playerId,
+        offer: payload.offer,
+      });
+    }
+  });
+
+  socket.on(EVENTS.VOICE_ANSWER, (payload: VoiceAnswerPayload) => {
+    const target = getSessionByPlayerId(payload.targetPlayerId);
+    if (target?.socketId) {
+      io.to(target.socketId).emit(EVENTS.VOICE_ANSWER_RELAY, {
+        sourcePlayerId: session.playerId,
+        answer: payload.answer,
+      });
+    }
+  });
+
+  socket.on(EVENTS.VOICE_ICE, (payload: VoiceIcePayload) => {
+    const target = getSessionByPlayerId(payload.targetPlayerId);
+    if (target?.socketId) {
+      io.to(target.socketId).emit(EVENTS.VOICE_ICE_RELAY, {
+        sourcePlayerId: session.playerId,
+        candidate: payload.candidate,
+      });
+    }
   });
 }
 
@@ -605,7 +641,7 @@ function handleStartGame(session: SessionState, ack: (res: StartGameAck) => void
   }
 
   const room = getRoom(roomCode);
-  if (room === undefined || room.phase !== 'LOBBY') {
+  if (room === undefined || (room.phase !== 'LOBBY' && room.phase !== 'DONE')) {
     ack({ ok: false, error: 'NOT_HOST' });
     return;
   }
@@ -619,6 +655,9 @@ function handleStartGame(session: SessionState, ack: (res: StartGameAck) => void
     ack({ ok: false, error: 'NOT_ENOUGH_PLAYERS' });
     return;
   }
+
+  // Reset end-of-game state before starting a new round.
+  room.completedAt = null;
 
   // Create the game — seed from current timestamp for reproducibility in logs.
   const seed = Date.now();

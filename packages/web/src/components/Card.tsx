@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import type { Card as CardModel, Suit } from '@ganatri/engine';
+import { cardId, type Card as CardModel, type Suit } from '@ganatri/engine';
 import './Card.css';
 
 const SUIT_GLYPH: Record<Suit, string> = { S: '♠', H: '♥', D: '♦', C: '♣' };
@@ -47,6 +47,8 @@ export function Card(props: CardProps): React.ReactNode {
     );
   }
 
+  const layoutId = card ? cardId(card) : undefined;
+
   const red = isRedSuit(card.suit);
   const glyph = SUIT_GLYPH[card.suit];
 
@@ -89,6 +91,7 @@ export function Card(props: CardProps): React.ReactNode {
         type="button"
         {...sharedProps}
         {...motionProps}
+        layoutId={layoutId}
         whileHover={{ y: -8 }}
         whileTap={{ scale: 0.96 }}
         onClick={onClick}
@@ -99,7 +102,7 @@ export function Card(props: CardProps): React.ReactNode {
   }
 
   return (
-    <motion.div {...sharedProps} {...motionProps}>
+    <motion.div {...sharedProps} {...motionProps} layoutId={layoutId}>
       {body}
     </motion.div>
   );

@@ -210,7 +210,7 @@ export function Part1Board({ view, onMove, onSelectionChange }: Part1BoardProps)
               return (
                 <motion.div
                   key={id}
-                  layout
+                  layout="position"
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.6 }}

@@ -7,6 +7,7 @@ export interface EndScreenProps {
   rankings: readonly PlayerId[] | null;
   you: PlayerId;
   isHost: boolean;
+  playerNames: Readonly<Record<string, string>>;
   onPlayAgain: () => void;
   onLeave: () => void;
 }
@@ -15,7 +16,7 @@ function shortId(id: PlayerId): string {
   return id.length <= 6 ? id : id.slice(0, 6);
 }
 
-export function EndScreen({ rankings, you, isHost, onPlayAgain, onLeave }: EndScreenProps): React.ReactNode {
+export function EndScreen({ rankings, you, isHost, playerNames, onPlayAgain, onLeave }: EndScreenProps): React.ReactNode {
   const order = rankings ?? [];
   const loserIndex = order.length > 0 ? order.length - 1 : -1;
   const winner = order[0];
@@ -34,7 +35,7 @@ export function EndScreen({ rankings, you, isHost, onPlayAgain, onLeave }: EndSc
         >
           <div className="end__trophy">🏆</div>
           <div className="end__winner-name">
-            {shortId(winner)}
+            {playerNames[winner] || shortId(winner)}
             {winner === you && <span className="end__you"> (you)</span>}
           </div>
           <div className="end__winner-label">Winner</div>
@@ -57,7 +58,7 @@ export function EndScreen({ rankings, you, isHost, onPlayAgain, onLeave }: EndSc
               >
                 <span className="end__place">{i === 0 ? '🏆' : `#${i + 1}`}</span>
                 <span className="end__player">
-                  {shortId(pid)}
+                  {playerNames[pid] || shortId(pid)}
                   {pid === you && <span className="end__you"> (you)</span>}
                 </span>
                 <span className="end__label">{i === 0 ? 'winner' : isLoser ? 'loser' : 'safe'}</span>

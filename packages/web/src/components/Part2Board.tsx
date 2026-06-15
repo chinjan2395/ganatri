@@ -16,6 +16,7 @@ const SUIT_GLYPH: Record<Suit, string> = { S: '♠', H: '♥', D: '♦', C: '♣
 export interface Part2BoardProps {
   view: PlayerView;
   flash: { kind: 'cut' | 'won' | 'safe'; text: string } | null;
+  playerNames: Readonly<Record<string, string>>;
   onMove: (move: Move) => Promise<boolean>;
   /** Called whenever hand interaction state changes so the parent can render the Hand. */
   onSelectionChange: (state: Part2SelectionState) => void;
@@ -34,7 +35,7 @@ function shortId(id: string): string {
   return id.length <= 6 ? id : id.slice(0, 6);
 }
 
-export function Part2Board({ view, flash, onMove, onSelectionChange }: Part2BoardProps): React.ReactNode {
+export function Part2Board({ view, flash, playerNames, onMove, onSelectionChange }: Part2BoardProps): React.ReactNode {
   const canAct = view.turn === view.you;
   const legalIds: ReadonlySet<CardId> = legalPart2CardIds(view);
   const [submitting, setSubmitting] = useState(false);
@@ -88,23 +89,45 @@ export function Part2Board({ view, flash, onMove, onSelectionChange }: Part2Boar
       <div className="board__trick board__table--felt" aria-label="Current trick">
         {view.trick.length === 0 && <div className="board__empty muted">No cards played yet</div>}
         <AnimatePresence initial={false}>
-          {view.trick.map((play) => (
-            <motion.div
-              key={cardId(play.card)}
-              className="board__trick-play"
-              layout
-              initial={{ y: -24, opacity: 0, scale: 0.85 }}
-              animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: 16, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 360, damping: 22 }}
-            >
-              <Card card={play.card} small={false} highlighted={play.isCut} />
-              <div className="board__trick-name">
-                {shortId(play.player)}
-                {play.isCut && <span className="board__cut-tag">CUT</span>}
-              </div>
-            </motion.div>
-          ))}
+          {view.trick.map((play) => {
+            const cutAnimate = play.isCut ? {
+              y: 0,
+              opacity: 1,
+              scale: [1, 1.18, 1],
+              filter: ['brightness(1)', 'brightness(1.6)', 'brightness(1)'],
+            } : {
+              y: 0,
+              opacity: 1,
+              scale: 1,
+            };
+            const cutTransition = play.isCut ? {
+              scale: { duration: 0.65, delay: 0.1, ease: 'easeInOut' },
+              filter: { duration: 0.65, delay: 0.1, ease: 'easeInOut' },
+              y: { type: 'spring', stiffness: 360, damping: 22 },
+              opacity: { type: 'spring', stiffness: 360, damping: 22 },
+            } : {
+              type: 'spring',
+              stiffness: 360,
+              damping: 22,
+            };
+            return (
+              <motion.div
+                key={`${cardId(play.card)}-${play.isCut ? 'cut' : 'normal'}`}
+                className="board__trick-play"
+                layout="position"
+                initial={{ y: -24, opacity: 0, scale: 0.85 }}
+                animate={cutAnimate}
+                exit={{ y: 16, opacity: 0 }}
+                transition={cutTransition}
+              >
+                <Card card={play.card} small={false} highlighted={play.isCut} />
+                <div className="board__trick-name">
+                  {playerNames[play.player] || shortId(play.player)}
+                  {play.isCut && <span className="board__cut-tag">CUT</span>}
+                </div>
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
       </div>
     </div>

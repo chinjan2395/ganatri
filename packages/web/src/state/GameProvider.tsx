@@ -102,6 +102,10 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
         setView(null);
         setEventLog([]);
         setLastEvent(null);
+      } else if (payload.phase === 'PLAYING') {
+        // A new game started (either first start or play-again). Clear stale events.
+        setEventLog([]);
+        setLastEvent(null);
       }
     }
     function onGameEvent(payload: GameEventPayload): void {

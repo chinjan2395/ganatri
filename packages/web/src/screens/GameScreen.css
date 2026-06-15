@@ -77,8 +77,9 @@
   overflow: hidden;
 }
 .hud__turn--yours {
-  border-color: rgba(231, 195, 74, 0.45);
-  box-shadow: var(--glow-gold);
+  border-color: rgba(231, 195, 74, 0.55);
+  background: rgba(231, 195, 74, 0.12);
+  box-shadow: var(--glow-gold), inset 0 0 8px rgba(231, 195, 74, 0.08);
 }
 .hud__turn-dot {
   width: 6px;
@@ -108,6 +109,9 @@
 }
 .hud__turn--yours .hud__turn-name {
   color: var(--gold-rim);
+  font-size: 14px;
+  font-weight: 700;
+  text-shadow: 0 0 10px rgba(231, 195, 74, 0.5);
 }
 
 /* Leave button — stays compact */
@@ -118,51 +122,180 @@
   margin-left: auto;
 }
 
+/* Voice controls bar in HUD */
+.game__voice-bar {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(10, 20, 14, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 2px 6px;
+  flex-shrink: 0;
+}
+
+.game__voice-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s;
+  padding: 0;
+  color: inherit;
+}
+
+.game__voice-icon:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.game__voice-icon--off {
+  opacity: 0.45;
+}
+
+.game__voice-icon--active {
+  background: rgba(34, 197, 94, 0.2);
+}
+
+.game__voice-mode {
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  border-radius: 10px;
+  height: 22px;
+  min-height: unset;
+  border-color: rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: var(--text-dim);
+}
+
+/* Speaking ring wrapper for player avatars */
+.game__player-wrap {
+  border-radius: 14px;
+  transition: box-shadow 0.15s;
+}
+
+@keyframes game-speaking-ring {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.9); }
+  50%       { box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.3); }
+}
+
+.game__player-wrap--speaking {
+  animation: game-speaking-ring 0.75s ease-in-out infinite;
+  border-radius: 12px;
+}
+
 /* Pulse animation for turn dot */
+@keyframes hud-dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.45; transform: scale(0.65); }
+}
+
+/* Stronger pulse on YOUR TURN pill */
+@keyframes hud-turn-pill-pulse {
+  0%, 100% { box-shadow: var(--glow-gold), inset 0 0 8px rgba(231, 195, 74, 0.08); }
+  50%       { box-shadow: 0 0 18px rgba(231, 195, 74, 0.7), 0 0 36px rgba(231, 195, 74, 0.4), inset 0 0 8px rgba(231, 195, 74, 0.1); }
+}
+
 @media (prefers-reduced-motion: no-preference) {
-  @keyframes hud-dot-pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50%       { opacity: 0.45; transform: scale(0.65); }
-  }
   .hud__turn--yours .hud__turn-dot {
     animation: hud-dot-pulse 1.1s ease-in-out infinite;
   }
+  .hud__turn--yours {
+    animation: hud-turn-pill-pulse 1.4s ease-in-out infinite;
+  }
 }
 
-/* ── Players row — dark panel strip like a poker lobby header ── */
+/* ── Players row — deep indigo/navy with gold diamond lattice ── */
 .game__players {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  gap: 2px;
+  gap: 4px;
   flex-wrap: nowrap;
-  padding: 4px 8px 6px;
+  padding: 8px 8px 6px; /* top pad keeps lifted seat cards inside the panel border */
   flex-shrink: 0;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  background: linear-gradient(
-    180deg,
-    rgba(8, 15, 11, 0.96) 0%,
-    rgba(12, 22, 16, 0.92) 100%
-  );
+  margin: 0 -8px;
+  border-radius: 0 0 22px 22px;
+  position: relative;
+  overflow: visible; /* allow seat cards to overflow/lift */
+
+  /* Rich dark indigo base */
+  background:
+    radial-gradient(ellipse 180% 80% at 50% 0%, rgba(231, 195, 74, 0.1) 0%, transparent 55%),
+    linear-gradient(180deg, #0d0a1e 0%, #080c18 55%, #060b12 100%);
+
+  border-top: 1.5px solid rgba(231, 195, 74, 0.4);
   border-bottom: 1px solid rgba(231, 195, 74, 0.1);
-  border-radius: 0 0 18px 18px;
   box-shadow:
-    0 4px 18px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  margin: 0 -8px;      /* bleed to edge under the HUD */
+    0 6px 24px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(231, 195, 74, 0.2),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* Gold diamond lattice overlay */
+.game__players::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 0 0 22px 22px;
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      rgba(231, 195, 74, 0.04) 0px,
+      rgba(231, 195, 74, 0.04) 1px,
+      transparent 1px,
+      transparent 14px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(231, 195, 74, 0.04) 0px,
+      rgba(231, 195, 74, 0.04) 1px,
+      transparent 1px,
+      transparent 14px
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Shimmer line at very top */
+.game__players::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(231, 195, 74, 0.6) 30%, rgba(255, 245, 200, 0.9) 50%, rgba(231, 195, 74, 0.6) 70%, transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Seats render above the lattice pattern */
+.game__players > * {
+  position: relative;
+  z-index: 2;
 }
 
 /* ── Open felt card area — cards sit on a soft spotlit play-zone ── */
 .game__board {
   position: relative;
-  flex: 1 1 auto;           /* grow to fill remaining space */
-  min-height: 180px;
+  flex: 1 1 0;
+  min-height: 100px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 8px 0 4px;
-  padding: 14px;
+  margin: 6px 0 4px;
+  padding: 12px;
   --card-w: clamp(50px, 14vw, 74px);
   background: transparent;
 }
@@ -211,7 +344,7 @@
   padding: 2px 8px 12px;
   --card-w: clamp(52px, 15vw, 72px);
   max-height: clamp(120px, 26vh, 230px);
-  overflow-y: visible;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   /* Soft shadow grounding the held cards at the bottom of the felt */
   background: radial-gradient(ellipse 78% 130% at 50% 125%, rgba(0, 0, 0, 0.4), transparent 72%);
@@ -276,11 +409,20 @@
 .action-bar__buttons > button {
   flex: 1;
   white-space: nowrap;
+  min-height: 44px;
 }
 
 /* ============================================================
    Responsive tweaks
    ============================================================ */
+/* Very small devices: 375px width — reduce avatar sizes */
+@media (max-width: 375px) {
+  .game__players {
+    gap: 1px;
+    padding: 3px 6px 4px;
+  }
+}
+
 @media (max-width: 480px) {
   .game__board {
     --card-w: clamp(46px, 13.5vw, 64px);
@@ -325,6 +467,28 @@
 .table-flash--cut  { color: #e87070; border-color: rgba(226, 92, 92, 0.4); }
 .table-flash--won  { color: var(--gold-rim); border-color: rgba(231, 195, 74, 0.35); }
 .table-flash--safe { color: #6ed49a; border-color: rgba(92, 210, 138, 0.35); }
+
+/* Phase transition banner — full-screen overlay */
+.game__phase-transition {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.phase-transition__text {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 8vw, 48px);
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--gold-rim);
+  text-shadow: 0 4px 16px rgba(231, 195, 74, 0.6);
+  text-align: center;
+  text-transform: uppercase;
+}
 
 /* Stock pile — top-right corner of the flat board */
 .table-stock {
@@ -383,7 +547,7 @@
     grid-template-areas: "hud hud" "players hand" "table hand";
     grid-template-columns: 1fr 220px;
     grid-template-rows: auto auto 1fr;
-    height: 100dvh;
+  
     overflow: hidden;
     flex-direction: unset;
     padding-bottom: 0;

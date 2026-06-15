@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { cardId, type CardId, type Card as CardModel, type GameEvent } from '@ganatri/engine';
+import { cardId, type CardId, type Card as CardModel, type GameEvent, type Phase } from '@ganatri/engine';
 import { useGame } from '../state/GameProvider';
+import { useVoiceChatContext } from '../state/VoiceChatProvider';
 import { OpponentSeat } from '../components/OpponentSeat';
 import { Part1Board, type Part1SelectionState } from '../components/Part1Board';
 import { Part2Board, type Part2SelectionState } from '../components/Part2Board';
@@ -9,6 +10,7 @@ import { Hand } from '../components/Hand';
 import { CapturedPile } from '../components/CapturedPile';
 import { EndScreen } from '../components/EndScreen';
 import { TurnTimer } from '../components/TurnTimer';
+import { CutAnimation } from '../components/CutAnimation';
 import './GameScreen.css';
 
 function shortId(id: string): string {
@@ -38,8 +40,6 @@ type Flash = { kind: 'cut' | 'won' | 'safe'; text: string };
 
 function flashFor(event: GameEvent, nameFor: (pid: string) => string): Flash | null {
   switch (event.type) {
-    case 'CUT':
-      return { kind: 'cut', text: `CUT! ${nameFor(event.pickerUpper)} picks up ${event.pickedUp.length} cards` };
     case 'TRICK_WON':
       return { kind: 'won', text: `${nameFor(event.winner)} wins the trick` };
     case 'PLAYER_SAFE':
@@ -48,6 +48,13 @@ function flashFor(event: GameEvent, nameFor: (pid: string) => string): Flash | n
       return null;
   }
 }
+
+type CutAnimData = {
+  pickerName: string;
+  pickedUpCount: number;
+  playerIndex: number;
+  isYou: boolean;
+};
 
 function getLocalCapturedCards(eventLog: readonly { event: GameEvent }[], playerId: string): readonly CardModel[] {
   const captured: CardModel[] = [];
@@ -75,9 +82,27 @@ const DEFAULT_HAND_STATE: HandState = {
 
 export function GameScreen(): React.ReactNode {
   const { view, room, session, lastEvent, eventLog, disconnectedPlayers, playerNames, turnStartedAt, turnTimeoutMs, makeMove, startGame, leaveRoom } = useGame();
+  const voice = useVoiceChatContext();
   const [flash, setFlash] = useState<Flash | null>(null);
+  const [cutAnimData, setCutAnimData] = useState<CutAnimData | null>(null);
+  const [timerFreezeUntil, setTimerFreezeUntil] = useState<number | undefined>();
   const [handState, setHandState] = useState<HandState>(DEFAULT_HAND_STATE);
   const [handOrder, setHandOrder] = useState<CardId[]>([]);
+  const prevPhase = useRef<Phase | undefined>();
+  const [showPhaseTransition, setShowPhaseTransition] = useState(false);
+  // Stable ref so the lastEvent effect can read the current view without depending on it.
+  const viewRef = useRef(view);
+  viewRef.current = view;
+
+  useEffect(() => {
+    if (!view?.phase) return;
+    if (prevPhase.current !== view.phase && prevPhase.current === 'PART_1' && view.phase === 'PART_2') {
+      setShowPhaseTransition(true);
+      const timer = setTimeout(() => setShowPhaseTransition(false), 2500);
+      return () => clearTimeout(timer);
+    }
+    prevPhase.current = view.phase;
+  }, [view?.phase]);
 
   useEffect(() => {
     if (!view) return;
@@ -92,6 +117,22 @@ export function GameScreen(): React.ReactNode {
   useEffect(() => {
     if (!lastEvent) return;
     const name = (pid: string): string => playerNames[pid] || shortId(pid);
+
+    if (lastEvent.type === 'CUT') {
+      const currentView = viewRef.current;
+      if (currentView) {
+        const ordered = orderedPlayers(currentView.seating, currentView.you);
+        setCutAnimData({
+          pickerName: name(lastEvent.pickerUpper),
+          pickedUpCount: lastEvent.pickedUp.length,
+          playerIndex: Math.max(0, ordered.indexOf(lastEvent.pickerUpper)),
+          isYou: lastEvent.pickerUpper === currentView.you,
+        });
+        setTimerFreezeUntil(Date.now() + 2700);
+      }
+      return;
+    }
+
     const f = flashFor(lastEvent, name);
     if (!f) return;
     setFlash(f);
@@ -125,6 +166,7 @@ export function GameScreen(): React.ReactNode {
           rankings={view.rankings}
           you={view.you}
           isHost={Boolean(isHost)}
+          playerNames={playerNames}
           onPlayAgain={() => { void startGame(); }}
           onLeave={() => { void leaveRoom(); }}
         />
@@ -141,10 +183,15 @@ export function GameScreen(): React.ReactNode {
   const highlightedIds = 'highlightedIds' in handState ? handState.highlightedIds : undefined;
   const onSelectCard = (id: CardId): void => { handState.onSelect(id as never); };
 
-  const handToRender: readonly CardModel[] =
-    view.phase === 'PART_2' && handOrder.length > 0
-      ? (handOrder.map((id) => view.hand.find((c) => cardId(c) === id)).filter(Boolean) as CardModel[])
-      : view.hand;
+  const handToRender: readonly CardModel[] = (() => {
+    if (view.phase !== 'PART_2' || handOrder.length === 0) return view.hand;
+    const orderedCards = handOrder
+      .map((id) => view.hand.find((c) => cardId(c) === id))
+      .filter(Boolean) as CardModel[];
+    const orderedIds = new Set(handOrder);
+    const newCards = view.hand.filter((c) => !orderedIds.has(cardId(c)));
+    return [...orderedCards, ...newCards];
+  })();
 
   return (
     <div className="game">
@@ -157,16 +204,45 @@ export function GameScreen(): React.ReactNode {
           <span className="hud__phase-name">{view.phase === 'PART_1' ? 'Capture' : 'Cut'}</span>
         </div>
 
-        {/* Turn pill */}
-        <div className={`hud__turn${isYourTurn ? ' hud__turn--yours' : ''}`}>
-          <span className="hud__turn-dot" aria-hidden="true" />
-          <span className="hud__turn-label">Turn</span>
-          <span className="hud__turn-name">{turnName}</span>
-        </div>
-
         {/* Timer pill */}
         {turnStartedAt !== null && (
-          <TurnTimer turnStartedAt={turnStartedAt} durationMs={turnTimeoutMs} />
+          <TurnTimer turnStartedAt={turnStartedAt} durationMs={turnTimeoutMs} freezeUntilMs={timerFreezeUntil} />
+        )}
+
+        {/* Voice controls */}
+        {!voice.permissionDenied && (
+          <div className="game__voice-bar">
+            {/* Mic button: hold for PTT, click for open-mic mute toggle */}
+            <button
+              className={`game__voice-icon${voice.mode === 'open' && voice.muted ? ' game__voice-icon--off' : ''}${voice.mode === 'ptt' && voice.pttActive ? ' game__voice-icon--active' : ''}`}
+              onMouseDown={() => { if (voice.mode === 'ptt') voice.setPttActive(true); }}
+              onMouseUp={() => { if (voice.mode === 'ptt') voice.setPttActive(false); }}
+              onMouseLeave={() => { if (voice.mode === 'ptt') voice.setPttActive(false); }}
+              onTouchStart={(e) => { if (voice.mode === 'ptt') { e.preventDefault(); voice.setPttActive(true); } }}
+              onTouchEnd={(e) => { if (voice.mode === 'ptt') { e.preventDefault(); voice.setPttActive(false); } }}
+              onTouchCancel={() => { if (voice.mode === 'ptt') voice.setPttActive(false); }}
+              onClick={() => { if (voice.mode === 'open') voice.toggleMute(); }}
+              title={voice.mode === 'ptt' ? 'Hold to talk (Space)' : (voice.muted ? 'Unmute mic' : 'Mute mic')}
+            >
+              {voice.mode === 'ptt' ? (voice.pttActive ? '🎙️' : '🔇') : (voice.muted ? '🔇' : '🎙️')}
+            </button>
+            {/* Speaker / deafen */}
+            <button
+              className={`game__voice-icon${voice.deafened ? ' game__voice-icon--off' : ''}`}
+              onClick={voice.toggleDeafen}
+              title={voice.deafened ? 'Undeafen' : 'Deafen (mute audio output)'}
+            >
+              {voice.deafened ? '🔈' : '🔊'}
+            </button>
+            {/* Mode toggle */}
+            <button
+              className="game__voice-mode"
+              onClick={voice.toggleMode}
+              title="Toggle push-to-talk / open mic"
+            >
+              {voice.mode === 'ptt' ? 'PTT' : 'MIC'}
+            </button>
+          </div>
         )}
 
         <button className="secondary game__leave" onClick={() => { void leaveRoom(); }}>
@@ -184,19 +260,20 @@ export function GameScreen(): React.ReactNode {
           const captureCount = view.phase === 'PART_1' ? view.captureCounts[pid] ?? 0 : undefined;
           const safeIndex = view.safeOrder.indexOf(pid);
           return (
-            <OpponentSeat
-              key={pid}
-              playerId={pid}
-              displayName={nameFor(pid)}
-              isYou={isYou}
-              handCount={handCount}
-              captureCount={captureCount}
-              isTurn={view.turn === pid}
-              isSafe={safeIndex >= 0}
-              safeRank={safeIndex >= 0 ? safeIndex + 1 : undefined}
-              disconnected={isYou ? false : disconnectedPlayers.has(pid)}
-              compact
-            />
+            <div key={pid} className={`game__player-wrap${voice.speaking.has(pid) ? ' game__player-wrap--speaking' : ''}`}>
+              <OpponentSeat
+                playerId={pid}
+                displayName={nameFor(pid)}
+                isYou={isYou}
+                handCount={handCount}
+                captureCount={captureCount}
+                isTurn={view.turn === pid}
+                isSafe={safeIndex >= 0}
+                safeRank={safeIndex >= 0 ? safeIndex + 1 : undefined}
+                disconnected={isYou ? false : disconnectedPlayers.has(pid)}
+                compact
+              />
+            </div>
           );
         })}
       </div>
@@ -206,7 +283,7 @@ export function GameScreen(): React.ReactNode {
         {view.phase === 'PART_1' ? (
           <Part1Board view={view} onMove={makeMove} onSelectionChange={handlePart1Change} />
         ) : (
-          <Part2Board view={view} flash={flash} onMove={makeMove} onSelectionChange={handlePart2Change} />
+          <Part2Board view={view} flash={flash} playerNames={playerNames} onMove={makeMove} onSelectionChange={handlePart2Change} />
         )}
 
         {view.phase === 'PART_1' && view.stockCount > 0 && (
@@ -227,6 +304,21 @@ export function GameScreen(): React.ReactNode {
               transition={{ type: 'spring', stiffness: 380, damping: 22 }}
             >
               {flash.text}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showPhaseTransition && (
+            <motion.div
+              key="phase-transition"
+              className="game__phase-transition"
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.92 }}
+              transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+            >
+              <div className="phase-transition__text">PART 2 — THE CUT</div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -257,6 +349,21 @@ export function GameScreen(): React.ReactNode {
           ) : null;
         })()}
       </div>
+
+      {/* ── Full-screen CUT animation ── */}
+      <AnimatePresence>
+        {cutAnimData && (
+          <CutAnimation
+            key="cut-anim"
+            pickerName={cutAnimData.pickerName}
+            pickedUpCount={cutAnimData.pickedUpCount}
+            playerIndex={cutAnimData.playerIndex}
+            totalPlayers={players.length}
+            isYou={cutAnimData.isYou}
+            onDone={() => setCutAnimData(null)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* ── Action bar — fixed bottom sheet, doesn't disturb layout ── */}
       <AnimatePresence>

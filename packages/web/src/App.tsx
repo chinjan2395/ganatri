@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useGame } from './state/GameProvider';
+import { VoiceChatProvider } from './state/VoiceChatProvider';
 import { IntroScreen } from './screens/IntroScreen';
 import { LobbyScreen } from './screens/LobbyScreen';
 import { RoomScreen } from './screens/RoomScreen';
@@ -51,13 +52,13 @@ export function App(): React.ReactNode {
   }
 
   return (
-    <>
+    <VoiceChatProvider>
       {showIntro && <IntroScreen onDone={handleIntroDone} />}
       <div className="app-shell">
         <ConnectionBanner />
         {screen}
         <Toast message={error} onDismiss={clearError} />
       </div>
-    </>
+    </VoiceChatProvider>
   );
 }

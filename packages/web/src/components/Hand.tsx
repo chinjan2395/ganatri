@@ -96,6 +96,7 @@ export function Hand({ hand, selectedId, legalIds, canAct, onSelect, onReorder, 
               value={id}
               as="div"
               className="hand__slot hand__slot--grid"
+              layout="position"
               style={{ cursor: 'grab', touchAction: 'none' }}
               whileDrag={{ scale: 1.12, y: -12, zIndex: 30, cursor: 'grabbing' }}
               transition={{ type: 'spring', stiffness: 360, damping: 26 }}
@@ -129,7 +130,7 @@ export function Hand({ hand, selectedId, legalIds, canAct, onSelect, onReorder, 
             <motion.div
               key={id}
               className="hand__slot"
-              layout
+              layout="position"
               style={needsWrap ? undefined : { marginLeft: i === 0 ? 0 : -overlap }}
               initial={{ opacity: 0, y: 18, scale: 0.85 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
