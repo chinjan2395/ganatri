@@ -17,6 +17,12 @@ export interface GameState {
   readonly part2: Part2State | null;
   /** Winner → loser; set when phase reaches GAME_OVER. */
   readonly rankings: readonly PlayerId[] | null;
+  /**
+   * Game seed (same value passed to `createGame`). Retained so `applyMove`
+   * can derive deterministic sub-seeds for Part 2 stalemate redistribution
+   * (CALCULATIONS §4.6) while remaining a pure function of the state.
+   */
+  readonly seed: number | string;
 }
 
 export interface Part1State {
@@ -39,6 +45,19 @@ export interface Part2State {
   readonly ledSuit: Suit | null;
   /** Order in which players emptied their hands (safe). */
   readonly safeOrder: readonly PlayerId[];
+  /**
+   * Cards that have left play (Part 1 discards + all cancelled-trick cards).
+   * Recoverable only via stalemate redistribution (CALCULATIONS §4.6). Never
+   * leaked to clients as identities — see `PlayerView.removedCount`.
+   */
+  readonly removedPool: readonly Card[];
+  /**
+   * Consecutive tricks that resolved as a cut with no cancellation. Reset to 0
+   * whenever a trick is won (cancellation) or hands are redistributed.
+   */
+  readonly cutStreak: number;
+  /** Number of stalemate redistributions performed (sub-seed counter). */
+  readonly redistributionCount: number;
 }
 
 /** Client intents. `PLAY_CAPTURE.capture: []` means the card stays on the table. */
@@ -55,6 +74,9 @@ export type GameEvent =
   | { type: 'TRICK_WON'; winner: PlayerId; cancelled: readonly Card[] }
   | { type: 'CUT'; cutter: PlayerId; pickerUpper: PlayerId; pickedUp: readonly Card[] }
   | { type: 'PLAYER_SAFE'; player: PlayerId }
+  // Stalemate top-up (CALCULATIONS §4.6). Per-player COUNTS only — never card
+  // identities; a client learns its own dealt cards via the next `viewFor`.
+  | { type: 'HANDS_REDISTRIBUTED'; dealt: Readonly<Record<PlayerId, number>>; poolRemaining: number }
   | { type: 'GAME_OVER'; rankings: readonly PlayerId[] };
 
 export type MoveError =
@@ -88,4 +110,6 @@ export interface PlayerView {
   readonly ledSuit: Suit | null;
   readonly safeOrder: readonly PlayerId[];
   readonly rankings: readonly PlayerId[] | null;
+  /** Count of cards in the Part 2 removed pool (identities never leaked). */
+  readonly removedCount: number;
 }
