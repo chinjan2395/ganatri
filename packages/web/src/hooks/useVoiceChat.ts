@@ -371,6 +371,43 @@ export function useVoiceChat(
       }, CONNECT_WATCHDOG_MS);
     };
 
+    // Diagnostic: log whether this peer connected directly (P2P/STUN) or via a
+    // TURN relay. Inspect the selected ICE candidate pair's candidate types —
+    // 'relay' on either side means TURN is in use.
+    const logConnectionType = async () => {
+      try {
+        const stats = await pc.getStats();
+        const byId = new Map<string, Record<string, unknown>>();
+        stats.forEach((report: { id: string }) => byId.set(report.id, report as Record<string, unknown>));
+
+        let pair: Record<string, unknown> | undefined;
+        for (const r of byId.values()) {
+          if (r['type'] === 'candidate-pair' && r['state'] === 'succeeded' && r['nominated'] === true) {
+            pair = r;
+            break;
+          }
+        }
+        if (!pair) {
+          for (const r of byId.values()) {
+            if (r['type'] === 'transport' && typeof r['selectedCandidatePairId'] === 'string') {
+              pair = byId.get(r['selectedCandidatePairId']);
+              break;
+            }
+          }
+        }
+        if (!pair) return;
+        const localType = byId.get(pair['localCandidateId'] as string)?.['candidateType'];
+        const remoteType = byId.get(pair['remoteCandidateId'] as string)?.['candidateType'];
+        const usingTurn = localType === 'relay' || remoteType === 'relay';
+        console.info(
+          `[voice] peer ${peerId}: ${usingTurn ? '🔁 TURN relay' : '↔️ direct P2P'} ` +
+          `(local=${String(localType)}, remote=${String(remoteType)})`,
+        );
+      } catch {
+        // getStats unavailable — ignore.
+      }
+    };
+
     // Perfect Negotiation: react to anything that needs (re)negotiation —
     // initial track add, ICE restart, reconnect. Both sides may fire this;
     // glare is resolved on the receive side.
@@ -411,6 +448,7 @@ export function useVoiceChat(
       const st = pc.connectionState;
       if (st === 'connected') {
         if (ctx.watchdog) { clearTimeout(ctx.watchdog); ctx.watchdog = null; }
+        void logConnectionType();
         // Bump Opus bitrate above its conservative default.
         for (const sender of pc.getSenders()) {
           if (sender.track?.kind !== 'audio') continue;
