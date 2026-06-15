@@ -47,11 +47,11 @@ export function OpponentSeat(props: OpponentSeatProps): React.ReactNode {
         {label}
       </span>
 
-      {isTurn && (
-        <div className="seat__turn-crown">
+      <div className={`seat__turn-crown${isTurn ? '' : ' seat__turn-crown--placeholder'}`} aria-hidden={!isTurn}>
+        {isTurn && (
           <span className="seat__turn-crown-icon">{isYou ? '♛' : '▼'}</span>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="seat__avatar" style={avatarStyle}>
         <span className="seat__initials">{label.slice(0, 2).toUpperCase()}</span>

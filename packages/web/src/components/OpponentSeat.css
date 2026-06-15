@@ -283,38 +283,66 @@
   border: 1px solid rgba(220, 80, 80, 0.28);
 }
 
-/* ── Compact variant (top-row opponents) ── */
+/* ── Compact variant (top-row opponents) — uniform card footprint ── */
 .seat--compact {
   gap: 2px;
-  padding: 4px 6px 5px;
-  min-width: 56px;
+  padding: 4px 5px 5px;
+  width: 72px;
+  min-width: 72px;
+  max-width: 72px;
+  box-sizing: border-box;
 }
 
 .seat--compact .seat__name {
   font-size: 10px;
-  max-width: 68px;
+  max-width: 100%;
+  min-height: 2.3em; /* reserve two lines so names align across seats */
 }
 
-.seat--compact .seat__avatar {
-  width: 40px;
-  height: 40px;
+.seat--compact .seat__turn-crown {
+  min-height: 12px;
+  margin: -1px 0 -2px;
 }
+
+.seat--compact .seat__turn-crown--placeholder {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Same avatar size for every player in the row */
+.seat--compact .seat__avatar,
 .seat--compact.seat--you .seat__avatar {
-  width: 46px;
-  height: 46px;
+  width: 42px;
+  height: 42px;
 }
-.seat--compact .seat__initials {
+
+.seat--compact .seat__initials,
+.seat--compact.seat--you .seat__initials {
   font-size: 13px;
 }
-.seat--compact.seat--you .seat__initials {
-  font-size: 15px;
+
+/* Turn: glow and lift only — no scale (keeps cards equal width) */
+.seat--compact.seat--turn {
+  transform: translateY(-3px);
 }
+
+.seat--compact.seat--you.seat--turn {
+  transform: translateY(-3px);
+}
+
+.seat--compact.seat--turn .seat__avatar {
+  transform: none;
+}
+
 .seat--compact .seat__turn-crown-icon {
   font-size: 11px;
 }
+
 .seat--compact .seat__stats {
   gap: 4px;
-  max-width: 72px;
+  max-width: 100%;
+  min-height: 18px;
+  align-content: center;
 }
 .seat--compact .seat__stat {
   font-size: 9px;
@@ -329,30 +357,31 @@
 
 /* Very small devices */
 @media (max-width: 375px) {
-  .seat--compact .seat__avatar {
+  .seat--compact {
+    width: 64px;
+    min-width: 64px;
+    max-width: 64px;
+    padding: 3px 4px 4px;
+  }
+
+  .seat--compact .seat__avatar,
+  .seat--compact.seat--you .seat__avatar {
     width: 36px;
     height: 36px;
   }
-  .seat--compact.seat--you .seat__avatar {
-    width: 40px;
-    height: 40px;
-  }
-  .seat--compact .seat__initials {
+
+  .seat--compact .seat__initials,
+  .seat--compact.seat--you .seat__initials {
     font-size: 11px;
   }
-  .seat--compact.seat--you .seat__initials {
-    font-size: 13px;
-  }
+
   .seat--compact .seat__name {
     font-size: 9px;
-    max-width: 58px;
+    min-height: 2.2em;
   }
+
   .seat--compact .seat__stats {
-    max-width: 62px;
+    min-height: 16px;
     gap: 3px;
-  }
-  .seat--compact {
-    padding: 3px 5px 4px;
-    min-width: 48px;
   }
 }
