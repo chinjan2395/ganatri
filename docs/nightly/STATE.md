@@ -7,7 +7,7 @@
 Phase 6 — Persistence, Accounts, Statistics & Analytics
 
 ## Status
-NOT_STARTED   <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+BLOCKED   <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase 1 — Rules Engine (153 tests passing)
@@ -29,20 +29,31 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 Phase 6 (Persistence/DB) is next after pull-forward items are done.
 
 ## Last Run
-- Date: 2026-06-16
-- Outcome: ✅ Phase 7 (pull-forward) complete — all 4 urgent fixes shipped (179 tests passing)
-- Branch/PR: nightly/2026-06-16-0855
+- Date: 2026-06-16 (2026-06-16T14:25 nightly)
+- Outcome: 🟥 Phase 6 blocked — awaiting architecture decisions (database engine, ORM, managed host)
+- Branch/PR: nightly/2026-06-16-1425
 
 ## Blockers / Needs Human Input
-(none)
+
+**Phase 6 architecture decisions — blocking all build work**
+
+Phase 6 is a large (~70-task) epic covering database, accounts, persistence, stats, and analytics. Before implementation can begin, three architectural decisions must be made (all in §6a "Database foundation & infrastructure"):
+
+1. **Database engine:** Recommend PostgreSQL (relational, strong analytics queries, JSONB for event payloads). SQLite acceptable only for single-instance/dev.
+
+2. **ORM / query layer:** Recommend Drizzle ORM (TS-first, SQL-like, fully inferred types, lightweight migrations) given "TS strict everywhere". Prisma is the batteries-included alternative (mature migrations, Studio GUI) at higher runtime/codegen cost.
+
+3. **Managed Postgres host:** Options:
+   - Railway Postgres (MCP already available here)
+   - Neon (serverless, branching, generous free tier)
+   - Supabase (Postgres + auth + storage bundled — attractive if we also adopt its auth)
+   Server is on Render today; pick a host with low latency to Render region.
+
+Once these three decisions are made, Phase 6a task dependencies can be unblocked and implementation can proceed. Current recommendation: PostgreSQL + Drizzle + Railway Postgres (most conservative, fewest moving parts).
 
 ## Notes for Next Run
-Phase 7 pull-forward is now COMPLETE. All 4 urgent fixes are shipped:
-  ✅ Auto-advance/forfeit on grace period expiry (7b.1)
-  ✅ Disclose auto-played move with TURN_TIMEOUT event (7b.2)
-  ✅ Trick-reveal freeze duration aligned to 2200ms (7d)
-  ✅ Player names sanitized server-side (7e)
+Phase 6 is blocked pending the three architecture decisions in §6a (database engine, ORM, managed host). These are blocking — all other work in Phase 6 depends on them.
 
-Next: Start Phase 6 — Persistence, Accounts, Statistics & Analytics.
-This is a large (~70-task) epic. Begin with Phase 6a (database foundation & infrastructure).
-Recommendation: Start with the DECISION items (database engine, ORM, managed host) — these are blocking tasks.
+Once decisions are made, implementation can proceed: Phase 6a (foundation + migrations) → Phase 6b (data-access layer) → Phase 6c (accounts) → Phase 6d (persistence) → etc.
+
+See "Blockers / Needs Human Input" above for the specific decision options and recommendation (PostgreSQL + Drizzle + Railway Postgres).
