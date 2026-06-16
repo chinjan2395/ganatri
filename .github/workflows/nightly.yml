@@ -2,7 +2,7 @@ name: Ganatri Nightly Build
 
 on:
   schedule:
-    - cron: '0 * * * *'  # TESTING: every hour. Revert to '30 19 * * *' (01:00 IST) once stable.
+    - cron: '17 * * * *'  # TESTING: every hour at :17 (avoids GitHub's :00 congestion window). Revert to '30 19 * * *' (01:00 IST) once stable.
   workflow_dispatch:      # manual "Run workflow" button for testing
 
 # Prevent overlapping runs
