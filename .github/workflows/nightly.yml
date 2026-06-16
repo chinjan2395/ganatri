@@ -93,7 +93,7 @@ jobs:
             - Never skip tests. Never use --no-verify.
             - If you are unsure about a game rule, mark BLOCKED and ask — do not guess.
           claude_args: >-
-            --model claude-opus-4-8
+            --model claude-haiku-4-5-20251001
             --max-turns 60
             --allowedTools Edit,Read,Write,Bash,Agent
 
