@@ -7,7 +7,7 @@
 Phase 6 — Persistence, Accounts, Statistics & Analytics
 
 ## Status
-IN_PROGRESS — Phase 6a (Database foundation) ✅ complete   <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+COMPLETE — Phase 6a (Database foundation) ✅   <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase 1 — Rules Engine (153 tests passing)
@@ -16,6 +16,7 @@ IN_PROGRESS — Phase 6a (Database foundation) ✅ complete   <!-- NOT_STARTED |
 - [x] Phase 4 — Polish (animations, mobile, flat board, deployment config)
 - [x] Phase 5 — Voice Chat (core + cross-browser + Perfect Negotiation + TURN; 5.7 smoke test requires human)
 - [x] Phase 7 (pull-forward) — Auto-forfeit on grace expiry, TURN_TIMEOUT event, trick-reveal freeze fix, name sanitization (4/4 urgent fixes complete)
+- [x] Phase 6a — Database foundation (PostgreSQL + Drizzle ORM + Neon; packages/db workspace created; 6 core tables with schema; GameStore interface; initial migration)
 
 ## Sequencing Note
 Per DEVELOPMENT_PLAN.md §7 sequencing note (2026-06-16):
@@ -30,7 +31,7 @@ Phase 6 (Persistence/DB) is next after pull-forward items are done.
 
 ## Last Run
 - Date: 2026-06-16
-- Outcome: ✅ Phase 6a (Database foundation) complete — PostgreSQL + Drizzle ORM + Neon selected, packages/db workspace created with full schema & migrations (179 tests passing)
+- Outcome: ✅ Phase 6a complete — Database foundation (PostgreSQL + Drizzle + Neon), packages/db workspace, 6 core tables, GameStore interface, initial migration. Fixed TypeScript/schema issues. Build passes. (179 tests passing)
 - Branch/PR: nightly/2026-06-16-0935
 
 ## Blockers / Needs Human Input
