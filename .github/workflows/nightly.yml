@@ -2,8 +2,8 @@ name: Ganatri Nightly Build
 
 on:
   schedule:
-    - cron: '30 19 * * *'  # 01:00 IST (19:30 UTC previous day)
-  workflow_dispatch:        # manual "Run workflow" button for testing
+    - cron: '0 * * * *'  # TESTING: every hour. Revert to '30 19 * * *' (01:00 IST) once stable.
+  workflow_dispatch:      # manual "Run workflow" button for testing
 
 # Prevent overlapping runs
 concurrency:
@@ -37,7 +37,7 @@ jobs:
       - name: Create working branch
         id: branch
         run: |
-          BRANCH="nightly/$(date +%Y-%m-%d)"
+          BRANCH="nightly/$(date +%Y-%m-%d-%H%M)"
           git checkout -b "$BRANCH"
           echo "name=$BRANCH" >> "$GITHUB_OUTPUT"
 
@@ -113,7 +113,7 @@ jobs:
             gh pr create \
               --base main \
               --head "${{ steps.branch.outputs.name }}" \
-              --title "Nightly build — $(date +%Y-%m-%d)" \
+              --title "Nightly build — $(date +%Y-%m-%d\ %H:%M)" \
               --body "$(cat <<'EOF'
           ## Autonomous nightly run
 
