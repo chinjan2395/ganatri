@@ -861,6 +861,7 @@ describe('Ganatri server', () => {
       if (!turnPlayerId) throw new Error('No turn player found');
 
       const disconnectingSocket = socketForPlayer[turnPlayerId];
+      if (!disconnectingSocket) throw new Error('No socket found for turn player');
       const otherSocket = turnPlayerId === hostSession.playerId ? guest : host;
 
       // Disconnect the player whose turn it is.
@@ -966,6 +967,7 @@ describe('Ganatri server', () => {
       const nonTurnPlayerId = turnPlayerId === hostSession.playerId ? guestSession.playerId : hostSession.playerId;
       const nonTurnSocket = socketForPlayer[nonTurnPlayerId];
       const turnSocket = socketForPlayer[turnPlayerId];
+      if (!nonTurnSocket || !turnSocket) throw new Error('No socket found for a player');
 
       // Disconnect the non-turn player.
       const disconnectPromise = waitFor<{ playerId: string }>(turnSocket, EVENTS.PLAYER_DISCONNECTED);
