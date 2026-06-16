@@ -1,6 +1,6 @@
 # Ganatri — Phasewise Development Plan
 
-Last updated: 2026-06-16 (Voice perf/heat fixes: room-gated mic acquisition, watchdog backoff+cap, AudioContext suspend while muted/idle; Critical fixes: TURN_TIMEOUT event, XSS sanitization, grace expiry broadcast, DRY refactor, freeze duration; 26 server tests)  
+Last updated: 2026-06-16 (Phase 6a: Database foundation — Drizzle ORM, PostgreSQL schema, docker-compose, migrations; 8 tables + 23 indexes + FKs; TypeScript-inferred types; local-dev ready)
 All 179 tests passing (153 engine + 26 server).
 
 ---
@@ -221,15 +221,15 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| 🔷 DECISION: database engine | ⬜ | **Recommend PostgreSQL** — relational integrity for games/players/stats, strong aggregate/analytics queries (window functions, `GROUP BY`), JSONB for event payloads. SQLite acceptable only for single-instance/dev. |
-| 🔷 DECISION: ORM / query layer | ⬜ | **Recommend Drizzle ORM** (TS-first, SQL-like, fully inferred types, lightweight migrations) given "TS strict everywhere" + pure-engine philosophy. **Prisma** is the batteries-included alternative (mature migrations, Studio GUI) at the cost of a heavier runtime/codegen step. |
-| 🔷 DECISION: managed Postgres host | ⬜ | Options: **Railway Postgres** (MCP already available here), **Neon** (serverless, branching, generous free tier), **Supabase** (Postgres + auth + storage bundled — attractive if we also adopt its auth). Server is on Render today; pick a host with low latency to Render region. |
-| New `packages/db` workspace package (or `packages/server/src/db`) | ⬜ | Houses schema, migrations, repository implementations. Keep importable by server only — never by `packages/engine`. |
-| Connection pooling | ⬜ | Use a pooled client (pg `Pool` / Neon serverless driver / pgBouncer). Size pool for Render instance + future horizontal scaling (ties to Phase 7g). |
-| Environment config & secrets | ⬜ | `DATABASE_URL` + pool size in `.env.example`; wire into existing `config.ts`. Never commit credentials. |
-| Migration tooling & workflow | ⬜ | Drizzle Kit (`drizzle-kit generate`/`migrate`) or Prisma Migrate. Migrations checked into repo; one source of truth for schema. |
-| Local dev database | ⬜ | `docker-compose.yml` with Postgres for local dev, or Neon dev branch. Document setup in README. |
-| Migration CI gate | ⬜ | CI fails if schema drifts from migrations / migration not applied; no deploy without a clean migration check. |
+| 🔷 DECISION: database engine | ✅ | PostgreSQL chosen — relational integrity, strong aggregate/analytics queries, JSONB for events |
+| 🔷 DECISION: ORM / query layer | ✅ | Drizzle ORM v0.30 chosen — TS-first, fully inferred types, lightweight migrations |
+| 🔷 DECISION: managed Postgres host | ⬜ | Deferred to Phase 6j — local docker-compose for now, production host TBD (Railway/Neon/Supabase) |
+| New `packages/db` workspace package | ✅ | `packages/db` created with tsconfig, package.json, drizzle.config.ts, schema/, migrations/ |
+| Connection pooling | ✅ | pg Pool configured in `db.ts` with 10 conn default, configurable via DATABASE_POOL_SIZE |
+| Environment config & secrets | ✅ | DATABASE_URL + DATABASE_POOL_SIZE in server/.env.example; .env loaded via dotenv |
+| Migration tooling & workflow | ✅ | drizzle-kit generate:pg + tsx migrate.ts; 1 initial migration generated with all 8 tables |
+| Local dev database | ✅ | docker-compose.yml at root with postgres:16-alpine; npm run db:up/down/migrate scripts |
+| Migration CI gate | ⬜ | Deferred to Phase 6j — CI check to enforce migrated state before deploy |
 
 ### 6b — Data-access layer & schema
 
@@ -238,16 +238,16 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | Define `GameStore` / repository interface | ⬜ | Methods for sessions, rooms, users, games, events, stats. Mirrors `GameTransport` pattern; all handlers depend on the interface, not a concrete store. |
 | Refactor in-memory `store.ts` → `MemoryStore` impl | ⬜ | Today's store becomes one implementation; keeps existing tests green and gives a fast no-DB mode for unit tests. |
 | Implement `PostgresStore` | ⬜ | Real persistence behind the same interface; selected via env (`STORE=memory\|postgres`). |
-| Schema: `users` | ⬜ | id (uuid), display_name, email (nullable for guests), auth fields, avatar, created_at, last_seen_at, is_guest flag. |
-| Schema: `auth_sessions` | ⬜ | Persisted session/refresh tokens replacing today's purely in-memory session UUIDs; expiry, device info, revoked flag. |
-| Schema: `rooms` | ⬜ | room_code, host_user_id, status (lobby/playing/done/abandoned), config snapshot, created_at, closed_at. |
-| Schema: `games` | ⬜ | room_id, seed, seating order, player_count, config snapshot, started_at, ended_at, duration, outcome summary, winner, abandoned flag. |
-| Schema: `game_players` (join) | ⬜ | game_id, user_id (nullable for guests), seat_index, display_name snapshot, final_rank, safe_order, was_cut, captures, result (win/loss/abandon). |
-| Schema: `game_events` / move log | ⬜ | game_id, seq, ts, actor_user_id, event type + JSONB payload (mirrors engine `GameEvent`). Granularity decision below. |
-| 🔷 DECISION: event-log granularity | ⬜ | Full move-by-move log (enables replay + rich analytics, larger storage) **vs** summary-only (cheaper, no replay). Recommend full log gated behind a flag so it can be disabled. |
-| Schema: `player_stats` (aggregate) | ⬜ | user_id, games_played/won/lost/abandoned, sum of finish positions, captures, cuts_given/received, times_safe, total_play_time, rating, streak fields, updated_at. |
-| Schema: `analytics_events` | ⬜ | If self-hosting analytics (see 6f): event name, anonymous user id, ts, JSONB props. Otherwise external sink. |
-| Indexes, FKs & constraints | ⬜ | Index hot query paths (leaderboard sort, match history by user, events by game+seq); FKs with sensible `ON DELETE` for account deletion. |
+| Schema: `users` | ✅ | id (uuid PK), display_name, email (nullable), avatar, is_guest, created_at, last_seen_at; idx: email, created_at |
+| Schema: `auth_sessions` | ✅ | id (uuid PK), user_id (FK→users), access_token, refresh_token, device_info, expires_at, refresh_expires_at, revoked_at, created_at; idx: user_id, access_token, expires_at |
+| Schema: `rooms` | ✅ | id (uuid PK), room_code (UNIQUE varchar(6)), host_user_id (FK→users), status, config_snapshot, created_at, closed_at; idx: code, host, status, created_at |
+| Schema: `games` | ✅ | id (uuid PK), room_id (FK→rooms), seed, seating_json, player_count, config_snapshot, started_at, ended_at, duration_ms, outcome_json, abandoned; idx: room_id, started_at, ended_at |
+| Schema: `game_players` (join) | ✅ | id (uuid PK), game_id (FK→games), user_id (FK→users nullable), seat_index, display_name_snapshot, final_rank, safe_order, was_cut, capture_count, result; idx: game_id, user_id, seat_index |
+| Schema: `game_events` / move log | ✅ | id (uuid PK), game_id (FK→games), seq, ts, actor_user_id, event_type, payload (JSONB); idx: game_id, seq, event_type, ts |
+| 🔷 DECISION: event-log granularity | ✅ | Full move-by-move log enabled; Phase 6b will gate it via a feature flag if needed. Schema supports it. |
+| Schema: `player_stats` (aggregate) | ✅ | user_id (uuid PK FK→users), games_played/won/lost/abandoned, total_finish_position, total_captures, times_cut, times_safe, total_play_time_ms, current/max_win_streak, rating, rating_uncertainty, updated_at; idx: games_won, rating, updated_at |
+| Schema: `analytics_events` | ✅ | id (uuid PK), anonymous_user_id, event_name, properties (JSONB), ts, created_at; idx: anonymous_user_id, event_name, ts |
+| Indexes, FKs & constraints | ✅ | 23 indexes on hot query paths (leaderboard, match history, events); FKs with ON DELETE cascade/set null as appropriate |
 | Dev seed / fixtures | ⬜ | Script to populate sample users/games/stats for local UI work. |
 | Repository integration tests | ⬜ | Test `PostgresStore` against a real/ephemeral Postgres (testcontainers or Neon branch); keep `MemoryStore` unit-tested. |
 
@@ -447,12 +447,12 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 | Phase                        | Status                                                                                  |
 | ---------------------------- | --------------------------------------------------------------------------------------- |
-| Phase 1 — Engine             | ✅ Complete (141 tests)                                                                  |
+| Phase 1 — Engine             | ✅ Complete (153 tests)                                                                  |
 | Phase 2 — Server             | ✅ Complete (26 tests; TURN_TIMEOUT + sanitization + grace expiry broadcast + DRY refactor + freeze fix) |
 | Phase 3 — Web Client         | ✅ Complete (player names wired, all components functional)                              |
 | Phase 4 — Polish             | ✅ Complete (animations, mobile polish; deployment user-handled via Render + Cloudflare) |
 | Phase 5 — Voice Chat         | 🟡 Core + cross-browser fixes + Perfect Negotiation recovery + Cloudflare TURN; smoke test pending |
-| Phase 6 — Persistence/DB     | ⬜ Detailed backlog; not started (~70 tasks + 7 decisions across 10 sub-phases 6a–6j). **Next major phase.** |
+| Phase 6 — Persistence/DB     | 🟡 6a Done (Drizzle ORM, PostgreSQL schema, docker-compose, 8 tables, 23 indexes, migrations); 6b–6j planned |
 | Phase 7 — Improvements       | ⬜ Backlog identified; not yet started (27 tasks across 7 sub-phases 7a–7g). Urgent bug/security items flagged "pull forward" |
 
 

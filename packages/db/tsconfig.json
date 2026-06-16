@@ -6,11 +6,7 @@
     "outDir": "dist",
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true,
-    "paths": {
-      "@ganatri/engine": ["../engine/src/index.ts"],
-      "@ganatri/db": ["../db/src/index.ts"]
-    }
+    "sourceMap": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

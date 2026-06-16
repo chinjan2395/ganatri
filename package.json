@@ -8,9 +8,17 @@
   "scripts": {
     "test": "npm test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:migrate": "npm run --workspace @ganatri/db db:migrate",
+    "db:generate": "npm run --workspace @ganatri/db db:generate",
+    "db:studio": "npm run --workspace @ganatri/db db:studio"
   },
   "engines": {
     "node": ">=22"
+  },
+  "devDependencies": {
+    "drizzle-orm": "^0.31.4"
   }
 }

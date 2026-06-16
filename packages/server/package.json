@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@ganatri/engine": "*",
+    "@ganatri/db": "*",
     "socket.io": "^4.8.0",
     "uuid": "^11.0.0"
   },
