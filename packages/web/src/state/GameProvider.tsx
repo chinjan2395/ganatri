@@ -30,6 +30,7 @@ import {
   type SessionPayload,
   type StartGameAck,
   type StateUpdatePayload,
+  type TurnTimeoutPayload,
 } from '../protocol';
 
 export interface SessionInfo {
@@ -56,6 +57,8 @@ export interface GameContextValue {
   playerNames: Readonly<Record<string, string>>;
   error: string | null;
   clearError: () => void;
+  toastMessage: string | null;
+  clearToast: () => void;
   createRoom: (name?: string) => Promise<CreateRoomAck>;
   joinRoom: (roomCode: string, name?: string) => Promise<JoinRoomAck>;
   leaveRoom: () => Promise<void>;
@@ -77,6 +80,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
   const [disconnectedPlayers, setDisconnectedPlayers] = useState<Set<string>>(new Set());
   const [playerNames, setPlayerNames] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const eventId = useRef(0);
   const roomPhaseRef = useRef<RoomUpdatePayload['phase'] | null>(null);
   // Refs for the trick-reveal freeze: keep the board visible for a beat after
@@ -150,7 +154,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       // short window so all players can see the completed trick before the board
       // clears. The queued STATE_UPDATE is applied once the freeze expires.
       if (payload.event.type === 'TRICK_WON' || payload.event.type === 'CUT') {
-        const freezeMs = payload.event.type === 'TRICK_WON' ? 1500 : 2000;
+        const freezeMs = payload.event.type === 'TRICK_WON' ? 2200 : 2000;
         trickFreezeUntilRef.current = Date.now() + freezeMs;
         if (trickFreezeTimerRef.current !== null) clearTimeout(trickFreezeTimerRef.current);
         trickFreezeTimerRef.current = setTimeout(() => {
@@ -191,6 +195,10 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
         return next;
       });
     }
+    function onTurnTimeout(payload: TurnTimeoutPayload): void {
+      const playerName = playerNames[payload.playerId] || payload.playerId.slice(0, 6);
+      setToastMessage(`${playerName}'s turn timed out`);
+    }
 
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
@@ -200,6 +208,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
     socket.on(EVENTS.STATE_UPDATE, onStateUpdate);
     socket.on(EVENTS.PLAYER_DISCONNECTED, onPlayerDisconnected);
     socket.on(EVENTS.PLAYER_RECONNECTED, onPlayerReconnected);
+    socket.on(EVENTS.TURN_TIMEOUT, onTurnTimeout);
 
     return () => {
       socket.off('connect', onConnect);
@@ -210,14 +219,16 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       socket.off(EVENTS.STATE_UPDATE, onStateUpdate);
       socket.off(EVENTS.PLAYER_DISCONNECTED, onPlayerDisconnected);
       socket.off(EVENTS.PLAYER_RECONNECTED, onPlayerReconnected);
+      socket.off(EVENTS.TURN_TIMEOUT, onTurnTimeout);
       if (trickFreezeTimerRef.current !== null) {
         clearTimeout(trickFreezeTimerRef.current);
         trickFreezeTimerRef.current = null;
       }
     };
-  }, []);
+  }, [playerNames]);
 
   const clearError = useCallback(() => setError(null), []);
+  const clearToast = useCallback(() => setToastMessage(null), []);
 
   const createRoom = useCallback((name?: string) => netCreateRoom(name), []);
   const joinRoom = useCallback((roomCode: string, name?: string) => netJoinRoom(roomCode, name), []);
@@ -269,6 +280,8 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       playerNames,
       error,
       clearError,
+      toastMessage,
+      clearToast,
       createRoom,
       joinRoom,
       leaveRoom,
@@ -288,6 +301,8 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       playerNames,
       error,
       clearError,
+      toastMessage,
+      clearToast,
       createRoom,
       joinRoom,
       leaveRoom,

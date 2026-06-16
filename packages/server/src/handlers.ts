@@ -48,9 +48,43 @@ import { SocketTransport } from './socketTransport.js';
 
 const MIN_PLAYERS_TO_START = 2;
 const MOVE_DEBOUNCE_MS = 100;
+const MAX_PLAYER_NAME_LENGTH = 20;
 
 /** Alphabet for room codes: A-Z excluding O (and digits 1-9, no 0). */
 const ROOM_CODE_CHARS = 'ABCDEFGHIJKLMNPQRSTUVWXYZ123456789';
+
+// ---------------------------------------------------------------------------
+// Player name sanitization (XSS-safe)
+// ---------------------------------------------------------------------------
+
+/**
+ * Sanitize a player name for safe storage and broadcast.
+ *
+ * Process:
+ * 1. Trim leading/trailing whitespace
+ * 2. Remove HTML/script tags and dangerous characters (< > and their combinations)
+ * 3. Remove control characters (ASCII 0x00-0x1F, 0x7F)
+ * 4. Limit to 20 characters
+ * 5. Return the cleaned string
+ *
+ * This protects against XSS injection attempts and ensures database hygiene.
+ * React already escapes on render, but server-side sanitization is defense-in-depth.
+ */
+export function sanitizePlayerName(name: string): string {
+  if (typeof name !== 'string') return '';
+  // Trim leading/trailing whitespace
+  let sanitized = name.trim();
+  // Remove anything that looks like an HTML tag (content between < and >, plus the brackets)
+  // This handles <script>, <img src=x>, etc.
+  sanitized = sanitized.replace(/<[^>]*>/g, '');
+  // Remove remaining < and > characters
+  sanitized = sanitized.replace(/[<>]/g, '');
+  // Remove control characters (ASCII 0x00-0x1F, 0x7F)
+  sanitized = sanitized.replace(/[\x00-\x1F\x7F]/g, '');
+  // Limit to 20 characters (applied after sanitization to preserve intent)
+  sanitized = sanitized.slice(0, MAX_PLAYER_NAME_LENGTH);
+  return sanitized;
+}
 
 // ---------------------------------------------------------------------------
 // Module-level transport instance (set once in setupSocketHandlers)
@@ -97,6 +131,9 @@ function autoPlayTurn(roomCode: string, playerId: string, t: GameTransport): voi
     room.completedAt = Date.now();
     clearTurnTimer(room);
   }
+
+  // Broadcast turn timeout event first so clients get the notification before game events.
+  t.broadcast(roomCode, EVENTS.TURN_TIMEOUT, { playerId });
 
   // Broadcast each game event to the room.
   for (const event of result.events as GameEvent[]) {
@@ -283,9 +320,62 @@ function handleDisconnect(socket: Socket, session: SessionState): void {
 
     // Start grace-period countdown.
     const timer = setTimeout(() => {
-      // Grace period expired. Seat is held; game pauses on disconnect in v1.
       room.gracePeriodTimers.delete(playerId);
-      console.log(`Grace period expired for player ${playerId} in room ${roomCode}`);
+
+      // When grace period expires during PLAYING, auto-play a legal move
+      // so the game continues instead of stalling.
+      const expiredRoom = getRoom(roomCode);
+      if (expiredRoom && expiredRoom.phase === 'PLAYING' && expiredRoom.gameState) {
+        // It's this player's turn and they're disconnected.
+        if (expiredRoom.gameState.turn === playerId) {
+          const moves = legalMoves(expiredRoom.gameState, playerId);
+          if (moves.length > 0) {
+            // Auto-play the first legal move.
+            const result = applyMove(expiredRoom.gameState, playerId, moves[0]!);
+            if (result.ok) {
+              expiredRoom.gameState = result.state;
+              if (result.state.phase === 'GAME_OVER') {
+                expiredRoom.phase = 'DONE';
+                expiredRoom.completedAt = Date.now();
+                clearTurnTimer(expiredRoom);
+              }
+
+              // Broadcast all game events (captures, cuts, etc.)
+              for (const event of result.events as GameEvent[]) {
+                transport.broadcast(roomCode, EVENTS.GAME_EVENT, { event });
+              }
+
+              // Send updated view to all players.
+              for (const pid of expiredRoom.players) {
+                transport.send(pid, EVENTS.STATE_UPDATE, {
+                  view: viewFor(result.state, pid),
+                  turnStartedAt: expiredRoom.phase === 'PLAYING' && result.state.turn !== null ? Date.now() : null,
+                  turnTimeoutMs: getConfig().turnTimeoutMs,
+                });
+              }
+
+              // Start timer for next player if game is still active.
+              if (expiredRoom.phase === 'PLAYING' && result.state.turn !== null) {
+                const nextTurnStartedAt = Date.now();
+                expiredRoom.turnStartedAt = nextTurnStartedAt;
+                expiredRoom.turnTimer = setTimeout(() => {
+                  autoPlayTurn(roomCode, result.state.turn as string, transport);
+                }, getConfig().turnTimeoutMs);
+              }
+
+              console.log(`Grace period expired for player ${playerId} in room ${roomCode}; auto-played move`);
+            } else {
+              console.log(`Grace period expired for player ${playerId} in room ${roomCode}; move validation failed`);
+            }
+          } else {
+            console.log(`Grace period expired for player ${playerId} in room ${roomCode}; no legal moves`);
+          }
+        } else {
+          // Not their turn — just remove them from disconnected set.
+          expiredRoom.disconnectedAt.delete(playerId);
+          console.log(`Grace period expired for player ${playerId} in room ${roomCode}`);
+        }
+      }
     }, getConfig().gracePeriodMs);
 
     room.gracePeriodTimers.set(playerId, timer);
@@ -319,7 +409,7 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
       ack = maybeAck;
       if (typeof payloadOrAck === 'object' && payloadOrAck !== null) {
         const n = (payloadOrAck as Record<string, unknown>)['name'];
-        if (typeof n === 'string') name = n.trim().slice(0, 20);
+        if (typeof n === 'string') name = sanitizePlayerName(n);
       }
     }
     if (name) updateSession(session.token, { name });
@@ -333,7 +423,10 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
       return;
     }
     if (typeof payload.name === 'string' && payload.name.trim()) {
-      updateSession(session.token, { name: payload.name.trim().slice(0, 20) });
+      const sanitized = sanitizePlayerName(payload.name);
+      if (sanitized) {
+        updateSession(session.token, { name: sanitized });
+      }
     }
     handleJoinRoom(socket, session, payload.roomCode.trim().toUpperCase(), ack);
   });

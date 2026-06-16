@@ -75,6 +75,9 @@ export interface PlayerDisconnectedPayload {
 export interface PlayerReconnectedPayload {
   playerId: string;
 }
+export interface TurnTimeoutPayload {
+  playerId: string;
+}
 
 // --- Voice chat signaling payloads (WebRTC peer mesh) ---
 
@@ -149,6 +152,7 @@ export const EVENTS = {
   STATE_UPDATE: 'state_update',
   PLAYER_DISCONNECTED: 'player_disconnected',
   PLAYER_RECONNECTED: 'player_reconnected',
+  TURN_TIMEOUT: 'turn_timeout',
 
   // Voice chat signaling (Client → Server)
   VOICE_OFFER: 'voice_offer',

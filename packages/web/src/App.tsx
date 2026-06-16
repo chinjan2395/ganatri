@@ -12,7 +12,7 @@ export function App(): React.ReactNode {
     return <AdminScreen />;
   }
 
-  const { session, room, view, error, clearError } = useGame();
+  const { session, room, view, error, clearError, toastMessage, clearToast } = useGame();
 
   let screen: React.ReactNode;
   if (!session) {
@@ -47,6 +47,7 @@ export function App(): React.ReactNode {
         <ConnectionBanner />
         {screen}
         <Toast message={error} onDismiss={clearError} />
+        <Toast message={toastMessage} onDismiss={clearToast} />
       </div>
     </VoiceChatProvider>
   );

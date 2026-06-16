@@ -1,7 +1,7 @@
 # Ganatri — Phasewise Development Plan
 
-Last updated: 2026-06-16 (Reordered: DB is now Phase 6, Improvements demoted to Phase 7)  
-All 176 tests passing (153 engine + 23 server).
+Last updated: 2026-06-16 (Player name XSS sanitization)  
+All 181 tests passing (153 engine + 28 server).
 
 ---
 
@@ -85,10 +85,11 @@ All 176 tests passing (153 engine + 23 server).
 | Player name storage in `SessionState`                                 | ✅      | `src/store.ts` — in current diff    |
 | Send `playerNames` map in `ROOM_UPDATE`                               | ✅      | `src/handlers.ts` — in current diff |
 | Accept `name` field in `create_room` and `join_room` payloads         | ✅      | `src/handlers.ts` — in current diff |
-| Integration tests: room lifecycle, one-game rule, full game script    | ✅      | `src/handlers.test.ts` (23 tests)   |
+| Integration tests: room lifecycle, one-game rule, full game script    | ✅      | `src/handlers.test.ts` (24 tests)   |
+| Sanitize / validate player names server-side (XSS-safe)              | ✅      | `src/handlers.ts` `sanitizePlayerName` + 3 tests |
 
 
-**Test count: 23 / 23 passing.**
+**Test count: 28 / 28 passing.**
 
 ---
 
@@ -370,8 +371,8 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | Task | Status | Notes |
 | ---- | ------ | ----- |
 | Server state persistence (Redis or flat-file snapshot) | ⬜ | **Superseded by Phase 6 (DB)** — do not build a separate snapshot; restart recovery comes from `game_events` rehydration in Phase 6d |
-| Auto-advance / forfeit when grace period expires during PLAYING | ⬜ | **Pull forward (urgent bug):** currently just logs; other players are stuck waiting indefinitely |
-| Disclose auto-played move to players on turn timeout | ⬜ | **Pull forward (urgent bug):** server picks `moves[0]` silently; feels like a bug; at minimum broadcast a toast "X's turn timed out" |
+| Auto-advance / forfeit when grace period expires during PLAYING | ✅ | Server auto-plays a legal move when a disconnected player's turn arrives during grace period; broadcasts events; game continues |
+| Disclose auto-played move to players on turn timeout | ✅ | Server broadcasts `TURN_TIMEOUT` event when turn times out; clients can display toast like "X's turn timed out" |
 | Rate-limit `create_room` and `join_room` per IP | ⬜ | Only `make_move` has a debounce; room flood is currently unprotected |
 | Clean up WebRTC peer connections when a player goes safe mid-Part-2 | ⬜ | Peers remain connected and consuming resources even after a player empties their hand |
 
@@ -389,7 +390,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | ---- | ------ | ----- |
 | Sound effects (card play, trick won, cut, game over) | ⬜ | Noted in Phase 4 as optional; audio cues reduce need to watch board constantly |
 | Persist Part 2 hand reorder across reconnect | ⬜ | `handOrder` is local state; lost on reload / rejoin |
-| Align trick-reveal freeze duration with flash animation duration | ⬜ | **Pull forward:** freeze is 1 500 ms hardcoded; flash runs for 2 200 ms — board clears before flash finishes |
+| Align trick-reveal freeze duration with flash animation duration | ✅ | Changed TRICK_WON freeze from 1500ms to 2200ms in `GameProvider.tsx` line 157; flash timeout at `GameScreen.tsx` line ~2200 |
 | Prominent winner/loser reveal on end screen | ⬜ | Rankings list is shown but no celebration / commiseration animation differentiates 1st from last |
 | Lobby chat or ready-check | ⬜ | Players have no way to coordinate before the host starts the game |
 
@@ -397,7 +398,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Sanitize / validate player names server-side | ⬜ | **Pull forward:** 20-char limit enforced but no XSS check; safe now due to React escaping but one `dangerouslySetInnerHTML` would expose it |
+| Sanitize / validate player names server-side | ✅ | **Pulled forward & completed:** `sanitizePlayerName(name)` removes HTML tags/control chars, trims, limits to 20 chars; applied in both `create_room` and `join_room`; 3 tests added |
 | Strengthen admin authentication | ⬜ | Email-only check; add a shared secret or signed token so any email can't spoof admin. (Do before Phase 6h admin analytics dashboard) |
 | Session token expiry | ⬜ | **Superseded by Phase 6c (DB-backed sessions)** — UUIDs never expire today; the persisted-session work in Phase 6c resolves this |
 
@@ -439,8 +440,8 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 | Phase                        | Status                                                                                  |
 | ---------------------------- | --------------------------------------------------------------------------------------- |
-| Phase 1 — Engine             | ✅ Complete (141 tests)                                                                  |
-| Phase 2 — Server             | ✅ Complete (23 tests)                                                                   |
+| Phase 1 — Engine             | ✅ Complete (153 tests)                                                                  |
+| Phase 2 — Server             | ✅ Complete (28 tests; includes player name sanitization)                                |
 | Phase 3 — Web Client         | ✅ Complete (player names wired, all components functional)                              |
 | Phase 4 — Polish             | ✅ Complete (animations, mobile polish; deployment user-handled via Render + Cloudflare) |
 | Phase 5 — Voice Chat         | 🟡 Core + cross-browser fixes + Perfect Negotiation recovery + Cloudflare TURN; smoke test pending |

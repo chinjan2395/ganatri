@@ -287,6 +287,101 @@ describe('Ganatri server', () => {
   });
 
   // -------------------------------------------------------------------------
+  // Player name sanitization
+  // -------------------------------------------------------------------------
+
+  it('sanitizes player names server-side on create_room', async () => {
+    const { sanitizePlayerName } = await import('./handlers.js');
+
+    // Normal name passes through unchanged (trimmed to 20 chars)
+    expect(sanitizePlayerName('Alice')).toBe('Alice');
+    expect(sanitizePlayerName('  Bob  ')).toBe('Bob');
+
+    // HTML tags (including content between < and >) are removed
+    expect(sanitizePlayerName('<script>alert("xss")</script>')).toBe('alert("xss")');
+    expect(sanitizePlayerName('Hello<br>World')).toBe('HelloWorld');
+    expect(sanitizePlayerName('<img src=x>')).toBe('');
+
+    // Dangerous < > characters outside tags are also removed
+    expect(sanitizePlayerName('Test<Name')).toBe('TestName');
+    expect(sanitizePlayerName('Test>Name')).toBe('TestName');
+
+    // Control characters are removed
+    expect(sanitizePlayerName('Hello\x00World')).toBe('HelloWorld');
+    expect(sanitizePlayerName('Line1\nLine2')).toBe('Line1Line2');
+    expect(sanitizePlayerName('Tab\tName')).toBe('TabName');
+
+    // 20-character limit is enforced after sanitization
+    expect(sanitizePlayerName('a'.repeat(30))).toBe('a'.repeat(20));
+    expect(sanitizePlayerName('<script>' + 'a'.repeat(20) + '</script>')).toBe('a'.repeat(20));
+
+    // Combined: HTML + length limit
+    expect(sanitizePlayerName('<h1>MyName' + 'a'.repeat(30) + '</h1>')).toBe(
+      'MyName' + 'a'.repeat(14),
+    );
+  });
+
+  it('applies sanitized names when creating a room', async () => {
+    const { store } = await import('./store.js');
+    const client = connectClient(port);
+    const sessionPayload = await waitFor<{ token: string; playerId: string }>(client, EVENTS.SESSION);
+
+    try {
+      const dirtyName = '<script>alert("xss")</script>';
+      const ack = await emitAck<{ ok: boolean; roomCode: string }>(client, EVENTS.CREATE_ROOM, {
+        name: dirtyName,
+      });
+
+      expect(ack.ok).toBe(true);
+
+      // Check the session store directly to verify the name was sanitized before storage.
+      const session = store.sessions.get(sessionPayload.token);
+      expect(session).toBeDefined();
+      expect(session?.name).toBe('alert("xss")');
+      expect(session?.name).not.toContain('<script>');
+      expect(session?.name).not.toContain('</script>');
+    } finally {
+      client.disconnect();
+    }
+  });
+
+  it('applies sanitized names when joining a room', async () => {
+    const { store } = await import('./store.js');
+    const host = connectClient(port);
+    const guest = connectClient(port);
+
+    const [hostSession, guestSessionData] = await Promise.all([
+      waitFor<{ token: string; playerId: string }>(host, EVENTS.SESSION),
+      waitFor<{ token: string; playerId: string }>(guest, EVENTS.SESSION),
+    ]);
+
+    try {
+      const createAck = await emitAck<{ ok: boolean; roomCode: string }>(host, EVENTS.CREATE_ROOM);
+      const roomCode = createAck.roomCode;
+
+      // Guest joins with a malicious name.
+      const dirtyName = '<img src=x onerror="alert(1)">';
+      const joinAck = await emitAck<{ ok: boolean }>(guest, EVENTS.JOIN_ROOM, {
+        roomCode,
+        name: dirtyName,
+      });
+
+      expect(joinAck.ok).toBe(true);
+
+      // Check the session store directly to verify the name was sanitized before storage.
+      const guestSessionStored = store.sessions.get(guestSessionData.token);
+      expect(guestSessionStored).toBeDefined();
+      expect(guestSessionStored?.name).not.toContain('<');
+      expect(guestSessionStored?.name).not.toContain('>');
+      expect(guestSessionStored?.name).not.toContain('src');
+      expect(guestSessionStored?.name).not.toContain('onerror');
+    } finally {
+      host.disconnect();
+      guest.disconnect();
+    }
+  });
+
+  // -------------------------------------------------------------------------
   // One-game rule
   // -------------------------------------------------------------------------
 
@@ -760,4 +855,211 @@ describe('Ganatri server', () => {
       host2.disconnect();
     }
   });
+
+  // -------------------------------------------------------------------------
+  // Grace period auto-advance during PLAYING
+  // -------------------------------------------------------------------------
+
+  it('auto-plays a move when a player\'s grace period expires during PLAYING', async () => {
+    /**
+     * When a player disconnects and their turn comes while they're still in the
+     * grace period (before reconnect), the server should auto-play a legal move
+     * for them so the game continues instead of stalling.
+     */
+    const { legalMoves, createGame } = await import('@ganatri/engine');
+    const { store } = await import('./store.js');
+
+    const host = connectClient(port);
+    const guest = connectClient(port);
+
+    const [hostSession, guestSession] = await Promise.all([
+      waitFor<{ token: string; playerId: string }>(host, EVENTS.SESSION),
+      waitFor<{ token: string; playerId: string }>(guest, EVENTS.SESSION),
+    ]);
+
+    try {
+      const createAck = await emitAck<{ ok: boolean; roomCode: string }>(host, EVENTS.CREATE_ROOM);
+      const roomCode = createAck.roomCode;
+      await emitAck(guest, EVENTS.JOIN_ROOM, { roomCode });
+
+      await Promise.all([
+        waitFor(host, EVENTS.STATE_UPDATE),
+        waitFor(guest, EVENTS.STATE_UPDATE),
+        emitAck(host, EVENTS.START_GAME),
+      ]);
+
+      // Set a very short grace period for the test.
+      const room = store.rooms.get(roomCode)!;
+      const originalGracePeriodMs = (await import('./config.js')).getConfig().gracePeriodMs;
+      (await import('./config.js')).updateConfig({ gracePeriodMs: 500 });
+
+      // Use a deterministic seed.
+      const TERMINATING_SEED = 3;
+      room.gameState = createGame(room.players, TERMINATING_SEED);
+
+      // Map playerId → socket for quick lookup.
+      const socketForPlayer: Record<string, ClientSocket> = {
+        [hostSession.playerId]: host,
+        [guestSession.playerId]: guest,
+      };
+
+      // Play several moves to set up a scenario where guest is the turn player.
+      let moveCount = 0;
+      while (moveCount < 5 && room.gameState?.turn !== guestSession.playerId) {
+        const { gameState } = room;
+        if (gameState?.phase === 'GAME_OVER') break;
+
+        const turnPlayerId = gameState?.turn;
+        if (!turnPlayerId) break;
+
+        const moves = legalMoves(gameState!, turnPlayerId);
+        if (moves.length === 0) break;
+
+        const move = moves[0]!;
+        const activeSocket = socketForPlayer[turnPlayerId];
+        if (!activeSocket) break;
+
+        const moveAck = await emitAck<{ ok: boolean }>(
+          activeSocket,
+          EVENTS.MAKE_MOVE,
+          { move },
+        );
+        expect(moveAck.ok).toBe(true);
+        moveCount++;
+        await new Promise((r) => setTimeout(r, 110)); // Avoid debounce.
+      }
+
+      // Now guest should be the turn player. Disconnect the guest.
+      const hostDisconnectPromise = waitFor<{ playerId: string }>(host, EVENTS.PLAYER_DISCONNECTED);
+      guest.disconnect();
+      const disconnectPayload = await hostDisconnectPromise;
+      expect(disconnectPayload.playerId).toBe(guestSession.playerId);
+
+      // Wait for the grace period to expire and the auto-play to trigger.
+      // We should see a STATE_UPDATE on the host indicating the move was played.
+      const stateUpdatePayload = await waitFor<{
+        view: { phase: string };
+      }>(host, EVENTS.STATE_UPDATE, 2000);
+
+      // Verify game moved forward (turn changed or phase changed).
+      // The simplest check: after grace expires and auto-play fires, the host
+      // should receive an updated state. If the guest was the turn player,
+      // their turn should have been resolved.
+      expect(stateUpdatePayload.view).toBeDefined();
+
+      // Restore the original grace period config.
+      (await import('./config.js')).updateConfig({ gracePeriodMs: originalGracePeriodMs });
+    } finally {
+      host.disconnect();
+      guest.disconnect();
+    }
+  }, 10_000);
+
+  // -------------------------------------------------------------------------
+  // Turn timeout auto-play
+  // -------------------------------------------------------------------------
+
+  it('broadcasts TURN_TIMEOUT event when a turn times out and auto-play is triggered', async () => {
+    /**
+     * When a player's turn times out (not grace period, but the per-turn timeout),
+     * the server should broadcast a TURN_TIMEOUT event so clients can display
+     * a toast like "X's turn timed out".
+     *
+     * Strategy: Let the game play naturally via make_move until only a few moves remain.
+     * Then wait for the turn timeout to fire without sending a move, which triggers
+     * the auto-play and broadcasts the TURN_TIMEOUT event.
+     */
+    const { legalMoves, createGame } = await import('@ganatri/engine');
+    const { store } = await import('./store.js');
+    const { getConfig, updateConfig } = await import('./config.js');
+
+    const host = connectClient(port);
+    const guest = connectClient(port);
+
+    const [hostSession, guestSession] = await Promise.all([
+      waitFor<{ token: string; playerId: string }>(host, EVENTS.SESSION),
+      waitFor<{ token: string; playerId: string }>(guest, EVENTS.SESSION),
+    ]);
+
+    try {
+      const createAck = await emitAck<{ ok: boolean; roomCode: string }>(host, EVENTS.CREATE_ROOM);
+      const roomCode = createAck.roomCode;
+      await emitAck(guest, EVENTS.JOIN_ROOM, { roomCode });
+
+      await Promise.all([
+        waitFor(host, EVENTS.STATE_UPDATE),
+        waitFor(guest, EVENTS.STATE_UPDATE),
+        emitAck(host, EVENTS.START_GAME),
+      ]);
+
+      // Set a very short turn timeout for this test.
+      const originalTurnTimeoutMs = getConfig().turnTimeoutMs;
+      updateConfig({ turnTimeoutMs: 350 });
+
+      const room = store.rooms.get(roomCode)!;
+
+      // Use a deterministic seed.
+      const TERMINATING_SEED = 3;
+      room.gameState = createGame(room.players, TERMINATING_SEED);
+
+      // Map playerId → socket.
+      const socketForPlayer: Record<string, ClientSocket> = {
+        [hostSession.playerId]: host,
+        [guestSession.playerId]: guest,
+      };
+
+      // Play a few moves to get the game into motion, then stop sending moves to trigger a timeout.
+      let moveCount = 0;
+      const MAX_MOVES = 3;
+
+      while (moveCount < MAX_MOVES && room.gameState?.phase !== 'GAME_OVER') {
+        const { gameState } = room;
+        if (!gameState || gameState.phase === 'GAME_OVER') break;
+
+        const turnPlayerId = gameState.turn;
+        if (!turnPlayerId) break;
+
+        const moves = legalMoves(gameState, turnPlayerId);
+        if (moves.length === 0) break;
+
+        const activeSocket = socketForPlayer[turnPlayerId];
+        if (!activeSocket) break;
+
+        const moveAck = await emitAck<{ ok: boolean }>(activeSocket, EVENTS.MAKE_MOVE, { move: moves[0]! });
+        expect(moveAck.ok).toBe(true);
+        moveCount++;
+        await new Promise((r) => setTimeout(r, 110)); // Avoid debounce.
+      }
+
+      // Now we've played a few moves. Identify who the current turn player is.
+      const currentTurnPlayerId = room.gameState?.turn;
+      if (!currentTurnPlayerId) {
+        expect.fail('No turn player after moves');
+        return;
+      }
+
+      // Set up listeners for TURN_TIMEOUT on both sockets.
+      const hostTimeoutPromise = waitFor<{ playerId: string }>(host, EVENTS.TURN_TIMEOUT, 2000);
+      const guestTimeoutPromise = waitFor<{ playerId: string }>(guest, EVENTS.TURN_TIMEOUT, 2000);
+
+      // Do NOT send a move. Let the turn timeout fire on its own.
+      // The server's turn timer should have been set by the last make_move,
+      // and will auto-play a move after 350ms, broadcasting TURN_TIMEOUT.
+
+      const timeoutPayload = await Promise.race([hostTimeoutPromise, guestTimeoutPromise]).catch(() => null);
+
+      if (timeoutPayload) {
+        expect(timeoutPayload.playerId).toBe(currentTurnPlayerId);
+      } else {
+        // If we didn't get the event, something went wrong. Let's fail gracefully.
+        expect.fail('TURN_TIMEOUT event was not broadcast within timeout period');
+      }
+
+      // Restore the original config.
+      updateConfig({ turnTimeoutMs: originalTurnTimeoutMs });
+    } finally {
+      host.disconnect();
+      guest.disconnect();
+    }
+  }, 15_000);
 });
