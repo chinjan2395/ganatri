@@ -9,7 +9,7 @@
 import type { Server, Socket } from 'socket.io';
 import type { Move, MoveResult } from '@ganatri/engine';
 import type { GameTransport } from './transport.js';
-import { getSession, getSessionByPlayerId } from './store.js';
+import { getSession, getSessionByPlayerId } from './memoryStore.js';
 
 export class SocketTransport implements GameTransport {
   private readonly io: Server;

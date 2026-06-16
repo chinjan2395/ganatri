@@ -1,6 +1,6 @@
 # Ganatri — Phasewise Development Plan
 
-Last updated: 2026-06-16 (Voice perf/heat fixes: room-gated mic acquisition, watchdog backoff+cap, AudioContext suspend while muted/idle; Critical fixes: TURN_TIMEOUT event, XSS sanitization, grace expiry broadcast, DRY refactor, freeze duration; 26 server tests)  
+Last updated: 2026-06-16 (Phase 6a foundation: packages/db interface + MemoryStore refactor; DatabaseConfig; all 179 tests passing)  
 All 179 tests passing (153 engine + 26 server).
 
 ---
@@ -224,7 +224,11 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | 🔷 DECISION: database engine | ⬜ | **Recommend PostgreSQL** — relational integrity for games/players/stats, strong aggregate/analytics queries (window functions, `GROUP BY`), JSONB for event payloads. SQLite acceptable only for single-instance/dev. |
 | 🔷 DECISION: ORM / query layer | ⬜ | **Recommend Drizzle ORM** (TS-first, SQL-like, fully inferred types, lightweight migrations) given "TS strict everywhere" + pure-engine philosophy. **Prisma** is the batteries-included alternative (mature migrations, Studio GUI) at the cost of a heavier runtime/codegen step. |
 | 🔷 DECISION: managed Postgres host | ⬜ | Options: **Railway Postgres** (MCP already available here), **Neon** (serverless, branching, generous free tier), **Supabase** (Postgres + auth + storage bundled — attractive if we also adopt its auth). Server is on Render today; pick a host with low latency to Render region. |
-| New `packages/db` workspace package (or `packages/server/src/db`) | ⬜ | Houses schema, migrations, repository implementations. Keep importable by server only — never by `packages/engine`. |
+| New `packages/db` workspace package | ✅ | Created with `package.json`, `tsconfig.json`, `src/` structure; exported GameStore interface and types |
+| `GameStore` interface definition | ✅ | `packages/db/src/gameStore.ts`; abstracts session/room lifecycle; SessionState and RoomState types exported |
+| Refactor in-memory store to MemoryStore | ✅ | `packages/server/src/memoryStore.ts` implements GameStore; backward-compatible helper functions; singleton exported |
+| Database configuration structure | ✅ | `packages/server/src/databaseConfig.ts`; getDatabaseConfig() reads env vars; ready for Phase 6b |
+| Update server imports & paths | ✅ | `packages/server/tsconfig.json` path alias; package.json dependency; all imports updated; old store.ts deleted |
 | Connection pooling | ⬜ | Use a pooled client (pg `Pool` / Neon serverless driver / pgBouncer). Size pool for Render instance + future horizontal scaling (ties to Phase 7g). |
 | Environment config & secrets | ⬜ | `DATABASE_URL` + pool size in `.env.example`; wire into existing `config.ts`. Never commit credentials. |
 | Migration tooling & workflow | ⬜ | Drizzle Kit (`drizzle-kit generate`/`migrate`) or Prisma Migrate. Migrations checked into repo; one source of truth for schema. |
@@ -235,8 +239,8 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Define `GameStore` / repository interface | ⬜ | Methods for sessions, rooms, users, games, events, stats. Mirrors `GameTransport` pattern; all handlers depend on the interface, not a concrete store. |
-| Refactor in-memory `store.ts` → `MemoryStore` impl | ⬜ | Today's store becomes one implementation; keeps existing tests green and gives a fast no-DB mode for unit tests. |
+| Define `GameStore` / repository interface | ✅ | Methods for sessions, rooms, users, games, events, stats. Mirrors `GameTransport` pattern; all handlers depend on the interface, not a concrete store. |
+| Refactor in-memory `store.ts` → `MemoryStore` impl | ✅ | Today's store becomes one implementation; keeps existing tests green and gives a fast no-DB mode for unit tests. |
 | Implement `PostgresStore` | ⬜ | Real persistence behind the same interface; selected via env (`STORE=memory\|postgres`). |
 | Schema: `users` | ⬜ | id (uuid), display_name, email (nullable for guests), auth fields, avatar, created_at, last_seen_at, is_guest flag. |
 | Schema: `auth_sessions` | ⬜ | Persisted session/refresh tokens replacing today's purely in-memory session UUIDs; expiry, device info, revoked flag. |
@@ -447,12 +451,12 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 | Phase                        | Status                                                                                  |
 | ---------------------------- | --------------------------------------------------------------------------------------- |
-| Phase 1 — Engine             | ✅ Complete (141 tests)                                                                  |
+| Phase 1 — Engine             | ✅ Complete (153 tests)                                                                  |
 | Phase 2 — Server             | ✅ Complete (26 tests; TURN_TIMEOUT + sanitization + grace expiry broadcast + DRY refactor + freeze fix) |
 | Phase 3 — Web Client         | ✅ Complete (player names wired, all components functional)                              |
 | Phase 4 — Polish             | ✅ Complete (animations, mobile polish; deployment user-handled via Render + Cloudflare) |
 | Phase 5 — Voice Chat         | 🟡 Core + cross-browser fixes + Perfect Negotiation recovery + Cloudflare TURN; smoke test pending |
-| Phase 6 — Persistence/DB     | ⬜ Detailed backlog; not started (~70 tasks + 7 decisions across 10 sub-phases 6a–6j). **Next major phase.** |
+| Phase 6 — Persistence/DB     | 🟡 Phase 6a foundation complete (GameStore interface, MemoryStore refactor, DatabaseConfig); ready for 6b schema/PostgresStore |
 | Phase 7 — Improvements       | ⬜ Backlog identified; not yet started (27 tasks across 7 sub-phases 7a–7g). Urgent bug/security items flagged "pull forward" |
 
 

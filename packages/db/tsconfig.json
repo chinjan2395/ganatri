@@ -7,8 +7,8 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
+    "noEmit": true,
     "paths": {
-      "@ganatri/db": ["../db/src/index.ts"],
       "@ganatri/engine": ["../engine/src/index.ts"]
     }
   },

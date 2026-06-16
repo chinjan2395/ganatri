@@ -2,7 +2,7 @@
  * handlers.ts — Socket.io connection handler & all event routing.
  *
  * Business logic lives here. Transport (socket.io specifics) lives in
- * socketTransport.ts. State lives in store.ts.
+ * socketTransport.ts. State lives in memoryStore.ts.
  */
 
 import type { Server, Socket } from 'socket.io';
@@ -38,7 +38,7 @@ import {
   getSession,
   getSessionByPlayerId,
   updateSession,
-} from './store.js';
+} from './memoryStore.js';
 import type { GameTransport } from './transport.js';
 import { SocketTransport } from './socketTransport.js';
 

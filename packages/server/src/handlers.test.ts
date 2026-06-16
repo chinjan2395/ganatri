@@ -14,7 +14,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { io as ioClient, type Socket as ClientSocket } from 'socket.io-client';
 import { createApp, type AppInstance } from './createApp.js';
-import { resetStore } from './store.js';
+import { resetStore } from './memoryStore.js';
 import { resetLastMoveTime } from './handlers.js';
 import { EVENTS } from './protocol.js';
 import type { legalMoves as LegalMovesFn } from '@ganatri/engine';
@@ -538,7 +538,7 @@ describe('Ganatri server', () => {
      * state from the redacted client view.
      */
     const { legalMoves, createGame } = await import('@ganatri/engine');
-    const { store } = await import('./store.js');
+    const { store } = await import('./memoryStore.js');
 
     const host = connectClient(port);
     const guest = connectClient(port);
@@ -659,9 +659,9 @@ describe('Ganatri server', () => {
 
       // Use the engine to find a legal first move for the host.
       const { legalMoves } = await import('@ganatri/engine');
-      const { store } = await import('./store.js');
+      const { store } = await import('./memoryStore.js');
       const room = store.rooms.get(createAck.roomCode)!;
-      const hostSession = (await import('./store.js')).store.sessions.values()
+      const hostSession = (await import('./memoryStore.js')).store.sessions.values()
         [Symbol.iterator]().next().value;
       // Find the turn player's moves.
       const { gameState } = room;
@@ -805,7 +805,7 @@ describe('Ganatri server', () => {
      * 3. The turn advances to the next player (game does not freeze).
      */
     const { legalMoves, createGame } = await import('@ganatri/engine');
-    const { store } = await import('./store.js');
+    const { store } = await import('./memoryStore.js');
     const { getConfig } = await import('./config.js');
 
     const host = connectClient(port);
@@ -905,7 +905,7 @@ describe('Ganatri server', () => {
      * The game should continue normally with remaining players.
      */
     const { legalMoves, createGame } = await import('@ganatri/engine');
-    const { store } = await import('./store.js');
+    const { store } = await import('./memoryStore.js');
     const { getConfig, updateConfig } = await import('./config.js');
 
     // Temporarily shorten grace period for testing.
