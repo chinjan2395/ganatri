@@ -38,16 +38,15 @@ export const roomStatusEnum = pgEnum('room_status', [
 ]);
 
 export const gameEventTypeEnum = pgEnum('game_event_type', [
-  'GAME_STARTED',
-  'PLAYER_PLAYED',
+  'CARD_PLAYED',
   'CAPTURED',
   'CARD_DRAWN',
+  'PART1_ENDED',
   'TRICK_WON',
   'CUT',
   'PLAYER_SAFE',
+  'HANDS_REDISTRIBUTED',
   'GAME_OVER',
-  'PLAYER_DISCONNECTED',
-  'PLAYER_RECONNECTED',
 ]);
 
 // ---------------------------------------------------------------------------

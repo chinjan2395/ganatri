@@ -1,6 +1,6 @@
 # Ganatri — Phasewise Development Plan
 
-Last updated: 2026-06-16 (Phase 6a database foundation: PostgreSQL + Drizzle ORM + Neon selected; packages/db workspace created with schema & migrations)  
+Last updated: 2026-06-16 (Phase 6a fixes: resolved TypeScript/schema issues, wired @ganatri/db into server)  
 All 179 tests passing (153 engine + 26 server).
 
 ---

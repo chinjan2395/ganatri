@@ -5,22 +5,21 @@
  * When DATABASE_URL is set, we initialize Drizzle ORM for persistence.
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _db: any = null;
+let _db: unknown = null;
 
 /**
  * Get or initialize the Drizzle client.
  * Returns null if DATABASE_URL is not set (in-memory mode).
  */
-export function getDb(): any {
+export function getDb(): unknown {
   if (!process.env.DATABASE_URL) {
     return null;
   }
 
   if (!_db) {
     // Lazy-load to avoid import errors if Vercel Postgres isn't configured
-    const { drizzle } = require('drizzle-orm/vercel-postgres');
-    _db = drizzle();
+    const drizzleModule = require('drizzle-orm/vercel-postgres');
+    _db = drizzleModule.drizzle();
   }
 
   return _db;
