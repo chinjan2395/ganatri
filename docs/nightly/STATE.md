@@ -7,7 +7,7 @@
 Phase 6 — Persistence, Accounts, Statistics & Analytics
 
 ## Status
-NOT_STARTED   <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+IN_PROGRESS   <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase 1 — Rules Engine (153 tests passing)
@@ -29,20 +29,27 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 Phase 6 (Persistence/DB) is next after pull-forward items are done.
 
 ## Last Run
-- Date: 2026-06-16
-- Outcome: ✅ Phase 7 (pull-forward) complete — all 4 urgent fixes shipped (179 tests passing)
-- Branch/PR: nightly/2026-06-16-0855
+- Date: 2026-06-16 (nightly continuation)
+- Outcome: ✅ Phase 6a complete — Database foundation scaffolding, Drizzle ORM, schema, docker-compose, local dev setup (179 tests passing)
+- Branch: nightly/2026-06-16-2345
 
 ## Blockers / Needs Human Input
 (none)
 
 ## Notes for Next Run
-Phase 7 pull-forward is now COMPLETE. All 4 urgent fixes are shipped:
-  ✅ Auto-advance/forfeit on grace period expiry (7b.1)
-  ✅ Disclose auto-played move with TURN_TIMEOUT event (7b.2)
-  ✅ Trick-reveal freeze duration aligned to 2200ms (7d)
-  ✅ Player names sanitized server-side (7e)
+Phase 6a (Database Foundation) is COMPLETE:
+  ✅ Decisions made: PostgreSQL + Drizzle ORM (local docker-compose for dev)
+  ✅ packages/db workspace created with full schema (8 tables, 23 indexes)
+  ✅ Drizzle migrations scaffolded and generated
+  ✅ docker-compose.yml + local dev scripts (npm run db:up/down/migrate)
+  ✅ Server integration (DATABASE_URL + pool config in .env.example)
+  ⏭ Deferred: Managed Postgres host (Railway/Neon/Supabase) — user to provision & set DATABASE_URL for production
 
-Next: Start Phase 6 — Persistence, Accounts, Statistics & Analytics.
-This is a large (~70-task) epic. Begin with Phase 6a (database foundation & infrastructure).
-Recommendation: Start with the DECISION items (database engine, ORM, managed host) — these are blocking tasks.
+Next: Phase 6b — Data-access layer & schema
+  - Define GameStore interface (mirrors GameTransport pattern)
+  - Refactor in-memory store.ts → MemoryStore implementation
+  - Implement PostgresStore (production persistence behind same interface)
+  - Wire both into handlers via env selector (STORE=memory|postgres)
+  - All existing tests remain green (MemoryStore uses in-memory for fast unit tests)
+
+This is the bridge task that shifts the server from pure in-memory to DB-backed while keeping the engine + existing tests intact.
