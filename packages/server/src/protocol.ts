@@ -132,6 +132,13 @@ export interface PlayerReconnectedPayload {
   playerId: string;
 }
 
+/** Broadcast when a player's turn times out and a move is auto-played. */
+export interface TurnTimeoutPayload {
+  playerId: string;
+  /** Optional: details of the auto-played move (for logging/UI). */
+  move?: { type: string; card: string };
+}
+
 // ---------------------------------------------------------------------------
 // Voice chat signaling payloads (WebRTC peer mesh)
 // RTCSdpType must be declared locally — no DOM import on the server.
@@ -249,6 +256,7 @@ export const EVENTS = {
   STATE_UPDATE: 'state_update',
   PLAYER_DISCONNECTED: 'player_disconnected',
   PLAYER_RECONNECTED: 'player_reconnected',
+  TURN_TIMEOUT: 'turn_timeout',
 
   // Voice chat signaling (Client → Server)
   VOICE_OFFER: 'voice_offer',

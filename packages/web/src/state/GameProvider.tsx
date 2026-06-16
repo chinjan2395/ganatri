@@ -150,7 +150,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       // short window so all players can see the completed trick before the board
       // clears. The queued STATE_UPDATE is applied once the freeze expires.
       if (payload.event.type === 'TRICK_WON' || payload.event.type === 'CUT') {
-        const freezeMs = payload.event.type === 'TRICK_WON' ? 1500 : 2000;
+        const freezeMs = payload.event.type === 'TRICK_WON' ? 2200 : 2000;
         trickFreezeUntilRef.current = Date.now() + freezeMs;
         if (trickFreezeTimerRef.current !== null) clearTimeout(trickFreezeTimerRef.current);
         trickFreezeTimerRef.current = setTimeout(() => {

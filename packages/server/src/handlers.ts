@@ -48,6 +48,7 @@ import { SocketTransport } from './socketTransport.js';
 
 const MIN_PLAYERS_TO_START = 2;
 const MOVE_DEBOUNCE_MS = 100;
+const MAX_PLAYER_NAME_LENGTH = 20;
 
 /** Alphabet for room codes: A-Z excluding O (and digits 1-9, no 0). */
 const ROOM_CODE_CHARS = 'ABCDEFGHIJKLMNPQRSTUVWXYZ123456789';
@@ -57,6 +58,26 @@ const ROOM_CODE_CHARS = 'ABCDEFGHIJKLMNPQRSTUVWXYZ123456789';
 // ---------------------------------------------------------------------------
 
 let transport: GameTransport;
+
+// ---------------------------------------------------------------------------
+// Player name sanitization
+// ---------------------------------------------------------------------------
+
+/**
+ * Sanitizes a player name by trimming whitespace, limiting length, and removing
+ * any HTML/special characters that could pose an XSS risk.
+ */
+function sanitizePlayerName(name: string): string {
+  if (!name) return '';
+  // Trim whitespace
+  let sanitized = name.trim();
+  // Enforce character limit
+  sanitized = sanitized.slice(0, MAX_PLAYER_NAME_LENGTH);
+  // Remove HTML/special characters that could be used for XSS
+  // Remove < > and other potentially dangerous characters
+  sanitized = sanitized.replace(/[<>]/g, '');
+  return sanitized;
+}
 
 // ---------------------------------------------------------------------------
 // Turn timer helpers
@@ -76,11 +97,21 @@ function startTurnTimer(roomCode: string, playerId: string, t: GameTransport): v
   clearTurnTimer(room);
   room.turnStartedAt = Date.now();
   room.turnTimer = setTimeout(() => {
-    autoPlayTurn(roomCode, playerId, t);
+    applyAutoMove(roomCode, playerId, t, 'timeout');
   }, getConfig().turnTimeoutMs);
 }
 
-function autoPlayTurn(roomCode: string, playerId: string, t: GameTransport): void {
+/**
+ * Common logic for auto-playing a move due to turn timeout or grace-period expiry.
+ * Applies the first legal move, broadcasts game events, sends updated views,
+ * and arms the next turn timer (if game continues).
+ *
+ * @param roomCode The room where the auto-move is happening
+ * @param playerId The player whose turn it is
+ * @param t The transport for broadcasting
+ * @param reason Why the move is being auto-played: 'timeout' or 'grace-expired'
+ */
+function applyAutoMove(roomCode: string, playerId: string, t: GameTransport, reason: 'timeout' | 'grace-expired'): void {
   const room = getRoom(roomCode);
   if (!room || room.phase !== 'PLAYING' || !room.gameState) return;
   if (room.gameState.turn !== playerId) return;
@@ -88,8 +119,16 @@ function autoPlayTurn(roomCode: string, playerId: string, t: GameTransport): voi
   const moves = legalMoves(room.gameState, playerId);
   if (moves.length === 0) return;
 
-  const result = applyMove(room.gameState, playerId, moves[0]!);
+  const move = moves[0]!;
+  const result = applyMove(room.gameState, playerId, move);
   if (!result.ok) return;
+
+  // Broadcast timeout event before game events so players see the notification.
+  const moveDetails = { type: move.type, card: move.card };
+  t.broadcast(roomCode, EVENTS.TURN_TIMEOUT, {
+    playerId,
+    move: moveDetails,
+  });
 
   room.gameState = result.state;
   if (result.state.phase === 'GAME_OVER') {
@@ -121,8 +160,46 @@ function autoPlayTurn(roomCode: string, playerId: string, t: GameTransport): voi
   if (room.phase === 'PLAYING' && result.state.turn !== null) {
     room.turnStartedAt = nextTurnStartedAt;
     room.turnTimer = setTimeout(() => {
-      autoPlayTurn(roomCode, result.state.turn as string, t);
+      applyAutoMove(roomCode, result.state.turn as string, t, 'timeout');
     }, getConfig().turnTimeoutMs);
+  }
+}
+
+/**
+ * Called when a grace period expires during PLAYING.
+ * If it's the player's turn: auto-play their first legal move (forfeit).
+ * If it's not their turn: they are fully removed from the game (forfeited).
+ * Broadcasts ROOM_UPDATE so other players see the seat is gone.
+ */
+function gracePeriodExpired(roomCode: string, playerId: string, t: GameTransport): void {
+  const room = getRoom(roomCode);
+  if (!room || room.phase !== 'PLAYING' || !room.gameState) {
+    // Grace period expired but we're not in PLAYING anymore (game ended, player left).
+    // Clean up timers and state.
+    if (room) {
+      room.gracePeriodTimers.delete(playerId);
+      room.disconnectedAt.delete(playerId);
+    }
+    return;
+  }
+
+  room.gracePeriodTimers.delete(playerId);
+  room.disconnectedAt.delete(playerId);
+
+  // If it's their turn, auto-play the first legal move (forfeit).
+  if (room.gameState.turn === playerId) {
+    applyAutoMove(roomCode, playerId, t, 'grace-expired');
+  } else {
+    // Not their turn: remove them from the game entirely (forfeit).
+    // They are no longer in the disconnectedPlayers set.
+    room.players = room.players.filter((p) => p !== playerId);
+    if (room.players.length < MIN_PLAYERS_TO_START) {
+      clearTurnTimer(room);
+      room.phase = 'DONE';
+      room.completedAt = Date.now();
+    }
+    // Broadcast updated room state so other players see the seat is gone.
+    broadcastRoomUpdate(roomCode);
   }
 }
 
@@ -283,9 +360,7 @@ function handleDisconnect(socket: Socket, session: SessionState): void {
 
     // Start grace-period countdown.
     const timer = setTimeout(() => {
-      // Grace period expired. Seat is held; game pauses on disconnect in v1.
-      room.gracePeriodTimers.delete(playerId);
-      console.log(`Grace period expired for player ${playerId} in room ${roomCode}`);
+      gracePeriodExpired(roomCode, playerId, transport);
     }, getConfig().gracePeriodMs);
 
     room.gracePeriodTimers.set(playerId, timer);
@@ -319,7 +394,7 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
       ack = maybeAck;
       if (typeof payloadOrAck === 'object' && payloadOrAck !== null) {
         const n = (payloadOrAck as Record<string, unknown>)['name'];
-        if (typeof n === 'string') name = n.trim().slice(0, 20);
+        if (typeof n === 'string') name = sanitizePlayerName(n);
       }
     }
     if (name) updateSession(session.token, { name });
@@ -333,7 +408,7 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
       return;
     }
     if (typeof payload.name === 'string' && payload.name.trim()) {
-      updateSession(session.token, { name: payload.name.trim().slice(0, 20) });
+      updateSession(session.token, { name: sanitizePlayerName(payload.name) });
     }
     handleJoinRoom(socket, session, payload.roomCode.trim().toUpperCase(), ack);
   });
