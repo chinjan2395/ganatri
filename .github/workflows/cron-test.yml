@@ -1,0 +1,12 @@
+name: Cron Test
+
+on:
+  schedule:
+    - cron: '6,11,16 13 * * *'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "cron fired"
