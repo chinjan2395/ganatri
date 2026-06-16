@@ -10,6 +10,7 @@ export interface GameConfig {
   maxPlayers: number;
   gracePeriodMs: number;
   roomExpiryMs: number;
+  databaseUrl?: string;
 }
 
 const _config: GameConfig = {
@@ -17,6 +18,7 @@ const _config: GameConfig = {
   maxPlayers: Number(process.env['MAX_PLAYERS'] ?? 4),
   gracePeriodMs: Number(process.env['GRACE_PERIOD_MS'] ?? 60_000),
   roomExpiryMs: Number(process.env['ROOM_EXPIRY_MS'] ?? 3_600_000),
+  databaseUrl: process.env['DATABASE_URL'],
 };
 
 /** Returns a read-only snapshot of the current config. */

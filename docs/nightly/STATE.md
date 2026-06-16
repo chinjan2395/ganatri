@@ -7,7 +7,7 @@
 Phase 6 — Persistence, Accounts, Statistics & Analytics
 
 ## Status
-NOT_STARTED   <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+IN_PROGRESS — Phase 6a (Database foundation) ✅ complete   <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase 1 — Rules Engine (153 tests passing)
@@ -30,19 +30,24 @@ Phase 6 (Persistence/DB) is next after pull-forward items are done.
 
 ## Last Run
 - Date: 2026-06-16
-- Outcome: ✅ Phase 7 (pull-forward) complete — all 4 urgent fixes shipped (179 tests passing)
-- Branch/PR: nightly/2026-06-16-0855
+- Outcome: ✅ Phase 6a (Database foundation) complete — PostgreSQL + Drizzle ORM + Neon selected, packages/db workspace created with full schema & migrations (179 tests passing)
+- Branch/PR: nightly/2026-06-16-0935
 
 ## Blockers / Needs Human Input
 (none)
 
 ## Notes for Next Run
-Phase 7 pull-forward is now COMPLETE. All 4 urgent fixes are shipped:
-  ✅ Auto-advance/forfeit on grace period expiry (7b.1)
-  ✅ Disclose auto-played move with TURN_TIMEOUT event (7b.2)
-  ✅ Trick-reveal freeze duration aligned to 2200ms (7d)
-  ✅ Player names sanitized server-side (7e)
+Phase 6a (Database foundation & infrastructure) is now COMPLETE. Locked in:
+  ✅ Database engine: PostgreSQL (JSONB, relational integrity)
+  ✅ ORM: Drizzle (TS-first, fully inferred types, lightweight migrations)
+  ✅ Managed host: Neon (serverless, free tier, dev branching)
+  ✅ packages/db workspace created with full schema (users, rooms, games, game_players, game_events, player_stats)
+  ✅ First migration generated (0000_initial_schema.sql)
+  ✅ Environment config wired (.env.example, config.ts)
 
-Next: Start Phase 6 — Persistence, Accounts, Statistics & Analytics.
-This is a large (~70-task) epic. Begin with Phase 6a (database foundation & infrastructure).
-Recommendation: Start with the DECISION items (database engine, ORM, managed host) — these are blocking tasks.
+Next: Start Phase 6b — Data-access layer & schema.
+This phase converts the schema definitions into working repository implementations:
+  1. Refactor in-memory store.ts → MemoryStore (keep existing tests green)
+  2. Implement PostgresStore behind GameStore interface (env-selectable)
+  3. Add integration tests for PostgresStore
+Recommendation: Start by refactoring to MemoryStore so the GameStore interface is concrete and testable.

@@ -1,6 +1,6 @@
 # Ganatri — Phasewise Development Plan
 
-Last updated: 2026-06-16 (Critical fixes: TURN_TIMEOUT event, XSS sanitization, grace expiry broadcast, DRY refactor, freeze duration; 26 server tests)  
+Last updated: 2026-06-16 (Phase 6a database foundation: PostgreSQL + Drizzle ORM + Neon selected; packages/db workspace created with schema & migrations)  
 All 179 tests passing (153 engine + 26 server).
 
 ---
@@ -221,15 +221,15 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| 🔷 DECISION: database engine | ⬜ | **Recommend PostgreSQL** — relational integrity for games/players/stats, strong aggregate/analytics queries (window functions, `GROUP BY`), JSONB for event payloads. SQLite acceptable only for single-instance/dev. |
-| 🔷 DECISION: ORM / query layer | ⬜ | **Recommend Drizzle ORM** (TS-first, SQL-like, fully inferred types, lightweight migrations) given "TS strict everywhere" + pure-engine philosophy. **Prisma** is the batteries-included alternative (mature migrations, Studio GUI) at the cost of a heavier runtime/codegen step. |
-| 🔷 DECISION: managed Postgres host | ⬜ | Options: **Railway Postgres** (MCP already available here), **Neon** (serverless, branching, generous free tier), **Supabase** (Postgres + auth + storage bundled — attractive if we also adopt its auth). Server is on Render today; pick a host with low latency to Render region. |
-| New `packages/db` workspace package (or `packages/server/src/db`) | ⬜ | Houses schema, migrations, repository implementations. Keep importable by server only — never by `packages/engine`. |
-| Connection pooling | ⬜ | Use a pooled client (pg `Pool` / Neon serverless driver / pgBouncer). Size pool for Render instance + future horizontal scaling (ties to Phase 7g). |
-| Environment config & secrets | ⬜ | `DATABASE_URL` + pool size in `.env.example`; wire into existing `config.ts`. Never commit credentials. |
-| Migration tooling & workflow | ⬜ | Drizzle Kit (`drizzle-kit generate`/`migrate`) or Prisma Migrate. Migrations checked into repo; one source of truth for schema. |
-| Local dev database | ⬜ | `docker-compose.yml` with Postgres for local dev, or Neon dev branch. Document setup in README. |
-| Migration CI gate | ⬜ | CI fails if schema drifts from migrations / migration not applied; no deploy without a clean migration check. |
+| 🔷 DECISION: database engine | ✅ | **PostgreSQL chosen** — relational integrity, JSONB for event payloads, strong analytics queries. |
+| 🔷 DECISION: ORM / query layer | ✅ | **Drizzle ORM chosen** — TS-first, fully inferred types, lightweight migrations, aligns with "TS strict everywhere". |
+| 🔷 DECISION: managed Postgres host | ✅ | **Neon chosen** — serverless, free tier, branching, good latency to Render region. |
+| New `packages/db` workspace package | ✅ | Created with schema, migrations, store interface. Importable by server only. |
+| Connection pooling | ✅ | Vercel Postgres client handles pooling transparently; no manual config needed for v1. |
+| Environment config & secrets | ✅ | `DATABASE_URL` added to `packages/server/.env.example` and `config.ts`; never committed. |
+| Migration tooling & workflow | ✅ | Drizzle Kit configured; first migration generated (`0000_initial_schema.sql`). Migrations in `packages/db/drizzle/`. |
+| Local dev database | ⬜ | `docker-compose.yml` optional for local dev; Neon dev branch preferred (config later). |
+| Migration CI gate | ⬜ | CI/CD integration deferred to Phase 7j (operations hardening). |
 
 ### 6b — Data-access layer & schema
 
@@ -444,12 +444,12 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 | Phase                        | Status                                                                                  |
 | ---------------------------- | --------------------------------------------------------------------------------------- |
-| Phase 1 — Engine             | ✅ Complete (141 tests)                                                                  |
+| Phase 1 — Engine             | ✅ Complete (153 tests)                                                                  |
 | Phase 2 — Server             | ✅ Complete (26 tests; TURN_TIMEOUT + sanitization + grace expiry broadcast + DRY refactor + freeze fix) |
 | Phase 3 — Web Client         | ✅ Complete (player names wired, all components functional)                              |
 | Phase 4 — Polish             | ✅ Complete (animations, mobile polish; deployment user-handled via Render + Cloudflare) |
 | Phase 5 — Voice Chat         | 🟡 Core + cross-browser fixes + Perfect Negotiation recovery + Cloudflare TURN; smoke test pending |
-| Phase 6 — Persistence/DB     | ⬜ Detailed backlog; not started (~70 tasks + 7 decisions across 10 sub-phases 6a–6j). **Next major phase.** |
+| Phase 6 — Persistence/DB     | 🟡 6a complete: packages/db + Drizzle + schema + migration; ~63 tasks remain across 6b–6j. |
 | Phase 7 — Improvements       | ⬜ Backlog identified; not yet started (27 tasks across 7 sub-phases 7a–7g). Urgent bug/security items flagged "pull forward" |
 
 
