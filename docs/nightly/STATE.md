@@ -7,7 +7,7 @@
 Phase 6 — Persistence, Accounts, Statistics & Analytics
 
 ## Status
-NOT_STARTED   <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+BLOCKED   <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase 1 — Rules Engine (153 tests passing)
@@ -29,20 +29,32 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 Phase 6 (Persistence/DB) is next after pull-forward items are done.
 
 ## Last Run
-- Date: 2026-06-16
-- Outcome: ✅ Phase 7 (pull-forward) complete — all 4 urgent fixes shipped (179 tests passing)
-- Branch/PR: nightly/2026-06-16-0855
+- Date: 2026-06-17
+- Outcome: 🚫 Phase 6 BLOCKED — awaiting architectural decisions (9 decision points in 6a–6f)
+- Branch/PR: nightly/2026-06-17-0509
 
 ## Blockers / Needs Human Input
-(none)
+
+**Phase 6 cannot start without resolving 7 architectural decisions:**
+
+All tasks in Phase 6a–6f depend on decisions that require human judgment. Autonomous runs cannot make these calls. Required decisions (see DEVELOPMENT_PLAN.md for details and recommendations):
+
+1. **Database engine** (6a): PostgreSQL vs SQLite vs other?
+2. **ORM/query layer** (6a): Drizzle vs Prisma vs other?
+3. **Managed host** (6a): Railway vs Neon vs Supabase (or self-hosted)?
+4. **Event-log granularity** (6b): Full move-by-move log (enables replay) vs summary-only (cheaper)?
+5. **Account model** (6c): Guest-first with optional upgrade vs other?
+6. **Auth method** (6c): Passwordless magic link vs Google OAuth vs Supabase Auth vs other?
+7. **Analytics** (6f): Self-hosted (analytics_events table) vs PostHog/Plausible?
+   - Also: aggregation strategy (incremental vs batch), rating system (ELO/Glicko-2/skip)
+
+**Unblock path:** Schedule a planning session with the owner to finalize these decisions (recommendations provided in DEVELOPMENT_PLAN.md). Once decisions are locked, Phase 6a scaffolding and implementation can proceed in subsequent nightly runs.
 
 ## Notes for Next Run
-Phase 7 pull-forward is now COMPLETE. All 4 urgent fixes are shipped:
-  ✅ Auto-advance/forfeit on grace period expiry (7b.1)
-  ✅ Disclose auto-played move with TURN_TIMEOUT event (7b.2)
-  ✅ Trick-reveal freeze duration aligned to 2200ms (7d)
-  ✅ Player names sanitized server-side (7e)
+**Await architectural decisions before Phase 6 begins.**
 
-Next: Start Phase 6 — Persistence, Accounts, Statistics & Analytics.
-This is a large (~70-task) epic. Begin with Phase 6a (database foundation & infrastructure).
-Recommendation: Start with the DECISION items (database engine, ORM, managed host) — these are blocking tasks.
+All urgent bug/security fixes shipped (Phase 7 pull-forward: 4/4 complete). No blocking gameplay issues remain. Phase 6 requires a planning session:
+- Owner must choose: database engine, ORM, host, account model, auth method, analytics strategy, and 2 other architectural calls.
+- Once locked, Phase 6a (scaffolding) can proceed, followed by 6b (schema) → 6c (auth) → 6d (persistence) → 6e–6j (features/ops).
+
+Optional: Phase 5.7 (voice multi-tab smoke test) can be completed by any human with a microphone if desired before DB work starts.
