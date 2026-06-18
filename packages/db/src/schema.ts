@@ -49,6 +49,9 @@ export const gameEventTypeEnum = pgEnum('game_event_type', [
   'GAME_OVER',
 ]);
 
+export type RoomStatusValue = (typeof roomStatusEnum.enumValues)[number];
+export type GameEventTypeValue = (typeof gameEventTypeEnum.enumValues)[number];
+
 // ---------------------------------------------------------------------------
 // Users
 // ---------------------------------------------------------------------------
@@ -114,7 +117,8 @@ export const games = pgTable(
       .notNull()
       .references(() => rooms.id),
     // Random seed used to shuffle the deck (ensures deterministic replay).
-    seed: integer('seed').notNull(),
+    // Text because the engine seed is `number | string` (CALCULATIONS §4.6).
+    seed: text('seed').notNull(),
     // Seating order: array of user IDs in play order.
     seatingOrder: jsonb('seating_order').notNull(),
     playerCount: integer('player_count').notNull(),
@@ -158,6 +162,10 @@ export const gamePlayers = pgTable(
     return {
       gameIdIdx: index('game_players_game_id_idx').on(table.gameId),
       userIdIdx: index('game_players_user_id_idx').on(table.userId),
+      gameIdSeatIdx: uniqueIndex('game_players_game_id_seat_idx').on(
+        table.gameId,
+        table.seatIndex
+      ),
     };
   }
 );
@@ -222,6 +230,3 @@ export const playerStats = pgTable(
     };
   }
 );
-
-// Re-export schema for Drizzle configuration.
-export * from 'drizzle-orm/pg-core';

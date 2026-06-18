@@ -2,21 +2,27 @@
   "name": "@ganatri/db",
   "version": "0.0.0",
   "private": true,
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
-    "build": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "migrate": "drizzle-kit migrate",
     "generate": "drizzle-kit generate"
   },
   "dependencies": {
-    "@vercel/postgres": "^0.8.0",
-    "drizzle-orm": "^0.31.0"
+    "drizzle-orm": "^0.31.0",
+    "pg": "^8.11.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.2.0",
     "@types/node": "^22.0.0",
-    "drizzle-kit": "^0.20.14",
-    "typescript": "^5.8.0"
+    "@types/pg": "^8.11.0",
+    "drizzle-kit": "^0.22.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.1.0"
   }
 }
