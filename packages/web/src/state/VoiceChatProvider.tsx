@@ -65,7 +65,11 @@ export function VoiceChatProvider({ children }: { children: React.ReactNode }): 
   const players = useMemo(() => roomPlayers ?? EMPTY_PLAYERS, [roomPlayers]);
 
   const myId = session?.playerId ?? null;
-  const state: VoiceChatState = useVoiceChat(myId, players);
+  // Voice is only active while the user is in a room. When `room` is null
+  // (lobby / disconnected) the hook never acquires the mic or starts an
+  // AudioContext, and tears everything down if the user leaves a room.
+  const enabled = !!room;
+  const state: VoiceChatState = useVoiceChat(myId, players, enabled);
 
   // Memoize the stable (action) slice of voice state. This value only changes
   // when the user actually interacts with voice controls, not on every speaking

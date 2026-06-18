@@ -1,6 +1,7 @@
 # Ganatri — Phasewise Development Plan
 
 Last updated: 2026-06-16 (Phase 6a fixes: resolved TypeScript/schema issues, wired @ganatri/db into server)  
+Last updated: 2026-06-16 (Voice perf/heat fixes: room-gated mic acquisition, watchdog backoff+cap, AudioContext suspend while muted/idle; Critical fixes: TURN_TIMEOUT event, XSS sanitization, grace expiry broadcast, DRY refactor, freeze duration; 26 server tests)  
 All 179 tests passing (153 engine + 26 server).
 
 ---
@@ -387,6 +388,9 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | Visual peer-connection state indicator (connecting / connected / failed) | ⬜ | Players have no feedback when ICE negotiation is in progress or has silently failed |
 | Handle mic permission revocation mid-game | ⬜ | Permission denied is only caught at startup; OS can revoke it later with no UI feedback |
 | Guard TURN credential hand-out near TTL boundary | ⬜ | Cached creds shared across all clients; players joining seconds before expiry may receive already-expired credentials |
+| Perf/heat fix: only acquire mic / run voice while in a room | ✅ | `useVoiceChat` now takes `enabled` (true when `room` non-null, from `VoiceChatProvider`). No `getUserMedia`/AudioContext/peers in the lobby; full teardown (tracks/peers/detection/ctx-suspend) when leaving a room |
+| Perf/heat fix: watchdog exponential backoff + retry cap | ✅ | `useVoiceChat` watchdog now backs off 8s→60s and gives up after 6 attempts (was unbounded 8s re-arm); resets on `connected`. Per-peer `watchdogDelay`/`watchdogAttempts` on `PeerCtx` |
+| Perf/heat fix: suspend AudioContext + pause local detection while muted/idle | ✅ | `useVoiceChat` stops local speaking-detection polling when muted/PTT-inactive and suspends the AudioContext when no analysers (local or remote) need it; resumes on unmute/PTT. iOS unlock preserved |
 
 ### 7d — Game UX
 

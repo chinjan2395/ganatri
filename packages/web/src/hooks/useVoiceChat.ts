@@ -44,7 +44,15 @@ const SPEAKING_DEBOUNCE_MS = 150;
 // If a peer connection hasn't reached "connected" within this window, force a
 // recovery (ICE restart → fresh offer). Catches silently-dropped offers — the
 // server relay drops signaling if the target socket isn't registered yet.
-const CONNECT_WATCHDOG_MS = 8_000;
+//
+// The watchdog uses exponential backoff: it starts at WATCHDOG_BASE_MS and
+// roughly doubles after each unsuccessful recovery (capped at WATCHDOG_MAX_MS),
+// and gives up entirely after WATCHDOG_MAX_ATTEMPTS so a permanently-failing
+// peer doesn't keep the radio awake forever (battery/heat). Reaching the
+// 'connected' state resets the backoff so a later drop starts fresh.
+const WATCHDOG_BASE_MS = 8_000;
+const WATCHDOG_MAX_MS = 60_000;
+const WATCHDOG_MAX_ATTEMPTS = 6;
 
 // Explicit constraints: disable browser noise suppression and AGC because
 // they make voices sound muffled/robotic. Echo cancellation stays on to
@@ -75,11 +83,18 @@ interface PeerCtx {
   // ICE candidates that arrived before remoteDescription was set.
   iceQueue: RTCIceCandidateInit[];
   watchdog: ReturnType<typeof setTimeout> | null;
+  // Exponential-backoff state for the watchdog. `watchdogDelay` is the current
+  // interval (doubles each retry up to WATCHDOG_MAX_MS); `watchdogAttempts`
+  // counts recovery attempts so we can give up after WATCHDOG_MAX_ATTEMPTS.
+  // Both reset to their initial values once the peer reaches 'connected'.
+  watchdogDelay: number;
+  watchdogAttempts: number;
 }
 
 export function useVoiceChat(
   myPlayerId: string | null,
   roomPlayers: readonly string[],
+  enabled: boolean,
 ): VoiceChatState {
   const [muted, setMuted] = useState(true);
   const [deafened, setDeafened] = useState(false);
@@ -102,6 +117,10 @@ export function useVoiceChat(
   const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserCleanupRef = useRef<Map<string, () => void>>(new Map());
+  // Mirror `enabled` in a ref so stable callbacks (createPeer, mount cleanup)
+  // can read the latest value without being re-created.
+  const enabledRef = useRef(enabled);
+  enabledRef.current = enabled;
   // Audio elements whose .play() was blocked by the browser (iOS autoplay policy).
   const pendingPlayRef = useRef<Set<HTMLAudioElement>>(new Set());
   // Signaling that arrived before the PeerCtx was created (same-device race:
@@ -120,6 +139,8 @@ export function useVoiceChat(
 
     const ctx = audioCtxRef.current ?? new AudioContext();
     audioCtxRef.current = ctx;
+    // An analyser is about to poll — make sure the context isn't suspended.
+    if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
 
     const source = ctx.createMediaStreamSource(stream);
     const analyser = ctx.createAnalyser();
@@ -171,12 +192,42 @@ export function useVoiceChat(
     });
   }, []);
 
+  // ── AudioContext power management ─────────────────────────────────────────
+  //
+  // The AudioContext (and its analyser polling) burns CPU/battery while running.
+  // We suspend it whenever nothing needs it — i.e. there are no active analysers
+  // (neither the local mic detection nor any remote-stream detection). It is
+  // resumed lazily whenever an analyser is (re)started. This must not regress
+  // the iOS autoplay-unlock path: unlockAudio() still resumes on user gesture,
+  // and we only suspend, never close, so a later resume() works without a fresh
+  // user gesture once the page has been unlocked.
+
+  // Suspend the context if no analyser currently needs it. Remote speaking
+  // detection keeps an analyser per connected peer, so this only suspends when
+  // there are genuinely no active analysers (local muted AND no remote streams).
+  const maybeSuspendAudioCtx = useCallback(() => {
+    const ctx = audioCtxRef.current;
+    if (!ctx) return;
+    if (analyserCleanupRef.current.size > 0) return;
+    if (ctx.state === 'running') void ctx.suspend().catch(() => {});
+  }, []);
+
+  // Resume the context when an analyser needs to poll. Async/best-effort: on iOS
+  // resume() may reject until a user gesture, which unlockAudio() handles later.
+  const resumeAudioCtx = useCallback(() => {
+    const ctx = audioCtxRef.current;
+    if (ctx && ctx.state === 'suspended') void ctx.resume().catch(() => {});
+  }, []);
+
   // ── iOS audio unlock ────────────────────────────────────────────────────
 
   // iOS Safari starts AudioContext suspended and blocks audio autoplay outside
   // of a user gesture. Resume the context and retry any blocked audio elements.
   const unlockAudio = useCallback(() => {
-    if (audioCtxRef.current?.state === 'suspended') {
+    // Only resume on a user gesture if something actually needs the context
+    // (an active analyser). If we're muted/idle and intentionally suspended,
+    // don't wake it up just because the user tapped — that would defeat Fix 3.
+    if (audioCtxRef.current?.state === 'suspended' && analyserCleanupRef.current.size > 0) {
       void audioCtxRef.current.resume();
     }
     for (const el of [...pendingPlayRef.current]) {
@@ -232,7 +283,14 @@ export function useVoiceChat(
 
   // ── init / cleanup local stream ─────────────────────────────────────────
 
+  // Gated on `enabled` (true only while the user is in a room). When disabled
+  // we never acquire the mic / start an AudioContext, so the lobby costs nothing.
+  // When it flips false after being true (user leaves the room), the cleanup
+  // below fully tears voice down: tracks stopped, peers closed, detection
+  // stopped, AudioContext suspended.
   useEffect(() => {
+    if (!enabled) return;
+
     let cancelled = false;
 
     navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS, video: false }).then(stream => {
@@ -244,19 +302,30 @@ export function useVoiceChat(
       stream.getAudioTracks().forEach(t => { t.enabled = false; });
       localStreamRef.current = stream;
       setLocalStreamReady(true);
-      if (myPlayerId) startSpeakingDetection(myPlayerId, stream);
+      // Local mic starts disabled, so detection stays paused until unmuted/PTT
+      // (see the mute/PTT sync effect). Don't start it here.
     }).catch(() => {
       if (!cancelled) setPermissionDenied(true);
     });
 
     return () => {
       cancelled = true;
+      // Close every peer connection and its per-peer detection/audio.
+      for (const pid of [...peersRef.current.keys()]) closePeer(pid);
+      // Stop local speaking detection (if running) and clear the speaking set.
+      if (myPlayerId) stopSpeakingDetection(myPlayerId);
+      setSpeaking(new Set());
+      // Release the mic so the radio/DSP can power down.
       localStreamRef.current?.getTracks().forEach(t => t.stop());
       localStreamRef.current = null;
       setLocalStreamReady(false);
+      // Nothing needs the AudioContext now — suspend it (don't close, so the
+      // next room keeps the iOS-unlocked context).
+      maybeSuspendAudioCtx();
     };
+  // closePeer/stopSpeakingDetection/maybeSuspendAudioCtx are stable callbacks.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [enabled]);
 
   // ── fetch ICE servers (STUN + Cloudflare TURN) from the server ──────────
 
@@ -373,6 +442,8 @@ export function useVoiceChat(
       makingOffer: false,
       iceQueue: [],
       watchdog: null,
+      watchdogDelay: WATCHDOG_BASE_MS,
+      watchdogAttempts: 0,
     };
     peersRef.current.set(peerId, ctx);
 
@@ -398,12 +469,28 @@ export function useVoiceChat(
 
     const armWatchdog = () => {
       if (ctx.watchdog) clearTimeout(ctx.watchdog);
+      // Give up after the attempt cap so a permanently-failing peer stops
+      // keeping the radio awake (battery/heat). Resets on 'connected'.
+      if (ctx.watchdogAttempts >= WATCHDOG_MAX_ATTEMPTS) {
+        console.warn(
+          '[voice] watchdog gave up for peer', peerId,
+          'after', ctx.watchdogAttempts, 'attempts; state=', pc.connectionState,
+        );
+        return;
+      }
+      const delay = ctx.watchdogDelay;
       ctx.watchdog = setTimeout(() => {
         if (pc.connectionState === 'connected' || pc.connectionState === 'closed') return;
-        console.debug('[voice] watchdog recovery for peer', peerId, 'state=', pc.connectionState);
+        ctx.watchdogAttempts += 1;
+        console.debug(
+          '[voice] watchdog recovery for peer', peerId,
+          'attempt', ctx.watchdogAttempts, 'state=', pc.connectionState,
+        );
         recover();
+        // Exponential backoff: roughly double each retry, capped.
+        ctx.watchdogDelay = Math.min(ctx.watchdogDelay * 2, WATCHDOG_MAX_MS);
         armWatchdog();
-      }, CONNECT_WATCHDOG_MS);
+      }, delay);
     };
 
     // Diagnostic: log whether this peer connected directly (P2P/STUN) or via a
@@ -484,6 +571,9 @@ export function useVoiceChat(
       const st = pc.connectionState;
       if (st === 'connected') {
         if (ctx.watchdog) { clearTimeout(ctx.watchdog); ctx.watchdog = null; }
+        // Reset backoff so a later drop starts a fresh recovery sequence.
+        ctx.watchdogDelay = WATCHDOG_BASE_MS;
+        ctx.watchdogAttempts = 0;
         void logConnectionType();
         // Bump Opus bitrate above its conservative default.
         for (const sender of pc.getSenders()) {
@@ -529,7 +619,7 @@ export function useVoiceChat(
   // ── build/tear-down peer connections when player list or stream changes ─
 
   useEffect(() => {
-    if (!myPlayerId || !localStreamReady || !iceServersReady || !localStreamRef.current) return;
+    if (!enabled || !myPlayerId || !localStreamReady || !iceServersReady || !localStreamRef.current) return;
 
     const stream = localStreamRef.current;
     const currentPeers = new Set(peersRef.current.keys());
@@ -544,7 +634,7 @@ export function useVoiceChat(
     for (const peerId of desiredPeers) {
       createPeer(peerId, stream, myPlayerId);
     }
-  }, [myPlayerId, roomPlayers, localStreamReady, iceServersReady, createPeer, closePeer]);
+  }, [enabled, myPlayerId, roomPlayers, localStreamReady, iceServersReady, createPeer, closePeer]);
 
   // ── socket: handle relayed signaling ───────────────────────────────────
 
@@ -608,6 +698,8 @@ export function useVoiceChat(
   useEffect(() => {
     function onReconnect() {
       for (const pid of [...peersRef.current.keys()]) closePeer(pid);
+      // Don't rebuild peers if voice is disabled (user not in a room).
+      if (!enabledRef.current) return;
       // Refresh ICE credentials (TURN creds may have expired), then rebuild.
       void loadIceServers().finally(() => {
         const stream = localStreamRef.current;
@@ -625,16 +717,26 @@ export function useVoiceChat(
   // ── mute / PTT sync ─────────────────────────────────────────────────────
 
   const applyMuteState = useCallback((shouldMute: boolean) => {
-    localStreamRef.current?.getAudioTracks().forEach(t => { t.enabled = !shouldMute; });
-    if (myPlayerId && shouldMute) {
-      setSpeaking(prev => {
-        const next = new Set(prev);
-        next.delete(myPlayerId);
-        return next;
-      });
-    }
-  }, [myPlayerId]);
+    const stream = localStreamRef.current;
+    stream?.getAudioTracks().forEach(t => { t.enabled = !shouldMute; });
 
+    if (shouldMute) {
+      // Muted / PTT inactive: we cannot transmit, so stop polling the local
+      // analyser. If nothing else needs the AudioContext (no remote streams),
+      // suspend it to save CPU/battery. stopSpeakingDetection also clears the
+      // local speaking flag.
+      if (myPlayerId) stopSpeakingDetection(myPlayerId);
+      maybeSuspendAudioCtx();
+    } else if (stream && myPlayerId) {
+      // Unmuted / PTT active: resume the context and (re)start local detection.
+      resumeAudioCtx();
+      startSpeakingDetection(myPlayerId, stream);
+    }
+  }, [myPlayerId, stopSpeakingDetection, startSpeakingDetection, maybeSuspendAudioCtx, resumeAudioCtx]);
+
+  // Also depends on localStreamReady so that once the mic stream arrives, the
+  // current mute/PTT state is (re)applied — starting local detection if the
+  // user is already unmuted / holding PTT.
   useEffect(() => {
     if (mode === 'open') {
       applyMuteState(muted);
@@ -642,7 +744,7 @@ export function useVoiceChat(
       // PTT: track enabled only while button/Space is held.
       applyMuteState(!pttActive);
     }
-  }, [muted, mode, pttActive, applyMuteState]);
+  }, [muted, mode, pttActive, localStreamReady, applyMuteState]);
 
   // ── keyboard push-to-talk ────────────────────────────────────────────────
 
