@@ -17,6 +17,7 @@ export default defineConfig({
     // Mirror the tsconfig paths so vitest resolves @ganatri/engine to source.
     alias: {
       '@ganatri/engine': new URL('../engine/src/index.ts', import.meta.url).pathname,
+      '@ganatri/db': new URL('../db/src/index.ts', import.meta.url).pathname,
     },
   },
 });
