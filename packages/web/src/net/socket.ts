@@ -16,6 +16,7 @@ import {
   type MakeMovePayload,
   type RequestStateAck,
   type RequestHistoryAck,
+  type GetMyStatsAck,
   type RequestIceServersAck,
   type StartGameAck,
 } from '../protocol';
@@ -79,6 +80,10 @@ export function requestState(): Promise<RequestStateAck> {
 
 export function requestHistory(): Promise<RequestHistoryAck> {
   return emitAck<RequestHistoryAck>(EVENTS.REQUEST_HISTORY);
+}
+
+export function requestMyStats(): Promise<GetMyStatsAck> {
+  return emitAck<GetMyStatsAck>(EVENTS.GET_MY_STATS);
 }
 
 /** Full-page navigation to the server's Google OAuth entry point so the
