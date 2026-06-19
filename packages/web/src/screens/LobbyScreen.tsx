@@ -185,6 +185,13 @@ export function LobbyScreen(): React.ReactNode {
                 >
                   History
                 </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => setScreen('stats')}
+                >
+                  Stats
+                </button>
                 <button type="button" className="secondary" onClick={() => logout()}>
                   Log out
                 </button>

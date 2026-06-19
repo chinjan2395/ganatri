@@ -5,6 +5,7 @@ import { RoomScreen } from './screens/RoomScreen';
 import { GameScreen } from './screens/GameScreen';
 import { AdminScreen } from './screens/AdminScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
+import { StatsScreen } from './screens/StatsScreen';
 import { Toast } from './components/Toast';
 import { ConnectionBanner } from './components/ConnectionBanner';
 
@@ -38,6 +39,8 @@ export function App(): React.ReactNode {
     );
   } else if (room) {
     screen = <RoomScreen />;
+  } else if (navScreen === 'stats') {
+    screen = <StatsScreen />;
   } else if (navScreen === 'history') {
     screen = <HistoryScreen />;
   } else {

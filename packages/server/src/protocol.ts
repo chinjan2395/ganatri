@@ -141,6 +141,37 @@ export type RequestHistoryAck =
   | { ok: true; games: GameHistoryEntry[] }
   | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
 
+/**
+ * Aggregate player statistics for the logged-in account (wire shape).
+ * Mirrors `packages/web/src/protocol.ts` field-for-field. Timestamps are ISO
+ * strings (or null when the user has no stats row yet).
+ */
+export interface PlayerStatsView {
+  gamesPlayed: number;
+  gamesWon: number;
+  gamesLost: number;
+  gamesAbandoned: number;
+  winRate: number; // gamesWon / gamesPlayed in [0,1]; 0 when gamesPlayed === 0
+  totalCaptures: number;
+  cutsGiven: number;
+  cutsReceived: number;
+  timesSafe: number;
+  totalPlayTimeMs: number;
+  currentWinStreak: number;
+  longestWinStreak: number;
+  updatedAt: string | null; // ISO string; null when the user has no stats row yet
+}
+
+/**
+ * Ack for get_my_stats.
+ * - logged-in account → aggregate stats (all-zero view when no row exists yet)
+ * - guest connection → NOT_LOGGED_IN
+ * - no persistence configured / DB error → UNAVAILABLE
+ */
+export type GetMyStatsAck =
+  | { ok: true; stats: PlayerStatsView }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
+
 // ---------------------------------------------------------------------------
 // Server → Client pushed events
 // ---------------------------------------------------------------------------
@@ -311,6 +342,7 @@ export const EVENTS = {
   MAKE_MOVE: 'make_move',
   REQUEST_STATE: 'request_state',
   REQUEST_HISTORY: 'request_history',
+  GET_MY_STATS: 'get_my_stats',
 
   // Admin (Client → Server)
   ADMIN_AUTH: 'admin_auth',

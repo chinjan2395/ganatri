@@ -84,6 +84,26 @@ export type RequestHistoryAck =
   | { ok: true; games: GameHistoryEntry[] }
   | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
 
+export interface PlayerStatsView {
+  gamesPlayed: number;
+  gamesWon: number;
+  gamesLost: number;
+  gamesAbandoned: number;
+  winRate: number; // gamesWon / gamesPlayed in [0,1]; 0 when gamesPlayed === 0
+  totalCaptures: number;
+  cutsGiven: number;
+  cutsReceived: number;
+  timesSafe: number;
+  totalPlayTimeMs: number;
+  currentWinStreak: number;
+  longestWinStreak: number;
+  updatedAt: string | null;
+}
+
+export type GetMyStatsAck =
+  | { ok: true; stats: PlayerStatsView }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
+
 // --- Server → Client pushed payloads ---
 export interface SessionPayload {
   token: string;
@@ -191,6 +211,7 @@ export const EVENTS = {
   MAKE_MOVE: 'make_move',
   REQUEST_STATE: 'request_state',
   REQUEST_HISTORY: 'request_history',
+  GET_MY_STATS: 'get_my_stats',
   SESSION: 'session',
   ROOM_UPDATE: 'room_update',
   GAME_EVENT: 'game_event',

@@ -21,6 +21,8 @@ import {
   type RequestStateAck,
   type RequestHistoryAck,
   type GameHistoryEntry as WireGameHistoryEntry,
+  type GetMyStatsAck,
+  type PlayerStatsView,
   type VoiceOfferPayload,
   type VoiceAnswerPayload,
   type VoiceIcePayload,
@@ -28,7 +30,7 @@ import {
   type RequestIceServersAck,
   EVENTS,
 } from './protocol.js';
-import type { GameHistoryEntry as DbGameHistoryEntry } from '@ganatri/db';
+import type { GameHistoryEntry as DbGameHistoryEntry, PlayerStatsRow } from '@ganatri/db';
 import { getConfig, isAdminEmail, updateConfig, RETENTION_DAYS } from './config.js';
 import { getIceServers } from './iceConfig.js';
 import {
@@ -553,6 +555,11 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
     void handleRequestHistory(session, ack);
   });
 
+  socket.on(EVENTS.GET_MY_STATS, (ack: (res: GetMyStatsAck) => void) => {
+    if (typeof ack !== 'function') return;
+    void handleGetMyStats(session, ack);
+  });
+
   // Admin: authenticate
   socket.on(EVENTS.ADMIN_AUTH, (payload: AdminAuthPayload, ack: (res: { ok: boolean; reason?: string }) => void) => {
     if (typeof ack !== 'function') return;
@@ -1044,6 +1051,74 @@ function flattenHistoryEntry(e: DbGameHistoryEntry): WireGameHistoryEntry {
       captureCount: pl.captureCount,
       wasCut: pl.wasCut,
     })),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// get_my_stats
+// ---------------------------------------------------------------------------
+
+async function handleGetMyStats(
+  session: SessionState,
+  ack: (res: GetMyStatsAck) => void,
+): Promise<void> {
+  // Only durable (logged-in) accounts have aggregate statistics.
+  if (session.userId === null) {
+    ack({ ok: false, error: 'NOT_LOGGED_IN' });
+    return;
+  }
+
+  const p = getPersistence();
+  if (!p) {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+
+  try {
+    const row = await p.getPlayerStats(session.userId);
+    // "Logged in, never finished a game" is a valid empty result, not an error.
+    ack({ ok: true, stats: row === null ? zeroStatsView() : mapStatsView(row) });
+  } catch (err) {
+    console.error(`[stats] getPlayerStats failed for ${session.userId}:`, err);
+    ack({ ok: false, error: 'UNAVAILABLE' });
+  }
+}
+
+/** Map a DB stats row to the FLAT wire shape (Date → ISO string, derive winRate). */
+function mapStatsView(row: PlayerStatsRow): PlayerStatsView {
+  return {
+    gamesPlayed: row.gamesPlayed,
+    gamesWon: row.gamesWon,
+    gamesLost: row.gamesLost,
+    gamesAbandoned: row.gamesAbandoned,
+    winRate: row.gamesPlayed > 0 ? row.gamesWon / row.gamesPlayed : 0,
+    totalCaptures: row.totalCaptures,
+    cutsGiven: row.cutsGiven,
+    cutsReceived: row.cutsReceived,
+    timesSafe: row.timesSafe,
+    totalPlayTimeMs: row.totalPlayTimeMs,
+    currentWinStreak: row.currentWinStreak,
+    longestWinStreak: row.longestWinStreak,
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+/** An all-zero stats view for a logged-in user with no stats row yet. */
+function zeroStatsView(): PlayerStatsView {
+  return {
+    gamesPlayed: 0,
+    gamesWon: 0,
+    gamesLost: 0,
+    gamesAbandoned: 0,
+    winRate: 0,
+    totalCaptures: 0,
+    cutsGiven: 0,
+    cutsReceived: 0,
+    timesSafe: 0,
+    totalPlayTimeMs: 0,
+    currentWinStreak: 0,
+    longestWinStreak: 0,
+    updatedAt: null,
   };
 }
 
