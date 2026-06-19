@@ -14,3 +14,57 @@
   color: var(--danger);
   font-weight: 600;
 }
+.lobby__account {
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(231, 195, 74, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+.lobby__account-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.lobby__avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(231, 195, 74, 0.5);
+}
+.lobby__avatar--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel-2);
+  color: var(--accent);
+  font-weight: 700;
+}
+.lobby__account-name {
+  font-weight: 600;
+}
+.lobby__account-actions {
+  justify-content: center;
+}
+.lobby__google-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+}
+.lobby__google-g {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  color: #4285f4;
+  font-family: var(--font-display), serif;
+  font-weight: 700;
+  font-size: 14px;
+}

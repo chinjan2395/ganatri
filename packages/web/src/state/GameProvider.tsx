@@ -15,6 +15,9 @@ import {
   leaveRoom as netLeaveRoom,
   makeMove as netMakeMove,
   requestState,
+  requestHistory as netRequestHistory,
+  loginWithGoogle as netLoginWithGoogle,
+  logout as netLogout,
   setToken,
   socket,
   startGame as netStartGame,
@@ -26,6 +29,7 @@ import {
   type JoinRoomAck,
   type PlayerDisconnectedPayload,
   type PlayerReconnectedPayload,
+  type RequestHistoryAck,
   type RoomUpdatePayload,
   type SessionPayload,
   type StartGameAck,
@@ -37,6 +41,13 @@ export interface SessionInfo {
   playerId: string;
 }
 
+export interface AccountInfo {
+  loggedIn: boolean;
+  displayName?: string;
+  email?: string;
+  avatarUrl?: string;
+}
+
 export interface LoggedEvent {
   id: number;
   event: GameEvent;
@@ -45,6 +56,7 @@ export interface LoggedEvent {
 export interface GameContextValue {
   connected: boolean;
   session: SessionInfo | null;
+  account: AccountInfo | null;
   room: RoomUpdatePayload | null;
   view: PlayerView | null;
   turnStartedAt: number | null;
@@ -61,6 +73,12 @@ export interface GameContextValue {
   leaveRoom: () => Promise<void>;
   startGame: () => Promise<StartGameAck>;
   makeMove: (move: Move) => Promise<boolean>;
+  /** Lightweight in-app navigation for non-game screens (e.g. history). */
+  screen: 'main' | 'history';
+  setScreen: (screen: 'main' | 'history') => void;
+  requestHistory: () => Promise<RequestHistoryAck>;
+  loginWithGoogle: () => void;
+  logout: () => void;
 }
 
 export const GameContext = createContext<GameContextValue | null>(null);
@@ -68,6 +86,8 @@ export const GameContext = createContext<GameContextValue | null>(null);
 export function GameProvider({ children }: { children: ReactNode }): ReactNode {
   const [connected, setConnected] = useState(socket.connected);
   const [session, setSession] = useState<SessionInfo | null>(null);
+  const [account, setAccount] = useState<AccountInfo | null>(null);
+  const [screen, setScreen] = useState<'main' | 'history'>('main');
   const [room, setRoom] = useState<RoomUpdatePayload | null>(null);
   const [view, setView] = useState<PlayerView | null>(null);
   const [turnStartedAt, setTurnStartedAt] = useState<number | null>(null);
@@ -99,6 +119,12 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
     function onSession(payload: SessionPayload): void {
       setToken(payload.token);
       setSession({ token: payload.token, playerId: payload.playerId });
+      setAccount({
+        loggedIn: payload.loggedIn,
+        displayName: payload.displayName,
+        email: payload.email,
+        avatarUrl: payload.avatarUrl,
+      });
       // Restore mid-game view on (re)connect.
       void requestState().then((ack) => {
         if (ack.view) setView(ack.view);
@@ -219,6 +245,10 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
 
   const clearError = useCallback(() => setError(null), []);
 
+  const requestHistory = useCallback(() => netRequestHistory(), []);
+  const loginWithGoogle = useCallback(() => netLoginWithGoogle(), []);
+  const logout = useCallback(() => netLogout(), []);
+
   const createRoom = useCallback((name?: string) => netCreateRoom(name), []);
   const joinRoom = useCallback((roomCode: string, name?: string) => netJoinRoom(roomCode, name), []);
   const startGame = useCallback(() => netStartGame(), []);
@@ -259,6 +289,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
     () => ({
       connected,
       session,
+      account,
       room,
       view,
       turnStartedAt,
@@ -274,10 +305,16 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       leaveRoom,
       startGame,
       makeMove,
+      screen,
+      setScreen,
+      requestHistory,
+      loginWithGoogle,
+      logout,
     }),
     [
       connected,
       session,
+      account,
       room,
       view,
       turnStartedAt,
@@ -293,6 +330,10 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       leaveRoom,
       startGame,
       makeMove,
+      screen,
+      requestHistory,
+      loginWithGoogle,
+      logout,
     ],
   );
 

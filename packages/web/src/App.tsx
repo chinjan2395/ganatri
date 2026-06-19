@@ -4,6 +4,7 @@ import { LobbyScreen } from './screens/LobbyScreen';
 import { RoomScreen } from './screens/RoomScreen';
 import { GameScreen } from './screens/GameScreen';
 import { AdminScreen } from './screens/AdminScreen';
+import { HistoryScreen } from './screens/HistoryScreen';
 import { Toast } from './components/Toast';
 import { ConnectionBanner } from './components/ConnectionBanner';
 
@@ -12,7 +13,7 @@ export function App(): React.ReactNode {
     return <AdminScreen />;
   }
 
-  const { session, room, view, error, clearError } = useGame();
+  const { session, room, view, error, clearError, screen: navScreen } = useGame();
 
   let screen: React.ReactNode;
   if (!session) {
@@ -37,6 +38,8 @@ export function App(): React.ReactNode {
     );
   } else if (room) {
     screen = <RoomScreen />;
+  } else if (navScreen === 'history') {
+    screen = <HistoryScreen />;
   } else {
     screen = <LobbyScreen />;
   }

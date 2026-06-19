@@ -1,17 +1,38 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useGame } from '../state/GameProvider';
 import logo from '../assets/ganatri-logo.png';
 import './LobbyScreen.css';
 
 export function LobbyScreen(): React.ReactNode {
-  const { createRoom, joinRoom } = useGame();
-  const [name, setName] = useState('');
+  const { createRoom, joinRoom, account, loginWithGoogle, logout, setScreen } = useGame();
+  const loggedIn = account?.loggedIn ?? false;
+  const [name, setName] = useState(() => (loggedIn ? account?.displayName ?? '' : ''));
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [loginError, setLoginError] = useState(false);
   // ALREADY_IN_GAME -> offer rejoin to the existing room.
   const [rejoin, setRejoin] = useState<string | null>(null);
+
+  // Prefill the name field with the account display name once login resolves.
+  useEffect(() => {
+    if (loggedIn && account?.displayName) {
+      setName((prev) => (prev.trim() ? prev : account.displayName!));
+    }
+  }, [loggedIn, account?.displayName]);
+
+  // Surface OAuth failures redirected back as ?login=error, then clean the URL.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('login') === 'error') {
+      setLoginError(true);
+      params.delete('login');
+      const query = params.toString();
+      const url = window.location.pathname + (query ? `?${query}` : '');
+      window.history.replaceState(null, '', url);
+    }
+  }, []);
 
   function validateName(): boolean {
     if (!name.trim()) {
@@ -132,6 +153,54 @@ export function LobbyScreen(): React.ReactNode {
           </button>
         </form>
         {localError && <div className="lobby__error">{localError}</div>}
+        {loginError && (
+          <div className="lobby__error">Google login failed, please try again.</div>
+        )}
+
+        <div className="lobby__account">
+          {loggedIn ? (
+            <>
+              <div className="lobby__account-info">
+                {account?.avatarUrl ? (
+                  <img
+                    className="lobby__avatar"
+                    src={account.avatarUrl}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <span className="lobby__avatar lobby__avatar--placeholder" aria-hidden="true">
+                    {(account?.displayName ?? '?').charAt(0).toUpperCase()}
+                  </span>
+                )}
+                <span className="lobby__account-name">
+                  {account?.displayName ?? 'Signed in'}
+                </span>
+              </div>
+              <div className="row lobby__account-actions">
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => setScreen('history')}
+                >
+                  History
+                </button>
+                <button type="button" className="secondary" onClick={() => logout()}>
+                  Log out
+                </button>
+              </div>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="secondary lobby__google-btn"
+              onClick={() => loginWithGoogle()}
+            >
+              <span className="lobby__google-g" aria-hidden="true">G</span>
+              Log in with Google
+            </button>
+          )}
+        </div>
       </motion.div>
     </div>
   );
