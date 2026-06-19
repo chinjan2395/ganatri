@@ -966,6 +966,7 @@ describe('Ganatri server', () => {
 
       const nonTurnPlayerId = turnPlayerId === hostSession.playerId ? guestSession.playerId : hostSession.playerId;
       const nonTurnSocket = socketForPlayer[nonTurnPlayerId];
+      if (!nonTurnSocket) throw new Error('Non-turn socket not found');
       const turnSocket = socketForPlayer[turnPlayerId];
       if (!nonTurnSocket || !turnSocket) throw new Error('No socket found for a player');
 
