@@ -41,6 +41,7 @@ import {
 } from './store.js';
 import type { GameTransport } from './transport.js';
 import { SocketTransport } from './socketTransport.js';
+import { recordGameStart, recordEvents, recordGameEnd } from './persistence.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -82,6 +83,16 @@ function sanitizePlayerName(name: string): string {
 // ---------------------------------------------------------------------------
 // Turn timer helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Build a playerId -> display-name snapshot map for the given seating order,
+ * falling back to the raw id when no session name is set.
+ */
+function namesFor(seating: readonly string[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const pid of seating) out[pid] = getSessionByPlayerId(pid)?.name || pid;
+  return out;
+}
 
 function clearTurnTimer(room: RoomState): void {
   if (room.turnTimer !== null) {
@@ -142,6 +153,14 @@ function applyAutoMove(roomCode: string, playerId: string, t: GameTransport, rea
     t.broadcast(roomCode, EVENTS.GAME_EVENT, { event });
   }
 
+  // Persist events (async write-through; never blocks gameplay).
+  // Order matters: recordEvents must run before recordGameEnd so the final
+  // batch lands in the per-room event log that cut/stats tallies read.
+  recordEvents(roomCode, result.events);
+  if (result.state.phase === 'GAME_OVER') {
+    recordGameEnd(roomCode, result.state, namesFor(result.state.seating), false);
+  }
+
   // Compute turnStartedAt for the next turn before modifying room state.
   const nextTurnStartedAt =
     room.phase === 'PLAYING' && result.state.turn !== null ? Date.now() : null;
@@ -197,6 +216,10 @@ function gracePeriodExpired(roomCode: string, playerId: string, t: GameTransport
       clearTurnTimer(room);
       room.phase = 'DONE';
       room.completedAt = Date.now();
+      // Game abandoned (too few players). Persist before any state is cleared.
+      if (room.gameState !== null) {
+        recordGameEnd(roomCode, room.gameState, namesFor(room.gameState.seating), true);
+      }
     }
     // Broadcast updated room state so other players see the seat is gone.
     broadcastRoomUpdate(roomCode);
@@ -713,6 +736,10 @@ function silentLeaveRoom(socket: Socket, session: SessionState): void {
         clearTurnTimer(room);
         room.phase = 'DONE';
         room.completedAt = Date.now();
+        // Game abandoned (too few players). Persist before any state is cleared.
+        if (room.gameState !== null) {
+          recordGameEnd(roomCode, room.gameState, namesFor(room.gameState.seating), true);
+        }
       } else {
         broadcastRoomUpdate(roomCode);
       }
@@ -759,6 +786,9 @@ function handleStartGame(session: SessionState, ack: (res: StartGameAck) => void
   const gameState = createGame(room.players, seed);
   room.gameState = gameState;
   room.phase = 'PLAYING';
+
+  // Persist the room + game start (async write-through; never blocks gameplay).
+  recordGameStart(roomCode, room.hostId, room.players, seed, namesFor(room.players));
 
   broadcastRoomUpdate(roomCode);
 
@@ -826,6 +856,14 @@ function handleMakeMove(session: SessionState, move: Move, ack: (res: MakeMoveAc
   // Broadcast each game event to the room.
   for (const event of result.events as GameEvent[]) {
     transport.broadcast(roomCode, EVENTS.GAME_EVENT, { event });
+  }
+
+  // Persist events (async write-through; never blocks gameplay).
+  // Order matters: recordEvents must run before recordGameEnd so the final
+  // batch lands in the per-room event log that cut/stats tallies read.
+  recordEvents(roomCode, result.events);
+  if (result.state.phase === 'GAME_OVER') {
+    recordGameEnd(roomCode, result.state, namesFor(result.state.seating), false);
   }
 
   // Unicast the updated view to every connected player in the room.
