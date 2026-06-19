@@ -104,6 +104,20 @@ export type GetMyStatsAck =
   | { ok: true; stats: PlayerStatsView }
   | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
 
+export interface LeaderboardEntryView {
+  rank: number; // 1-based
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  gamesPlayed: number;
+  gamesWon: number;
+  winRate: number; // [0,1]
+}
+
+export type GetLeaderboardAck =
+  | { ok: true; entries: LeaderboardEntryView[] }
+  | { ok: false; error: 'UNAVAILABLE' };
+
 // --- Server → Client pushed payloads ---
 export interface SessionPayload {
   token: string;
@@ -212,6 +226,7 @@ export const EVENTS = {
   REQUEST_STATE: 'request_state',
   REQUEST_HISTORY: 'request_history',
   GET_MY_STATS: 'get_my_stats',
+  GET_LEADERBOARD: 'get_leaderboard',
   SESSION: 'session',
   ROOM_UPDATE: 'room_update',
   GAME_EVENT: 'game_event',

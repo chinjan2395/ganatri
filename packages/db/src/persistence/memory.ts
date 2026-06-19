@@ -8,7 +8,7 @@
  */
 
 import type { Database } from '../db';
-import { PgPersistence, toHistoryEntry } from './pg';
+import { PgPersistence, toHistoryEntry, toLeaderboardEntry } from './pg';
 import type {
   AppendEventInput,
   AuthSessionRow,
@@ -19,6 +19,7 @@ import type {
   GamePlayerRow,
   GameRow,
   GameWithPlayers,
+  LeaderboardEntry,
   NewUser,
   OAuthAccountRow,
   PlayerStatsDelta,
@@ -451,6 +452,42 @@ export class MemoryPersistence implements GamePersistence {
 
   async getPlayerStats(userId: string): Promise<PlayerStatsRow | null> {
     return this.stats.get(userId) ?? null;
+  }
+
+  async getLeaderboard(limit = 20, offset = 0): Promise<LeaderboardEntry[]> {
+    const winRate = (s: PlayerStatsRow) =>
+      s.gamesPlayed > 0 ? s.gamesWon / s.gamesPlayed : 0;
+    const qualifying = [...this.stats.values()]
+      .map((s) => ({ stats: s, user: this.users.get(s.userId) }))
+      .filter(
+        (
+          row
+        ): row is { stats: PlayerStatsRow; user: UserRow } =>
+          row.user !== undefined && !row.user.isGuest && row.stats.gamesPlayed > 0
+      );
+    // Same tiebreak chain as the SQL ORDER BY:
+    // gamesWon DESC, winRate DESC, gamesPlayed DESC, userId ASC (stable).
+    qualifying.sort((a, b) => {
+      if (b.stats.gamesWon !== a.stats.gamesWon) {
+        return b.stats.gamesWon - a.stats.gamesWon;
+      }
+      const wr = winRate(b.stats) - winRate(a.stats);
+      if (wr !== 0) return wr;
+      if (b.stats.gamesPlayed !== a.stats.gamesPlayed) {
+        return b.stats.gamesPlayed - a.stats.gamesPlayed;
+      }
+      return a.user.id < b.user.id ? -1 : a.user.id > b.user.id ? 1 : 0;
+    });
+    return qualifying.slice(offset, offset + limit).map((row) =>
+      toLeaderboardEntry({
+        userId: row.user.id,
+        displayName: row.user.displayName,
+        avatarUrl: row.user.avatarUrl,
+        gamesPlayed: row.stats.gamesPlayed,
+        gamesWon: row.stats.gamesWon,
+        gamesLost: row.stats.gamesLost,
+      })
+    );
   }
 
   // Recovery reads ----------------------------------------------------------

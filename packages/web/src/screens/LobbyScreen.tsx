@@ -157,6 +157,16 @@ export function LobbyScreen(): React.ReactNode {
           <div className="lobby__error">Google login failed, please try again.</div>
         )}
 
+        <div className="lobby__nav">
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => setScreen('leaderboard')}
+          >
+            Leaderboard
+          </button>
+        </div>
+
         <div className="lobby__account">
           {loggedIn ? (
             <>

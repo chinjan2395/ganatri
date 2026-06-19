@@ -295,6 +295,71 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
     expect(page.map((h) => h.game.id)).toEqual([g1.id]);
   });
 
+  // Leaderboard --------------------------------------------------------------
+
+  it('getLeaderboard ranks non-guests by the win-record tiebreak chain', async () => {
+    // Three registered (non-guest) users with distinct win records.
+    const alice = h.newUserId();
+    const bob = h.newUserId();
+    const carol = h.newUserId();
+    await repo.upsertUser({ id: alice, displayName: 'Alice', isGuest: false });
+    await repo.upsertUser({ id: bob, displayName: 'Bob', isGuest: false });
+    await repo.upsertUser({ id: carol, displayName: 'Carol', isGuest: false });
+
+    // Alice: 5 wins / 10 played (0.5). Bob: 5 wins / 8 played (0.625).
+    // Carol: 3 wins / 4 played (0.75).
+    await repo.upsertPlayerStats({ userId: alice, gamesPlayed: 10, gamesWon: 5, gamesLost: 5 });
+    await repo.upsertPlayerStats({ userId: bob, gamesPlayed: 8, gamesWon: 5, gamesLost: 3 });
+    await repo.upsertPlayerStats({ userId: carol, gamesPlayed: 4, gamesWon: 3, gamesLost: 1 });
+
+    const board = await repo.getLeaderboard();
+    // gamesWon DESC first: Alice(5) & Bob(5) tie on wins; Bob has higher winRate
+    // so ranks above Alice. Carol(3 wins) ranks last.
+    expect(board.map((e) => e.userId)).toEqual([bob, alice, carol]);
+    expect(board[0]!.winRate).toBeCloseTo(0.625, 6);
+    expect(board[1]!.winRate).toBeCloseTo(0.5, 6);
+    expect(board[2]!.winRate).toBeCloseTo(0.75, 6);
+    expect(board[2]!.gamesLost).toBe(1);
+  });
+
+  it('getLeaderboard excludes guests and zero-games users', async () => {
+    const winner = h.newUserId();
+    const guest = h.newUserId();
+    const idle = h.newUserId();
+    await repo.upsertUser({ id: winner, displayName: 'Winner', isGuest: false });
+    await repo.ensureGuest(guest, 'Guest'); // isGuest = true
+    await repo.upsertUser({ id: idle, displayName: 'Idle', isGuest: false });
+
+    await repo.upsertPlayerStats({ userId: winner, gamesPlayed: 3, gamesWon: 2, gamesLost: 1 });
+    await repo.upsertPlayerStats({ userId: guest, gamesPlayed: 9, gamesWon: 9, gamesLost: 0 });
+    // idle: a stats row exists but gamesPlayed is 0 -> excluded.
+    await repo.upsertPlayerStats({ userId: idle, gamesPlayed: 0, gamesWon: 0, gamesLost: 0 });
+
+    const board = await repo.getLeaderboard();
+    expect(board.map((e) => e.userId)).toEqual([winner]);
+  });
+
+  it('getLeaderboard paginates with limit and offset', async () => {
+    const ids: string[] = [];
+    for (let i = 0; i < 4; i++) {
+      const id = h.newUserId();
+      ids.push(id);
+      await repo.upsertUser({ id, displayName: `U${i}`, isGuest: false });
+      // Descending wins so order is deterministic: U0 highest .. U3 lowest.
+      await repo.upsertPlayerStats({
+        userId: id,
+        gamesPlayed: 10,
+        gamesWon: 8 - i,
+        gamesLost: 2 + i,
+      });
+    }
+    const full = await repo.getLeaderboard();
+    expect(full.map((e) => e.userId)).toEqual(ids);
+
+    const page = await repo.getLeaderboard(2, 1);
+    expect(page.map((e) => e.userId)).toEqual([ids[1], ids[2]]);
+  });
+
   // Retention ---------------------------------------------------------------
 
   it('pruneGameEventsBefore removes only events older than the cutoff', async () => {

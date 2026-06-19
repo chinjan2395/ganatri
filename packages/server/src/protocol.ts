@@ -172,6 +172,26 @@ export type GetMyStatsAck =
   | { ok: true; stats: PlayerStatsView }
   | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
 
+/** One leaderboard row (wire shape). Mirrors packages/web/src/protocol.ts. */
+export interface LeaderboardEntryView {
+  rank: number; // 1-based, assigned by the server after ordering
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  gamesPlayed: number;
+  gamesWon: number;
+  winRate: number; // [0,1]
+}
+
+/**
+ * Ack for get_leaderboard. Public — guests may view it.
+ * - persistence available → ranked entries (possibly empty)
+ * - no persistence configured / DB error → UNAVAILABLE
+ */
+export type GetLeaderboardAck =
+  | { ok: true; entries: LeaderboardEntryView[] }
+  | { ok: false; error: 'UNAVAILABLE' };
+
 // ---------------------------------------------------------------------------
 // Server → Client pushed events
 // ---------------------------------------------------------------------------
@@ -343,6 +363,7 @@ export const EVENTS = {
   REQUEST_STATE: 'request_state',
   REQUEST_HISTORY: 'request_history',
   GET_MY_STATS: 'get_my_stats',
+  GET_LEADERBOARD: 'get_leaderboard',
 
   // Admin (Client → Server)
   ADMIN_AUTH: 'admin_auth',

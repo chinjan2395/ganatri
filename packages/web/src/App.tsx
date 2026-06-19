@@ -6,6 +6,7 @@ import { GameScreen } from './screens/GameScreen';
 import { AdminScreen } from './screens/AdminScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
 import { StatsScreen } from './screens/StatsScreen';
+import { LeaderboardScreen } from './screens/LeaderboardScreen';
 import { Toast } from './components/Toast';
 import { ConnectionBanner } from './components/ConnectionBanner';
 
@@ -41,6 +42,8 @@ export function App(): React.ReactNode {
     screen = <RoomScreen />;
   } else if (navScreen === 'stats') {
     screen = <StatsScreen />;
+  } else if (navScreen === 'leaderboard') {
+    screen = <LeaderboardScreen />;
   } else if (navScreen === 'history') {
     screen = <HistoryScreen />;
   } else {
