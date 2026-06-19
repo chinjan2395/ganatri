@@ -7,20 +7,25 @@
  * `onConflictDoNothing`.
  */
 
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, lt, sql } from 'drizzle-orm';
 import type { Database } from '../db';
 import {
+  authSessions,
   games,
   gameEvents,
   gamePlayers,
+  oauthAccounts,
   playerStats,
   rooms,
   users,
 } from '../schema';
 import type {
   AppendEventInput,
+  CreateAuthSessionInput,
   FinalPlayerResult,
   GameEventRow,
+  GameHistoryEntry,
+  GameHistoryPlayer,
   GamePersistence,
   GamePlayerRow,
   GameRow,
@@ -32,6 +37,7 @@ import type {
   RecordGameStartedInput,
   RoomRow,
   RoomStatus,
+  UpsertOAuthUserInput,
   UserRow,
 } from './types';
 
@@ -71,6 +77,180 @@ export class PgPersistence implements GamePersistence {
       })
       .returning();
     return rows[0]!;
+  }
+
+  // Auth (OAuth + sessions) -------------------------------------------------
+
+  async upsertOAuthUser(input: UpsertOAuthUserInput): Promise<UserRow> {
+    return this.db.transaction(async (tx) => {
+      // (a) Existing federated identity -> return (and refresh) its user.
+      const accountRows = await tx
+        .select()
+        .from(oauthAccounts)
+        .where(
+          and(
+            eq(oauthAccounts.provider, input.provider),
+            eq(oauthAccounts.providerUserId, input.providerUserId)
+          )
+        )
+        .limit(1);
+      const account = accountRows[0];
+      if (account) {
+        const updated = await tx
+          .update(users)
+          .set({
+            displayName: input.displayName,
+            avatarUrl: input.avatarUrl ?? null,
+            lastSeenAt: new Date(),
+          })
+          .where(eq(users.id, account.userId))
+          .returning();
+        return updated[0]!;
+      }
+
+      // (b) Match an existing user by email -> link a new account to it.
+      if (input.email !== null) {
+        const byEmail = await tx
+          .select()
+          .from(users)
+          .where(eq(users.email, input.email))
+          .limit(1);
+        const existing = byEmail[0];
+        if (existing) {
+          await tx.insert(oauthAccounts).values({
+            userId: existing.id,
+            provider: input.provider,
+            providerUserId: input.providerUserId,
+          });
+          const updated = await tx
+            .update(users)
+            .set({
+              displayName: input.displayName,
+              avatarUrl: input.avatarUrl ?? null,
+              isGuest: false,
+              lastSeenAt: new Date(),
+            })
+            .where(eq(users.id, existing.id))
+            .returning();
+          return updated[0]!;
+        }
+      }
+
+      // (c) Create a fresh (non-guest) user + linked account.
+      const created = await tx
+        .insert(users)
+        .values({
+          displayName: input.displayName,
+          email: input.email,
+          avatarUrl: input.avatarUrl ?? null,
+          isGuest: false,
+        })
+        .returning();
+      const user = created[0]!;
+      await tx.insert(oauthAccounts).values({
+        userId: user.id,
+        provider: input.provider,
+        providerUserId: input.providerUserId,
+      });
+      return user;
+    });
+  }
+
+  async createAuthSession(input: CreateAuthSessionInput): Promise<void> {
+    await this.db.insert(authSessions).values({
+      userId: input.userId,
+      tokenHash: input.tokenHash,
+      expiresAt: input.expiresAt,
+      userAgent: input.userAgent ?? null,
+    });
+  }
+
+  async getUserBySessionTokenHash(tokenHash: string): Promise<UserRow | null> {
+    const rows = await this.db
+      .select({ user: users })
+      .from(authSessions)
+      .innerJoin(users, eq(authSessions.userId, users.id))
+      .where(
+        and(
+          eq(authSessions.tokenHash, tokenHash),
+          eq(authSessions.revoked, false),
+          sql`${authSessions.expiresAt} > now()`
+        )
+      )
+      .limit(1);
+    return rows[0]?.user ?? null;
+  }
+
+  async revokeAuthSession(tokenHash: string): Promise<void> {
+    await this.db
+      .update(authSessions)
+      .set({ revoked: true })
+      .where(eq(authSessions.tokenHash, tokenHash));
+  }
+
+  // History -----------------------------------------------------------------
+
+  async getUserGameHistory(
+    userId: string,
+    limit = 50,
+    offset = 0
+  ): Promise<GameHistoryEntry[]> {
+    // Games this user played, newest first.
+    const rows = await this.db
+      .select({ game: games })
+      .from(gamePlayers)
+      .innerJoin(games, eq(gamePlayers.gameId, games.id))
+      .where(eq(gamePlayers.userId, userId))
+      .orderBy(desc(games.startedAt))
+      .limit(limit)
+      .offset(offset);
+
+    if (rows.length === 0) return [];
+
+    const gameIds = rows.map((r) => r.game.id);
+    const allPlayers = await this.db
+      .select()
+      .from(gamePlayers)
+      .where(inArray(gamePlayers.gameId, gameIds))
+      .orderBy(asc(gamePlayers.seatIndex));
+
+    const byGame = new Map<string, GamePlayerRow[]>();
+    for (const p of allPlayers) {
+      const list = byGame.get(p.gameId);
+      if (list) list.push(p);
+      else byGame.set(p.gameId, [p]);
+    }
+
+    return rows.map(({ game }) => toHistoryEntry(game, byGame.get(game.id) ?? [], userId));
+  }
+
+  // Retention ---------------------------------------------------------------
+
+  async pruneGameEventsBefore(cutoff: Date): Promise<number> {
+    const deleted = await this.db
+      .delete(gameEvents)
+      .where(lt(gameEvents.ts, cutoff))
+      .returning({ id: gameEvents.id });
+    return deleted.length;
+  }
+
+  async pruneAbandonedGamesBefore(cutoff: Date): Promise<number> {
+    return this.db.transaction(async (tx) => {
+      const target = await tx
+        .select({ id: games.id })
+        .from(games)
+        .where(and(eq(games.isAbandoned, true), lt(games.endedAt, cutoff)));
+      const ids = target.map((g) => g.id);
+      if (ids.length === 0) return 0;
+
+      await tx.delete(gameEvents).where(inArray(gameEvents.gameId, ids));
+      await tx.delete(gamePlayers).where(inArray(gamePlayers.gameId, ids));
+      const deleted = await tx
+        .delete(games)
+        .where(inArray(games.id, ids))
+        .returning({ id: games.id });
+      return deleted.length;
+    });
   }
 
   // Rooms -------------------------------------------------------------------
@@ -336,3 +516,43 @@ export class PgPersistence implements GamePersistence {
 
 /** Alias matching the DEVELOPMENT_PLAN naming. */
 export const PostgresStore = PgPersistence;
+
+/**
+ * Project a game row + its player rows into a `GameHistoryEntry` for `userId`.
+ * Shared by both persistence implementations so the shape is identical.
+ */
+export function toHistoryEntry(
+  game: GameRow,
+  players: GamePlayerRow[],
+  userId: string
+): GameHistoryEntry {
+  const toPlayer = (p: GamePlayerRow): GameHistoryPlayer => ({
+    userId: p.userId,
+    displayNameSnapshot: p.displayNameSnapshot,
+    seatIndex: p.seatIndex,
+    finalRank: p.finalRank,
+    result: p.result,
+    captureCount: p.captureCount,
+    wasCut: p.wasCut,
+  });
+  const ordered = [...players].sort((a, b) => a.seatIndex - b.seatIndex);
+  const mine = ordered.find((p) => p.userId === userId);
+  if (!mine) {
+    throw new Error(
+      `toHistoryEntry: user ${userId} has no game_players row in game ${game.id}`
+    );
+  }
+  return {
+    game: {
+      id: game.id,
+      startedAt: game.startedAt,
+      endedAt: game.endedAt,
+      durationMs: game.durationMs,
+      playerCount: game.playerCount,
+      isAbandoned: game.isAbandoned,
+      winnerId: game.winnerId,
+    },
+    you: toPlayer(mine),
+    players: ordered.map(toPlayer),
+  };
+}

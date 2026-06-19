@@ -33,18 +33,20 @@ describe('schema migration', () => {
     const res = await t.pglite.query<{ count: string }>(
       `select count(*)::text as count from information_schema.tables where table_schema = 'public'`
     );
-    expect(Number(res.rows[0]!.count)).toBe(6);
+    expect(Number(res.rows[0]!.count)).toBe(8);
   });
 
-  it('creates all 6 tables', async () => {
+  it('creates all 8 tables', async () => {
     const res = await t.pglite.query<{ table_name: string }>(
       `select table_name from information_schema.tables where table_schema = 'public' order by table_name`
     );
     const names = res.rows.map((r) => r.table_name);
     expect(names).toEqual([
+      'auth_sessions',
       'game_events',
       'game_players',
       'games',
+      'oauth_accounts',
       'player_stats',
       'rooms',
       'users',
@@ -69,6 +71,13 @@ describe('schema migration', () => {
       'game_events_game_id_seq_idx',
       'game_events_actor_user_id_idx',
       'player_stats_user_id_idx',
+      // Phase A additions: auth + retention.
+      'oauth_accounts_provider_identity_idx',
+      'oauth_accounts_user_id_idx',
+      'auth_sessions_token_hash_idx',
+      'auth_sessions_user_id_idx',
+      'game_events_ts_idx',
+      'games_abandoned_ended_at_idx',
     ]) {
       expect(idx).toContain(expected);
     }

@@ -14,6 +14,8 @@ export type { Database } from './db';
 
 export {
   users,
+  oauthAccounts,
+  authSessions,
   rooms,
   games,
   gamePlayers,
@@ -31,6 +33,8 @@ export type {
   GamePersistence,
   UserRow,
   NewUser,
+  OAuthAccountRow,
+  AuthSessionRow,
   RoomRow,
   GameRow,
   GamePlayerRow,
@@ -42,6 +46,10 @@ export type {
   AppendEventInput,
   GameWithPlayers,
   PlayerStatsDelta,
+  UpsertOAuthUserInput,
+  CreateAuthSessionInput,
+  GameHistoryEntry,
+  GameHistoryPlayer,
 } from './persistence/types';
 export { PgPersistence, PostgresStore } from './persistence/pg';
 export { MemoryPersistence } from './persistence/memory';

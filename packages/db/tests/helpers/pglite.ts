@@ -19,19 +19,22 @@ import type { Database } from '../../src/db';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DRIZZLE_DIR = join(__dirname, '..', '..', 'drizzle');
 
-/** Locate the single generated migration SQL file. */
-export function migrationPath(): string {
-  const files = readdirSync(DRIZZLE_DIR).filter((f) => f.endsWith('.sql'));
-  if (files.length !== 1) {
-    throw new Error(
-      `expected exactly one migration .sql in ${DRIZZLE_DIR}, found: ${files.join(', ')}`
-    );
+/** All generated migration SQL files, sorted by filename (apply order). */
+export function migrationPaths(): string[] {
+  const files = readdirSync(DRIZZLE_DIR)
+    .filter((f) => f.endsWith('.sql'))
+    .sort();
+  if (files.length === 0) {
+    throw new Error(`no migration .sql files found in ${DRIZZLE_DIR}`);
   }
-  return join(DRIZZLE_DIR, files[0]!);
+  return files.map((f) => join(DRIZZLE_DIR, f));
 }
 
+/** Concatenated SQL of every migration, in filename order. */
 export function readMigrationSql(): string {
-  return readFileSync(migrationPath(), 'utf8');
+  return migrationPaths()
+    .map((p) => readFileSync(p, 'utf8'))
+    .join('\n--> statement-breakpoint\n');
 }
 
 export interface TestDb {
@@ -116,7 +119,15 @@ export async function seedRoom(
 export async function seedGame(
   t: TestDb,
   roomId: string,
-  opts: { seed?: string; seating?: string[] } = {}
+  opts: {
+    seed?: string;
+    seating?: string[];
+    startedAt?: Date;
+    endedAt?: Date | null;
+    durationMs?: number | null;
+    winnerId?: string | null;
+    isAbandoned?: boolean;
+  } = {}
 ): Promise<string> {
   const seating = opts.seating ?? ['p1', 'p2'];
   const rows = await t.db
@@ -126,8 +137,55 @@ export async function seedGame(
       seed: opts.seed ?? '12345',
       seatingOrder: seating,
       playerCount: seating.length,
-      startedAt: new Date(),
+      startedAt: opts.startedAt ?? new Date(),
+      endedAt: opts.endedAt ?? null,
+      durationMs: opts.durationMs ?? null,
+      winnerId: opts.winnerId ?? null,
+      isAbandoned: opts.isAbandoned ?? false,
     })
     .returning();
   return rows[0]!.id;
+}
+
+export interface SeedPlayerOpts {
+  userId: string | null;
+  seatIndex: number;
+  displayName?: string;
+  finalRank?: number | null;
+  result?: string | null;
+  captureCount?: number;
+  wasCut?: boolean;
+}
+
+export async function seedGamePlayer(
+  t: TestDb,
+  gameId: string,
+  opts: SeedPlayerOpts
+): Promise<void> {
+  await t.db.insert(schema.gamePlayers).values({
+    gameId,
+    userId: opts.userId,
+    seatIndex: opts.seatIndex,
+    displayNameSnapshot: opts.displayName ?? 'Player',
+    finalRank: opts.finalRank ?? null,
+    result: opts.result ?? null,
+    captureCount: opts.captureCount ?? 0,
+    wasCut: opts.wasCut ?? false,
+  });
+}
+
+export async function seedEvent(
+  t: TestDb,
+  gameId: string,
+  seq: number,
+  ts: Date,
+  eventType: schema.GameEventTypeValue = 'CARD_PLAYED'
+): Promise<void> {
+  await t.db.insert(schema.gameEvents).values({
+    gameId,
+    seq,
+    ts,
+    eventType,
+    payload: {},
+  });
 }
