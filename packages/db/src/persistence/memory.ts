@@ -9,6 +9,7 @@
 
 import type { Database } from '../db';
 import { PgPersistence } from './pg';
+import { toPlayerStatsView } from './types';
 import type {
   AppendEventInput,
   GameEventRow,
@@ -19,6 +20,7 @@ import type {
   NewUser,
   PlayerStatsDelta,
   PlayerStatsRow,
+  PlayerStatsView,
   RecordGameFinishedInput,
   RecordGameStartedInput,
   RoomRow,
@@ -284,6 +286,23 @@ export class MemoryPersistence implements GamePersistence {
 
   async getPlayerStats(userId: string): Promise<PlayerStatsRow | null> {
     return this.stats.get(userId) ?? null;
+  }
+
+  async getPlayerStatsView(userId: string): Promise<PlayerStatsView | null> {
+    const stats = this.stats.get(userId);
+    if (!stats) return null;
+    // Mean of this user's non-null finalRank values across all games.
+    const ranks: number[] = [];
+    for (const gp of this.gamePlayers.values()) {
+      if (gp.userId === userId && gp.finalRank !== null) {
+        ranks.push(gp.finalRank);
+      }
+    }
+    const averageFinishPosition =
+      ranks.length === 0
+        ? null
+        : ranks.reduce((sum, r) => sum + r, 0) / ranks.length;
+    return toPlayerStatsView(stats, averageFinishPosition);
   }
 
   // Recovery reads ----------------------------------------------------------

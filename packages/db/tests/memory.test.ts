@@ -189,6 +189,79 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
     expect(s!.totalCaptures).toBe(5);
   });
 
+  it('getPlayerStatsView returns null for an unknown user', async () => {
+    expect(await repo.getPlayerStatsView(h.newUserId())).toBeNull();
+  });
+
+  it('getPlayerStatsView derives rates and average finishing position', async () => {
+    const u = await freshUser('Star');
+    const opp = await freshUser('Opp');
+    // 4 played: 2 wins, 1 loss, 1 abandoned.
+    await repo.upsertPlayerStats({
+      userId: u,
+      gamesPlayed: 4,
+      gamesWon: 2,
+      gamesLost: 1,
+      gamesAbandoned: 1,
+    });
+
+    // Three ranked games for `u` with finalRank 1, 2, 3 (mean 2), plus an
+    // abandoned game where `u`'s finalRank is null (must be ignored).
+    const room = await repo.recordRoomCreated({ roomCode: 'CONV01', hostUserId: u });
+    const ranks = [1, 2, 3, null];
+    for (const rank of ranks) {
+      const game = await repo.recordGameStarted({
+        roomId: room.id,
+        seed: `s-${rank}`,
+        seatingOrder: [u, opp],
+      });
+      await repo.recordGameFinished({
+        gameId: game.id,
+        players: [
+          {
+            userId: u,
+            seatIndex: 0,
+            displayName: 'Star',
+            finalRank: rank,
+            wasCut: false,
+            captureCount: 0,
+            result: rank === null ? 'ABANDONED' : 'PLAYED',
+          },
+          {
+            userId: opp,
+            seatIndex: 1,
+            displayName: 'Opp',
+            finalRank: rank === null ? null : 4 - rank,
+            wasCut: false,
+            captureCount: 0,
+            result: 'PLAYED',
+          },
+        ],
+      });
+    }
+
+    const view = await repo.getPlayerStatsView(u);
+    expect(view).not.toBeNull();
+    expect(view!.gamesPlayed).toBe(4);
+    expect(view!.winRate).toBeCloseTo(0.5, 10);
+    expect(view!.lossRate).toBeCloseTo(0.25, 10);
+    expect(view!.abandonRate).toBeCloseTo(0.25, 10);
+    expect(view!.averageFinishPosition).toBeCloseTo(2, 10);
+  });
+
+  it('getPlayerStatsView: zero games → zero rates and null average', async () => {
+    const u = await freshUser('Zero');
+    // A stats row exists with no games played and no ranked game_players rows.
+    await repo.upsertPlayerStats({ userId: u });
+    const view = await repo.getPlayerStatsView(u);
+    expect(view).not.toBeNull();
+    expect(view!.gamesPlayed).toBe(0);
+    expect(view!.winRate).toBe(0);
+    expect(view!.lossRate).toBe(0);
+    expect(view!.abandonRate).toBe(0);
+    expect(view!.averageFinishPosition).toBeNull();
+  });
+
   it('loadActiveGames returns PLAYING, unfinished games only', async () => {
     const host = await freshUser();
     const playing = await repo.recordRoomCreated({ roomCode: 'CON005', hostUserId: host });

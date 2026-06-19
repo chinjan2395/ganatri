@@ -36,6 +36,7 @@ export type {
   GamePlayerRow,
   GameEventRow,
   PlayerStatsRow,
+  PlayerStatsView,
   RecordGameStartedInput,
   RecordGameFinishedInput,
   FinalPlayerResult,

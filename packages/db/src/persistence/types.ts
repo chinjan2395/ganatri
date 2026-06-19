@@ -34,6 +34,44 @@ export type PlayerStatsRow = typeof playerStats.$inferSelect;
 
 export type RoomStatus = RoomRow['status'];
 
+/**
+ * A player's aggregate stats row enriched with derived metrics computed on read
+ * (no schema/migration changes). Rates are raw ratios in `[0, 1]`; `0` when the
+ * player has never finished a game. `averageFinishPosition` is the mean of the
+ * user's non-null `game_players.final_rank` values, or `null` when they have no
+ * ranked games.
+ */
+export interface PlayerStatsView extends PlayerStatsRow {
+  /** `gamesWon / gamesPlayed`, or `0` when `gamesPlayed === 0`. */
+  winRate: number;
+  /** `gamesLost / gamesPlayed`, or `0` when `gamesPlayed === 0`. */
+  lossRate: number;
+  /** `gamesAbandoned / gamesPlayed`, or `0` when `gamesPlayed === 0`. */
+  abandonRate: number;
+  /** Mean of non-null `final_rank` across the user's games; `null` if none. */
+  averageFinishPosition: number | null;
+}
+
+/**
+ * Derive a `PlayerStatsView` from a raw stats row plus a pre-computed average
+ * finishing position. Shared by both persistence implementations so the rate
+ * math (and the `gamesPlayed === 0` guard) stays identical.
+ */
+export function toPlayerStatsView(
+  stats: PlayerStatsRow,
+  averageFinishPosition: number | null
+): PlayerStatsView {
+  const played = stats.gamesPlayed;
+  const rate = (n: number): number => (played === 0 ? 0 : n / played);
+  return {
+    ...stats,
+    winRate: rate(stats.gamesWon),
+    lossRate: rate(stats.gamesLost),
+    abandonRate: rate(stats.gamesAbandoned),
+    averageFinishPosition,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Composite input types
 // ---------------------------------------------------------------------------
@@ -158,6 +196,13 @@ export interface GamePersistence {
   upsertPlayerStats(delta: PlayerStatsDelta): Promise<PlayerStatsRow>;
 
   getPlayerStats(userId: string): Promise<PlayerStatsRow | null>;
+
+  /**
+   * Like `getPlayerStats` but enriched with derived metrics (win/loss/abandon
+   * rate, average finishing position). Computed on read; returns `null` when no
+   * `player_stats` row exists for the user.
+   */
+  getPlayerStatsView(userId: string): Promise<PlayerStatsView | null>;
 
   // Recovery reads ----------------------------------------------------------
 

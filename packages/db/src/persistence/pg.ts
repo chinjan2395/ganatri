@@ -17,6 +17,7 @@ import {
   rooms,
   users,
 } from '../schema';
+import { toPlayerStatsView } from './types';
 import type {
   AppendEventInput,
   FinalPlayerResult,
@@ -28,6 +29,7 @@ import type {
   NewUser,
   PlayerStatsDelta,
   PlayerStatsRow,
+  PlayerStatsView,
   RecordGameFinishedInput,
   RecordGameStartedInput,
   RoomRow,
@@ -272,6 +274,25 @@ export class PgPersistence implements GamePersistence {
       .where(eq(playerStats.userId, userId))
       .limit(1);
     return rows[0] ?? null;
+  }
+
+  async getPlayerStatsView(userId: string): Promise<PlayerStatsView | null> {
+    const stats = await this.getPlayerStats(userId);
+    if (!stats) return null;
+    // Single AVG aggregate over the user's ranked games; AVG ignores nulls and
+    // yields null when there are no matching rows.
+    const avgRows = await this.db
+      .select({ avg: sql<number | null>`avg(${gamePlayers.finalRank})` })
+      .from(gamePlayers)
+      .where(
+        and(
+          eq(gamePlayers.userId, userId),
+          sql`${gamePlayers.finalRank} is not null`
+        )
+      );
+    const rawAvg = avgRows[0]?.avg ?? null;
+    const averageFinishPosition = rawAvg === null ? null : Number(rawAvg);
+    return toPlayerStatsView(stats, averageFinishPosition);
   }
 
   // Recovery reads ----------------------------------------------------------

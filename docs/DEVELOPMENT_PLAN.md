@@ -1,9 +1,10 @@
 # Ganatri — Phasewise Development Plan
 
+Last updated: 2026-06-19 (Phase 6e Derived metrics: added `getPlayerStatsView(userId)` to `GamePersistence` + both impls — extends `PlayerStatsRow` with `winRate`/`lossRate`/`abandonRate` (counter ratios, `0` when no games) and `averageFinishPosition` (mean of non-null `game_players.final_rank`, `null` when no ranked games). Computed on read, no schema/migration change; shared `toPlayerStatsView` helper; `PlayerStatsView` exported from package surface. 75 db tests, 6 new.)  
 Last updated: 2026-06-19 (Phase 6d/6e: wired DB write-through into the server — new `server/src/persistence.ts` service + `handlers.ts` calls. Persists `rooms` (on game start), `games`, `game_players`, `game_events` (async, seq-ordered, batched), and incremental `player_stats` on game-end/abandon. Async fire-and-forget — never blocks the engine; `getPersistence()` returns null when `DATABASE_URL` unset. Restart-rehydration via `loadActiveGames` deferred / out of scope; 28 server tests, 2 new.)  
 Last updated: 2026-06-18 (Phase 6a/6b: fixed @ganatri/db foundation — node-postgres Pool + DATABASE_URL, text seed, regenerated migration; built fully-tested GamePersistence layer (Pg + Memory); review fixes: idempotent recordGameFinished via (game_id, seat_index) unique index, deterministic+batched loadActiveGames, isGuest preservation on upsert)  
 Last updated: 2026-06-16 (Voice perf/heat fixes: room-gated mic acquisition, watchdog backoff+cap, AudioContext suspend while muted/idle; Critical fixes: TURN_TIMEOUT event, XSS sanitization, grace expiry broadcast, DRY refactor, freeze duration; 26 server tests)  
-All 250 tests passing (153 engine + 28 server + 69 db).
+All 256 tests passing (153 engine + 28 server + 75 db).
 
 ---
 
@@ -287,7 +288,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | ---- | ------ | ----- |
 | 🔷 DECISION: aggregation strategy | ✅ | **Incremental chosen.** `recordGameEnd` upserts `player_stats` per player on game-end via `upsertPlayerStats` (increment deltas); idempotent per room (gameId-promise consumed on first call). Periodic reconcile job still TODO. |
 | Core counting stats | ✅ | Games played/won/lost/abandoned, captures (Part 1), cuts given/received, times safe, total play time all written per game-end in `server/src/persistence.ts`. |
-| Derived metrics | 🟡 | Win/longest streaks computed best-effort (`getPlayerStats` → set `currentWinStreak`/`longestWinStreak`). Win rate / average finishing position not yet derived. |
+| Derived metrics | ✅ | Win/longest streaks computed best-effort (`getPlayerStats` → set `currentWinStreak`/`longestWinStreak`). Win rate, loss/abandon rate, and average finishing position now derived via `getPlayerStatsView(userId)` (`PlayerStatsView extends PlayerStatsRow`) — computed on read with no schema change (rates from counter columns; avg finish from a single `AVG(final_rank)` aggregate in Pg / Map iteration in Memory). Shared `toPlayerStatsView` helper keeps both impls identical; `null` for unknown users; `0` rates and `null` avg when no games. |
 | 🔷 DECISION: rating system | ⬜ | Optional skill rating: **ELO** (simple, 1v1-style adapted to multiplayer placement) or **Glicko-2** (handles uncertainty/inactivity). Skip for v1 of this phase if scope is tight. |
 | Leaderboard queries | ⬜ | Global + time-windowed (weekly/monthly) + (later) friends; paginated, indexed sort. |
 | Stats API endpoints / socket queries | ⬜ | `get_my_stats`, `get_leaderboard`, `get_match_history`; redact other players' private data. |
@@ -455,7 +456,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | Phase 3 — Web Client         | ✅ Complete (player names wired, all components functional)                              |
 | Phase 4 — Polish             | ✅ Complete (animations, mobile polish; deployment user-handled via Render + Cloudflare) |
 | Phase 5 — Voice Chat         | 🟡 Core + cross-browser fixes + Perfect Negotiation recovery + Cloudflare TURN; smoke test pending |
-| Phase 6 — Persistence/DB     | 🟡 6a complete (pg Pool + regenerated migration); 6b durable `GamePersistence` layer built & fully tested (69 db tests, pglite); 6d live write-through wired into server (games/events/players) ✅ + 6e stats increments ✅. Restart-rehydration (`loadActiveGames`) deferred; server `MemoryStore` refactor + accounts/analytics UI (6c, 6f–6j) remain. |
+| Phase 6 — Persistence/DB     | 🟡 6a complete (pg Pool + regenerated migration); 6b durable `GamePersistence` layer built & fully tested (75 db tests, pglite); 6d live write-through wired into server (games/events/players) ✅ + 6e stats increments ✅ + 6e derived metrics (`getPlayerStatsView`) ✅. Restart-rehydration (`loadActiveGames`) deferred; server `MemoryStore` refactor + accounts/analytics UI (6c, 6f–6j) remain. |
 | Phase 7 — Improvements       | ⬜ Backlog identified; not yet started (27 tasks across 7 sub-phases 7a–7g). Urgent bug/security items flagged "pull forward" |
 
 
