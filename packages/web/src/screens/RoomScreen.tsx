@@ -13,17 +13,26 @@ const SUIT_COLORS = [
   'var(--text)',
 ] as const;
 
+import type { AccountInfo } from '../state/GameProvider';
+
 interface SeatSlotProps {
   pid: string | null;
   seatIndex: number;
   playerId: string;
   hostId: string;
   playerNames: Record<string, string>;
+  account: AccountInfo | null;
 }
 
-function SeatSlot({ pid, seatIndex, playerId, hostId, playerNames }: SeatSlotProps) {
+function SeatSlot({ pid, seatIndex, playerId, hostId, playerNames, account }: SeatSlotProps) {
   const speaking = useVoiceSpeaking();
   const isSpeaking = pid ? speaking.has(pid) : false;
+  const nameFor = (p: string): string => {
+    if (p === playerId && account?.loggedIn && account.displayName) {
+      return account.displayName;
+    }
+    return playerNames[p] ?? p.slice(0, 6);
+  };
   return (
     <div className={`room__seat room__seat--${seatIndex}`}>
       <AnimatePresence mode="wait">
@@ -40,7 +49,7 @@ function SeatSlot({ pid, seatIndex, playerId, hostId, playerNames }: SeatSlotPro
               {SUITS[seatIndex]}
             </span>
             <span className="room__seat-name">
-              {playerNames[pid] ?? pid.slice(0, 6)}
+              {nameFor(pid)}
             </span>
             <div className="room__seat-badges">
               {pid === playerId && <span className="room__seat-badge room__seat-you">you</span>}
@@ -66,7 +75,7 @@ function SeatSlot({ pid, seatIndex, playerId, hostId, playerNames }: SeatSlotPro
 }
 
 export function RoomScreen(): React.ReactNode {
-  const { room, session, playerNames, startGame, leaveRoom } = useGame();
+  const { room, session, account, playerNames, startGame, leaveRoom } = useGame();
   const voice = useVoiceChatContext();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -152,6 +161,7 @@ export function RoomScreen(): React.ReactNode {
             playerId={session.playerId}
             hostId={room.hostId}
             playerNames={playerNames}
+            account={account}
           />
         ))}
       </div>

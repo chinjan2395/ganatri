@@ -35,21 +35,17 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-19
-- Outcome: ✅ Phase 6f/6g — `get_leaderboard` vertical slice. DB: new `GamePersistence.getLeaderboard(limit=20, offset=0)` (Pg + Memory) with shared `toLeaderboardEntry` mapper; excludes guests + zero-games via inner join on `users`; ordered `gamesWon DESC, winRate DESC, gamesPlayed DESC, userId ASC`; winRate derived in JS (0-guarded). Server: PUBLIC `get_leaderboard` endpoint (`handleGetLeaderboard` + `LeaderboardEntryView`/`GetLeaderboardAck`, 1-based `rank`, only failure is no-persistence→`UNAVAILABLE`; no auth gate — guests may view). Web: `LeaderboardScreen` (+ always-visible Lobby button, current-user row highlight). No schema/migration change (drift-guard green). Code-review: ship it (no Critical/Important). Tests 292 → 301 (db 95→101 +3 contract cases; server 44→47 +3 in leaderboard.test.ts); web build green.
-- Branch/PR: nightly/2026-06-19-1703
+- Outcome: ✅ Phase 6g — Display-name unification. When signed in, account.displayName now shown for the local player in RoomScreen (SeatSlot nameFor), GameScreen (resolvedPlayerNames useMemo fed to Part2Board/EndScreen/nameFor/lastEvent effect), and EndScreen (nameFor helper). Part2Board trick-card labels now use the same unified override. Code-review Important fix applied: resolvedPlayerNames computed once via useMemo in GameScreen rather than scattered inline checks. All 301 tests passing; web build green.
+- Branch/PR: nightly/2026-06-19-1851
 
 ## Blockers / Needs Human Input
 (none)
 
 ## Notes for Next Run
-Leaderboard (#1) is now DONE. Good self-contained next units within Phase 6 (each a small, low-risk vertical slice):
+Display-name unification (#1) is now DONE. Remaining self-contained next units within Phase 6:
 
-1. **6g: Display-name unification** — use account `displayName` across RoomScreen/GameScreen/EndScreen when signed in (currently only Lobby uses it). Frontend-only, low risk. **Recommended next** — smallest, no db/server change. (frontend-dev)
+1. **6e: Average finishing position** (derived metric) — requires a small schema migration: add a `sum_finish_positions` column to `player_stats`, increment it in `recordGameEnd`/`upsertPlayerStats` (sum of 1-based finalRank per game-end), and surface `avgFinish` in `get_my_stats` + StatsScreen. Bigger because it touches db schema + a NEW migration (0002) + the drift-guard test + persistence write path + the stats view. Do as its own unit. **Note:** adding a migration means running drizzle-kit generate, committing the SQL, and keeping `schema.test.ts` drift-guard green — verify carefully. (backend-dev for db+server, then frontend-dev) — **Recommended next**.
 
-2. **6e: Average finishing position** (derived metric) — requires a small schema migration: add a `sum_finish_positions` column to `player_stats`, increment it in `recordGameEnd`/`upsertPlayerStats` (sum of 1-based finalRank per game-end), and surface `avgFinish` in `get_my_stats` + StatsScreen. Bigger because it touches db schema + a NEW migration (0002) + the drift-guard test + persistence write path + the stats view. Do as its own unit. **Note:** adding a migration means regenerating via drizzle-kit and keeping `schema.test.ts` drift-guard green — verify carefully. (backend-dev for db+server, then frontend-dev)
+2. **6e: Leaderboard polish** — time-windowed boards (weekly/monthly) and/or showing the logged-in user's global rank when they're outside the top 20 (server computes rank via a count query; surface in `GetLeaderboardAck`). Builds on the shipped `getLeaderboard`.
 
-3. **6e: Leaderboard polish** — time-windowed boards (weekly/monthly) and/or showing the logged-in user's global rank when they're outside the top 20 (server computes rank via a count query; surface in `GetLeaderboardAck`). Builds on the now-shipped `getLeaderboard`.
-
-Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev (it has Read/Write/Edit/Bash and worked cleanly this run combined with the server endpoint).
-
-Recommendation: do **#1 (display-name unification)** next — smallest, frontend-only, zero db/migration risk.
+Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev (it has Read/Write/Edit/Bash and worked cleanly combined with server endpoint work).

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cardId, type CardId, type Card as CardModel, type GameEvent, type Phase } from '@ganatri/engine';
 import { useGame } from '../state/GameProvider';
@@ -80,7 +80,7 @@ const DEFAULT_HAND_STATE: HandState = {
 };
 
 export function GameScreen(): React.ReactNode {
-  const { view, room, session, lastEvent, disconnectedPlayers, playerNames, turnStartedAt, turnTimeoutMs, makeMove, startGame, leaveRoom } = useGame();
+  const { view, room, session, account, lastEvent, disconnectedPlayers, playerNames, turnStartedAt, turnTimeoutMs, makeMove, startGame, leaveRoom } = useGame();
   const voice = useVoiceChatContext();
   const [flash, setFlash] = useState<Flash | null>(null);
   const [cutAnimData, setCutAnimData] = useState<CutAnimData | null>(null);
@@ -93,6 +93,14 @@ export function GameScreen(): React.ReactNode {
   // Stable ref so the lastEvent effect can read the current view without depending on it.
   const viewRef = useRef(view);
   viewRef.current = view;
+
+  // Patch the local player's entry so all display-name consumers use one consistent value.
+  const resolvedPlayerNames = useMemo(() => {
+    if (session?.playerId && account?.loggedIn && account.displayName) {
+      return { ...playerNames, [session.playerId]: account.displayName };
+    }
+    return playerNames;
+  }, [playerNames, session?.playerId, account]);
 
   useLayoutEffect(() => {
     const el = gameRef.current;
@@ -126,7 +134,7 @@ export function GameScreen(): React.ReactNode {
 
   useEffect(() => {
     if (!lastEvent) return;
-    const name = (pid: string): string => playerNames[pid] || shortId(pid);
+    const name = (pid: string): string => resolvedPlayerNames[pid] || shortId(pid);
 
     if (lastEvent.type === 'CUT') {
       const currentView = viewRef.current;
@@ -148,7 +156,7 @@ export function GameScreen(): React.ReactNode {
     setFlash(f);
     const t = setTimeout(() => setFlash(null), 2200);
     return () => clearTimeout(t);
-  }, [lastEvent, playerNames]);
+  }, [lastEvent, resolvedPlayerNames]);
 
   const handlePart1Change = useCallback((state: Part1SelectionState) => {
     setHandState(state);
@@ -176,7 +184,8 @@ export function GameScreen(): React.ReactNode {
           rankings={view.rankings}
           you={view.you}
           isHost={Boolean(isHost)}
-          playerNames={playerNames}
+          playerNames={resolvedPlayerNames}
+          account={account}
           onPlayAgain={() => { void startGame(); }}
           onLeave={() => { void leaveRoom(); }}
         />
@@ -185,7 +194,7 @@ export function GameScreen(): React.ReactNode {
   }
 
   const players = orderedPlayers(view.seating, view.you);
-  const nameFor = (pid: string): string => playerNames[pid] || shortId(pid);
+  const nameFor = (pid: string): string => resolvedPlayerNames[pid] || shortId(pid);
   const isYourTurn = view.turn === view.you;
   const turnName = view.turn ? (isYourTurn ? 'You' : nameFor(view.turn)) : '—';
 
@@ -293,7 +302,7 @@ export function GameScreen(): React.ReactNode {
         {view.phase === 'PART_1' ? (
           <Part1Board view={view} onMove={makeMove} onSelectionChange={handlePart1Change} />
         ) : (
-          <Part2Board view={view} flash={flash} playerNames={playerNames} onMove={makeMove} onSelectionChange={handlePart2Change} />
+          <Part2Board view={view} flash={flash} playerNames={resolvedPlayerNames} onMove={makeMove} onSelectionChange={handlePart2Change} />
         )}
 
         {view.phase === 'PART_1' && view.stockCount > 0 && (
