@@ -125,6 +125,52 @@ jobs:
             --max-turns 60
             --allowedTools Edit,Read,Write,Bash,Agent
 
+      - name: Generate development report
+        if: steps.gate.outputs.run == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Generate an updated Ganatri development-progress report for this run.
+
+            IMPORTANT — environment: you are on a Linux CI runner (Ubuntu), NOT macOS.
+            When the report-generator agent renders the PDF it must use the Linux Chrome
+            binary, not the "/Applications/Google Chrome.app" path. Render with:
+              google-chrome --headless=new --disable-gpu --no-pdf-header-footer \
+                --virtual-time-budget=10000 \
+                --print-to-pdf="<abs>/reports/<slug>-<ts>.pdf" \
+                "file://<abs>/reports/<slug>-<ts>.html"
+            (If `google-chrome` is missing, fall back to `which chromium-browser` / `chromium`.)
+
+            Spawn Agent with subagent_type="report-generator". Tell it the topic is the
+            Ganatri project's development progress, built from the current repo state:
+            - docs/DEVELOPMENT_PLAN.md — phase-by-phase status and test counts.
+            - docs/nightly/STATE.md — current phase, last-run outcome, and any blockers.
+            - This run's work: inspect recent branch commits with
+              `git log origin/main..HEAD --stat` to see what changed (may be empty on a
+              no-op run — say so honestly in the report).
+
+            The report title is "Ganatri — Development Progress" with today's date as the
+            subtitle. It should summarize: the current phase, what was completed this run,
+            overall progress across all phases, the current test status, and any blockers
+            or next steps. Save under reports/ as the agent normally does.
+
+            Do NOT commit anything and do NOT modify docs/DEVELOPMENT_PLAN.md — the report
+            is published as a build artifact, not checked into git.
+          claude_args: >-
+            --model claude-sonnet-4-6
+            --max-turns 30
+            --allowedTools Edit,Read,Write,Bash,Agent
+
+      - name: Upload report artifact
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ganatri-development-report
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 30
+
       - name: Push branch
         id: push
         if: steps.gate.outputs.run == 'true'
