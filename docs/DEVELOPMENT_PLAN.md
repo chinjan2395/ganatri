@@ -1,8 +1,9 @@
 # Ganatri — Phasewise Development Plan
 
+Last updated: 2026-06-19 (Phase 6d/6e: wired DB write-through into the server — new `server/src/persistence.ts` service + `handlers.ts` calls. Persists `rooms` (on game start), `games`, `game_players`, `game_events` (async, seq-ordered, batched), and incremental `player_stats` on game-end/abandon. Async fire-and-forget — never blocks the engine; `getPersistence()` returns null when `DATABASE_URL` unset. Restart-rehydration via `loadActiveGames` deferred / out of scope; 28 server tests, 2 new.)  
 Last updated: 2026-06-18 (Phase 6a/6b: fixed @ganatri/db foundation — node-postgres Pool + DATABASE_URL, text seed, regenerated migration; built fully-tested GamePersistence layer (Pg + Memory); review fixes: idempotent recordGameFinished via (game_id, seat_index) unique index, deterministic+batched loadActiveGames, isGuest preservation on upsert)  
 Last updated: 2026-06-16 (Voice perf/heat fixes: room-gated mic acquisition, watchdog backoff+cap, AudioContext suspend while muted/idle; Critical fixes: TURN_TIMEOUT event, XSS sanitization, grace expiry broadcast, DRY refactor, freeze duration; 26 server tests)  
-All 248 tests passing (153 engine + 26 server + 69 db).
+All 250 tests passing (153 engine + 28 server + 69 db).
 
 ---
 
@@ -92,9 +93,10 @@ All 248 tests passing (153 engine + 26 server + 69 db).
 | Grace expiry broadcast ROOM_UPDATE for non-turn players              | ✅      | gracePeriodExpired() removes non-turn players |
 | DRY refactor: applyAutoMove helper (timeout + grace-expired)         | ✅      | Reduces duplication; both paths use helper |
 | Trick-reveal freeze duration alignment (2200ms for TRICK_WON)        | ✅      | GameProvider.tsx line 153; matches flash duration |
+| DB write-through integration tests (full game + abandonment)         | ✅      | `src/persistence.test.ts` (2 tests); injects `MemoryPersistence` via `__setPersistenceForTests` |
 
 
-**Test count: 26 / 26 passing.**
+**Test count: 28 / 28 passing.**
 
 ---
 
@@ -270,22 +272,22 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Persist room lifecycle | ⬜ | Insert on `create_room`; update status on start / finish / abandon / expiry. |
-| Persist completed game records | ⬜ | On `GAME_OVER`, write `games` + `game_players` rows (seed, seating, config, duration, rankings). |
-| Persist outcomes & rankings | ⬜ | Winner, full finish order, safe order, who was cut, per-player capture counts. |
-| Write-through engine event log | ⬜ | Stream engine `GameEvent`s to `game_events` asynchronously; never block `applyMove`. Batch/queue writes. |
-| Server-restart recovery | ⬜ | Rehydrate in-progress games from DB on boot so a restart no longer silently drops active games (resolves Phase 7b "server state persistence"). |
+| Persist room lifecycle | ✅ | Wired in `server/src/persistence.ts` + `handlers.ts`. `rooms` row written when a game **starts** (status PLAYING), not at lobby creation (scope decision); `updateRoomStatus` → DONE on finish / ABANDONED on abandon. |
+| Persist completed game records | ✅ | On `GAME_OVER`, `recordGameEnd` writes `games` (seed, seating, duration, winner) + `game_players` rows via `mappers.mapFinalPlayers`. Async write-through; never blocks `applyMove`. |
+| Persist outcomes & rankings | ✅ | Winner (`mapWinner`), 1-based final ranks, was-cut, per-player capture counts persisted into `game_players`; safe order + cuts feed `player_stats`. |
+| Write-through engine event log | ✅ | `recordEvents` streams `GameEvent`s to `game_events` async (fire-and-forget); per-room running `seq` counter; batched via `appendGameEvents`. A per-room gameId-promise gates event/finish writes behind the game-start write, closing the start→move race. |
+| Server-restart recovery | ⬜ | **Deferred (out of scope for this task).** `loadActiveGames` rehydration on boot not yet wired; restart still drops active games. Persistence layer already supports it. |
 | Replay data model & reconstruction | ⬜ | Rebuild a game from `game_events` + seed to power a replay viewer (depends on full-log decision in 6b). |
-| Abandonment / forfeit recording | ⬜ | Distinguish completed vs abandoned games so stats don't punish disconnects unfairly (ties to Phase 7b auto-forfeit). |
+| Abandonment / forfeit recording | ✅ | `recordGameEnd(..., isAbandoned=true)` from `gracePeriodExpired` and the PLAYING branch of `silentLeaveRoom` when <2 players remain; sets `games.is_abandoned` + `rooms.status=ABANDONED` and increments `gamesAbandoned`. |
 | Aggregation/backfill job | ⬜ | Job to (re)compute stats from game records — for fixing bugs or onboarding historical data. |
 
 ### 6e — Player statistics
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| 🔷 DECISION: aggregation strategy | ⬜ | **Incremental** (update `player_stats` in a transaction on game-end — fast reads, must be idempotent) **vs batch recompute** (cron over `games`). Recommend incremental with a periodic reconcile job. |
-| Core counting stats | ⬜ | Games played/won/lost/abandoned, captures (Part 1), cuts given/received, times safe, time played. |
-| Derived metrics | ⬜ | Win rate, average finishing position, longest win streak, current streak. |
+| 🔷 DECISION: aggregation strategy | ✅ | **Incremental chosen.** `recordGameEnd` upserts `player_stats` per player on game-end via `upsertPlayerStats` (increment deltas); idempotent per room (gameId-promise consumed on first call). Periodic reconcile job still TODO. |
+| Core counting stats | ✅ | Games played/won/lost/abandoned, captures (Part 1), cuts given/received, times safe, total play time all written per game-end in `server/src/persistence.ts`. |
+| Derived metrics | 🟡 | Win/longest streaks computed best-effort (`getPlayerStats` → set `currentWinStreak`/`longestWinStreak`). Win rate / average finishing position not yet derived. |
 | 🔷 DECISION: rating system | ⬜ | Optional skill rating: **ELO** (simple, 1v1-style adapted to multiplayer placement) or **Glicko-2** (handles uncertainty/inactivity). Skip for v1 of this phase if scope is tight. |
 | Leaderboard queries | ⬜ | Global + time-windowed (weekly/monthly) + (later) friends; paginated, indexed sort. |
 | Stats API endpoints / socket queries | ⬜ | `get_my_stats`, `get_leaderboard`, `get_match_history`; redact other players' private data. |
@@ -449,11 +451,11 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | Phase                        | Status                                                                                  |
 | ---------------------------- | --------------------------------------------------------------------------------------- |
 | Phase 1 — Engine             | ✅ Complete (153 tests)                                                                  |
-| Phase 2 — Server             | ✅ Complete (26 tests; TURN_TIMEOUT + sanitization + grace expiry broadcast + DRY refactor + freeze fix) |
+| Phase 2 — Server             | ✅ Complete (28 tests; TURN_TIMEOUT + sanitization + grace expiry broadcast + DRY refactor + freeze fix + DB write-through) |
 | Phase 3 — Web Client         | ✅ Complete (player names wired, all components functional)                              |
 | Phase 4 — Polish             | ✅ Complete (animations, mobile polish; deployment user-handled via Render + Cloudflare) |
 | Phase 5 — Voice Chat         | 🟡 Core + cross-browser fixes + Perfect Negotiation recovery + Cloudflare TURN; smoke test pending |
-| Phase 6 — Persistence/DB     | 🟡 6a complete (pg Pool + regenerated migration); 6b durable `GamePersistence` layer built & fully tested (69 db tests, pglite). Ready-to-wire; live write-through (6d) + server `MemoryStore` refactor + accounts/stats/analytics UI (6c, 6e–6j) remain. |
+| Phase 6 — Persistence/DB     | 🟡 6a complete (pg Pool + regenerated migration); 6b durable `GamePersistence` layer built & fully tested (69 db tests, pglite); 6d live write-through wired into server (games/events/players) ✅ + 6e stats increments ✅. Restart-rehydration (`loadActiveGames`) deferred; server `MemoryStore` refactor + accounts/analytics UI (6c, 6f–6j) remain. |
 | Phase 7 — Improvements       | ⬜ Backlog identified; not yet started (27 tasks across 7 sub-phases 7a–7g). Urgent bug/security items flagged "pull forward" |
 
 
