@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import type { PlayerId } from '@ganatri/engine';
+import type { AccountInfo } from '../state/GameProvider';
 import logo from '../assets/ganatri-logo.png';
 import './EndScreen.css';
 
@@ -8,6 +9,7 @@ export interface EndScreenProps {
   you: PlayerId;
   isHost: boolean;
   playerNames: Readonly<Record<string, string>>;
+  account?: AccountInfo | null;
   onPlayAgain: () => void;
   onLeave: () => void;
 }
@@ -16,10 +18,17 @@ function shortId(id: PlayerId): string {
   return id.length <= 6 ? id : id.slice(0, 6);
 }
 
-export function EndScreen({ rankings, you, isHost, playerNames, onPlayAgain, onLeave }: EndScreenProps): React.ReactNode {
+export function EndScreen({ rankings, you, isHost, playerNames, account, onPlayAgain, onLeave }: EndScreenProps): React.ReactNode {
   const order = rankings ?? [];
   const loserIndex = order.length > 0 ? order.length - 1 : -1;
   const winner = order[0];
+
+  const nameFor = (pid: PlayerId): string => {
+    if (pid === you && account?.loggedIn && account.displayName) {
+      return account.displayName;
+    }
+    return playerNames[pid] || shortId(pid);
+  };
 
   return (
     <div className="end">
@@ -35,7 +44,7 @@ export function EndScreen({ rankings, you, isHost, playerNames, onPlayAgain, onL
         >
           <div className="end__trophy">🏆</div>
           <div className="end__winner-name">
-            {playerNames[winner] || shortId(winner)}
+            {nameFor(winner)}
             {winner === you && <span className="end__you"> (you)</span>}
           </div>
           <div className="end__winner-label">Winner</div>
@@ -58,7 +67,7 @@ export function EndScreen({ rankings, you, isHost, playerNames, onPlayAgain, onL
               >
                 <span className="end__place">{i === 0 ? '🏆' : `#${i + 1}`}</span>
                 <span className="end__player">
-                  {playerNames[pid] || shortId(pid)}
+                  {nameFor(pid)}
                   {pid === you && <span className="end__you"> (you)</span>}
                 </span>
                 <span className="end__label">{i === 0 ? 'winner' : isLoser ? 'loser' : 'safe'}</span>
