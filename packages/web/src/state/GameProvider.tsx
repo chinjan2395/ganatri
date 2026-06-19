@@ -17,6 +17,7 @@ import {
   requestState,
   requestHistory as netRequestHistory,
   requestMyStats as netRequestMyStats,
+  requestLeaderboard as netRequestLeaderboard,
   loginWithGoogle as netLoginWithGoogle,
   logout as netLogout,
   setToken,
@@ -32,6 +33,7 @@ import {
   type PlayerReconnectedPayload,
   type RequestHistoryAck,
   type GetMyStatsAck,
+  type GetLeaderboardAck,
   type RoomUpdatePayload,
   type SessionPayload,
   type StartGameAck,
@@ -76,10 +78,11 @@ export interface GameContextValue {
   startGame: () => Promise<StartGameAck>;
   makeMove: (move: Move) => Promise<boolean>;
   /** Lightweight in-app navigation for non-game screens (e.g. history). */
-  screen: 'main' | 'history' | 'stats';
-  setScreen: (screen: 'main' | 'history' | 'stats') => void;
+  screen: 'main' | 'history' | 'stats' | 'leaderboard';
+  setScreen: (screen: 'main' | 'history' | 'stats' | 'leaderboard') => void;
   requestHistory: () => Promise<RequestHistoryAck>;
   requestMyStats: () => Promise<GetMyStatsAck>;
+  requestLeaderboard: () => Promise<GetLeaderboardAck>;
   loginWithGoogle: () => void;
   logout: () => void;
 }
@@ -90,7 +93,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
   const [connected, setConnected] = useState(socket.connected);
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [account, setAccount] = useState<AccountInfo | null>(null);
-  const [screen, setScreen] = useState<'main' | 'history' | 'stats'>('main');
+  const [screen, setScreen] = useState<'main' | 'history' | 'stats' | 'leaderboard'>('main');
   const [room, setRoom] = useState<RoomUpdatePayload | null>(null);
   const [view, setView] = useState<PlayerView | null>(null);
   const [turnStartedAt, setTurnStartedAt] = useState<number | null>(null);
@@ -250,6 +253,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
 
   const requestHistory = useCallback(() => netRequestHistory(), []);
   const requestMyStats = useCallback(() => netRequestMyStats(), []);
+  const requestLeaderboard = useCallback(() => netRequestLeaderboard(), []);
   const loginWithGoogle = useCallback(() => netLoginWithGoogle(), []);
   const logout = useCallback(() => netLogout(), []);
 
@@ -313,6 +317,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       setScreen,
       requestHistory,
       requestMyStats,
+      requestLeaderboard,
       loginWithGoogle,
       logout,
     }),
@@ -338,6 +343,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       screen,
       requestHistory,
       requestMyStats,
+      requestLeaderboard,
       loginWithGoogle,
       logout,
     ],

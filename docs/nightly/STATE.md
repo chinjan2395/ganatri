@@ -22,7 +22,8 @@ IN_PROGRESS — Phase 6 stats/accounts vertical slices landing incrementally.  <
 - [x] Phase A — Accounts/auth DB (users.avatarUrl, oauth_accounts, auth_sessions, retention indexes; migration 0001)
 - [x] Phase B — Server OAuth (`/auth/google/*`), durable identity via `ganatri_session` cookie, `REQUEST_HISTORY`, daily retention prune
 - [x] Phase C — Web OAuth UI + game-history/score-card `HistoryScreen`
-- [x] Phase 6e/6g (this run, 2026-06-19) — `get_my_stats` endpoint + personal `StatsScreen` dashboard
+- [x] Phase 6e/6g — `get_my_stats` endpoint + personal `StatsScreen` dashboard
+- [x] Phase 6f/6g (this run, 2026-06-19) — `get_leaderboard` slice: db `getLeaderboard` (Pg+Memory) + PUBLIC server endpoint + web `LeaderboardScreen`
 
 ## Sequencing Note
 STATE.md was previously stale (claimed only 6a complete). It has been reconciled with
@@ -34,21 +35,21 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-19
-- Outcome: ✅ Phase 6e/6g — added `get_my_stats` socket endpoint (server) + `StatsScreen` personal stats dashboard (web), mirroring the REQUEST_HISTORY/HistoryScreen slice. Reuses DB `getPlayerStats`; derived `winRate`; no schema migration. Code-review: ship it. Tests 288 → 292 (server 40 → 44, +4 in stats.test.ts); web build green.
-- Branch/PR: nightly/2026-06-19-1420
+- Outcome: ✅ Phase 6f/6g — `get_leaderboard` vertical slice. DB: new `GamePersistence.getLeaderboard(limit=20, offset=0)` (Pg + Memory) with shared `toLeaderboardEntry` mapper; excludes guests + zero-games via inner join on `users`; ordered `gamesWon DESC, winRate DESC, gamesPlayed DESC, userId ASC`; winRate derived in JS (0-guarded). Server: PUBLIC `get_leaderboard` endpoint (`handleGetLeaderboard` + `LeaderboardEntryView`/`GetLeaderboardAck`, 1-based `rank`, only failure is no-persistence→`UNAVAILABLE`; no auth gate — guests may view). Web: `LeaderboardScreen` (+ always-visible Lobby button, current-user row highlight). No schema/migration change (drift-guard green). Code-review: ship it (no Critical/Important). Tests 292 → 301 (db 95→101 +3 contract cases; server 44→47 +3 in leaderboard.test.ts); web build green.
+- Branch/PR: nightly/2026-06-19-1703
 
 ## Blockers / Needs Human Input
 (none)
 
 ## Notes for Next Run
-Good self-contained next units within Phase 6 (each a small, low-risk vertical slice):
+Leaderboard (#1) is now DONE. Good self-contained next units within Phase 6 (each a small, low-risk vertical slice):
 
-1. **6e: `get_leaderboard` socket endpoint + Global Leaderboard screen (6g).**
-   - Needs a NEW DB method on `GamePersistence` (e.g. `getLeaderboard(limit, offset)` → top users by gamesWon / win rate, indexed sort) implemented in BOTH `PgPersistence` and `MemoryPersistence` (+ shared contract tests). The `player_stats` table already has the columns; `player_stats_user_id_idx` exists but a sort index on `games_won` may help.
-   - Then mirror the history/stats slice: `EVENTS.GET_LEADERBOARD`, server handler (guest allowed? decide — leaderboard is arguably public, but keep it logged-in-gated for consistency or make it open), web `requestLeaderboard()`, provider wiring, `screen` union → add `'leaderboard'`, Lobby button, `LeaderboardScreen`.
+1. **6g: Display-name unification** — use account `displayName` across RoomScreen/GameScreen/EndScreen when signed in (currently only Lobby uses it). Frontend-only, low risk. **Recommended next** — smallest, no db/server change. (frontend-dev)
 
-2. **6g: Display-name unification** — use account `displayName` across RoomScreen/GameScreen/EndScreen when signed in (currently only Lobby uses it). Frontend-only, low risk.
+2. **6e: Average finishing position** (derived metric) — requires a small schema migration: add a `sum_finish_positions` column to `player_stats`, increment it in `recordGameEnd`/`upsertPlayerStats` (sum of 1-based finalRank per game-end), and surface `avgFinish` in `get_my_stats` + StatsScreen. Bigger because it touches db schema + a NEW migration (0002) + the drift-guard test + persistence write path + the stats view. Do as its own unit. **Note:** adding a migration means regenerating via drizzle-kit and keeping `schema.test.ts` drift-guard green — verify carefully. (backend-dev for db+server, then frontend-dev)
 
-3. **6e: Average finishing position** (derived metric) — requires a small schema migration: add a `sum_finish_positions` (or similar) column to `player_stats`, increment it in `recordGameEnd`/`upsertPlayerStats`, and surface `avgFinish` in `get_my_stats` + StatsScreen. Bigger because it touches db schema + migration + persistence write path + the stats view; do as its own unit.
+3. **6e: Leaderboard polish** — time-windowed boards (weekly/monthly) and/or showing the logged-in user's global rank when they're outside the top 20 (server computes rank via a count query; surface in `GetLeaderboardAck`). Builds on the now-shipped `getLeaderboard`.
 
-Recommendation: do **#1 (leaderboard)** next — highest user value, cleanly mirrors the now-proven endpoint+screen pattern. Define a `getLeaderboard` DB method first (rules-engine-dev is NOT for db; use backend-dev for server, but the db package method is best done by an agent with db context — note packages/db has no dedicated agent, so route db work to backend-dev or general-purpose with explicit file scope `packages/db`).
+Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev (it has Read/Write/Edit/Bash and worked cleanly this run combined with the server endpoint).
+
+Recommendation: do **#1 (display-name unification)** next — smallest, frontend-only, zero db/migration risk.

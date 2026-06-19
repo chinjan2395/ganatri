@@ -14,6 +14,11 @@
   color: var(--danger);
   font-weight: 600;
 }
+.lobby__nav {
+  margin-top: 4px;
+  display: flex;
+  justify-content: center;
+}
 .lobby__account {
   margin-top: 4px;
   padding-top: 14px;

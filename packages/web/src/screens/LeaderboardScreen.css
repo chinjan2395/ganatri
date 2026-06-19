@@ -1,0 +1,121 @@
+.lb {
+  gap: 14px;
+}
+.lb__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(560px, 94vw);
+  gap: 12px;
+}
+.lb__title {
+  font-family: var(--font-display), serif;
+  font-size: clamp(20px, 6vw, 28px);
+  color: var(--accent);
+  text-shadow: var(--glow-gold);
+}
+.lb__header-spacer {
+  /* Balances the Back button so the title stays centered. */
+  width: 72px;
+}
+.lb__center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.lb__message {
+  border: 1px solid rgba(231, 195, 74, 0.4);
+  align-items: center;
+  text-align: center;
+}
+
+.lb__table {
+  width: min(560px, 94vw);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lb__row {
+  display: grid;
+  grid-template-columns: 40px 34px 1fr 44px 52px 56px;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid rgba(231, 195, 74, 0.22);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  padding: 10px 12px;
+}
+.lb__row--head {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0 12px;
+}
+.lb__row--head .lb__name,
+.lb__row--head .lb__stat,
+.lb__row--head .lb__rank {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  font-family: inherit;
+}
+.lb__row--me {
+  border-color: rgba(231, 195, 74, 0.7);
+  box-shadow: var(--glow-gold), 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.lb__rank {
+  font-family: var(--font-display), serif;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text-dim);
+  text-align: center;
+}
+.lb__rank--medal {
+  font-size: 20px;
+}
+
+.lb__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(231, 195, 74, 0.5);
+}
+.lb__avatar--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel-2);
+  color: var(--accent);
+  font-weight: 700;
+}
+.lb__avatar-head {
+  width: 32px;
+}
+
+.lb__name {
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lb__row--me .lb__name {
+  color: var(--accent);
+}
+
+.lb__stat {
+  font-family: var(--font-display), serif;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text);
+  text-align: right;
+}
+.lb__stat--rate {
+  color: var(--accent);
+}

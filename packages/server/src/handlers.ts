@@ -23,6 +23,8 @@ import {
   type GameHistoryEntry as WireGameHistoryEntry,
   type GetMyStatsAck,
   type PlayerStatsView,
+  type GetLeaderboardAck,
+  type LeaderboardEntryView,
   type VoiceOfferPayload,
   type VoiceAnswerPayload,
   type VoiceIcePayload,
@@ -30,7 +32,11 @@ import {
   type RequestIceServersAck,
   EVENTS,
 } from './protocol.js';
-import type { GameHistoryEntry as DbGameHistoryEntry, PlayerStatsRow } from '@ganatri/db';
+import type {
+  GameHistoryEntry as DbGameHistoryEntry,
+  PlayerStatsRow,
+  LeaderboardEntry,
+} from '@ganatri/db';
 import { getConfig, isAdminEmail, updateConfig, RETENTION_DAYS } from './config.js';
 import { getIceServers } from './iceConfig.js';
 import {
@@ -558,6 +564,11 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
   socket.on(EVENTS.GET_MY_STATS, (ack: (res: GetMyStatsAck) => void) => {
     if (typeof ack !== 'function') return;
     void handleGetMyStats(session, ack);
+  });
+
+  socket.on(EVENTS.GET_LEADERBOARD, (ack: (res: GetLeaderboardAck) => void) => {
+    if (typeof ack !== 'function') return;
+    void handleGetLeaderboard(ack);
   });
 
   // Admin: authenticate
@@ -1100,6 +1111,38 @@ function mapStatsView(row: PlayerStatsRow): PlayerStatsView {
     currentWinStreak: row.currentWinStreak,
     longestWinStreak: row.longestWinStreak,
     updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// get_leaderboard (public)
+// ---------------------------------------------------------------------------
+
+async function handleGetLeaderboard(ack: (res: GetLeaderboardAck) => void): Promise<void> {
+  const p = getPersistence();
+  if (!p) {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+  try {
+    const rows = await p.getLeaderboard(20, 0);
+    ack({ ok: true, entries: rows.map((r, i) => mapLeaderboardEntry(r, i)) });
+  } catch (err) {
+    console.error('[leaderboard] getLeaderboard failed:', err);
+    ack({ ok: false, error: 'UNAVAILABLE' });
+  }
+}
+
+/** Map a DB leaderboard row to the wire shape, assigning a 1-based rank. */
+function mapLeaderboardEntry(row: LeaderboardEntry, i: number): LeaderboardEntryView {
+  return {
+    rank: i + 1,
+    userId: row.userId,
+    displayName: row.displayName,
+    avatarUrl: row.avatarUrl,
+    gamesPlayed: row.gamesPlayed,
+    gamesWon: row.gamesWon,
+    winRate: row.gamesPlayed > 0 ? row.gamesWon / row.gamesPlayed : 0,
   };
 }
 

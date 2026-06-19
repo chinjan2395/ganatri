@@ -30,6 +30,7 @@ import type {
   GamePlayerRow,
   GameRow,
   GameWithPlayers,
+  LeaderboardEntry,
   NewUser,
   PlayerStatsDelta,
   PlayerStatsRow,
@@ -454,6 +455,32 @@ export class PgPersistence implements GamePersistence {
     return rows[0] ?? null;
   }
 
+  async getLeaderboard(limit = 20, offset = 0): Promise<LeaderboardEntry[]> {
+    const rows = await this.db
+      .select({
+        userId: users.id,
+        displayName: users.displayName,
+        avatarUrl: users.avatarUrl,
+        gamesPlayed: playerStats.gamesPlayed,
+        gamesWon: playerStats.gamesWon,
+        gamesLost: playerStats.gamesLost,
+      })
+      .from(playerStats)
+      .innerJoin(users, eq(playerStats.userId, users.id))
+      .where(and(eq(users.isGuest, false), sql`${playerStats.gamesPlayed} > 0`))
+      .orderBy(
+        desc(playerStats.gamesWon),
+        // Secondary key only: the emitted winRate is derived in JS (see
+        // toLeaderboardEntry); this SQL ratio just breaks gamesWon ties.
+        sql`${playerStats.gamesWon}::float / ${playerStats.gamesPlayed} desc`,
+        desc(playerStats.gamesPlayed),
+        asc(users.id)
+      )
+      .limit(limit)
+      .offset(offset);
+    return rows.map(toLeaderboardEntry);
+  }
+
   // Recovery reads ----------------------------------------------------------
 
   async loadActiveGames(): Promise<GameWithPlayers[]> {
@@ -516,6 +543,33 @@ export class PgPersistence implements GamePersistence {
 
 /** Alias matching the DEVELOPMENT_PLAN naming. */
 export const PostgresStore = PgPersistence;
+
+/** The joined columns a leaderboard query selects, before winRate derivation. */
+export interface LeaderboardRowInput {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  gamesPlayed: number;
+  gamesWon: number;
+  gamesLost: number;
+}
+
+/**
+ * Project a joined (player_stats + users) row into a `LeaderboardEntry`. The
+ * winRate is always derived in JS (0-guarded) — never trusted from a SQL float.
+ * Shared by both persistence implementations so the shape is identical.
+ */
+export function toLeaderboardEntry(row: LeaderboardRowInput): LeaderboardEntry {
+  return {
+    userId: row.userId,
+    displayName: row.displayName,
+    avatarUrl: row.avatarUrl,
+    gamesPlayed: row.gamesPlayed,
+    gamesWon: row.gamesWon,
+    gamesLost: row.gamesLost,
+    winRate: row.gamesPlayed > 0 ? row.gamesWon / row.gamesPlayed : 0,
+  };
+}
 
 /**
  * Project a game row + its player rows into a `GameHistoryEntry` for `userId`.

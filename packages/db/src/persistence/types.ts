@@ -153,6 +153,18 @@ export interface GameHistoryEntry {
   players: GameHistoryPlayer[];
 }
 
+/** One leaderboard row: a ranked account with its aggregate win record. */
+export interface LeaderboardEntry {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  gamesPlayed: number;
+  gamesWon: number;
+  gamesLost: number;
+  /** gamesWon / gamesPlayed in [0,1]; 0 when gamesPlayed === 0. */
+  winRate: number;
+}
+
 /** Increment-style delta applied to a player's aggregate stats. */
 export interface PlayerStatsDelta {
   userId: string;
@@ -266,6 +278,14 @@ export interface GamePersistence {
   upsertPlayerStats(delta: PlayerStatsDelta): Promise<PlayerStatsRow>;
 
   getPlayerStats(userId: string): Promise<PlayerStatsRow | null>;
+
+  /**
+   * Top accounts by win record, strongest first. Ordering:
+   * gamesWon DESC, winRate DESC, gamesPlayed DESC, userId ASC (stable).
+   * Excludes guests and users with zero games played. Joins `users` for the
+   * display name + avatar. Paginated.
+   */
+  getLeaderboard(limit?: number, offset?: number): Promise<LeaderboardEntry[]>;
 
   // Recovery reads ----------------------------------------------------------
 
