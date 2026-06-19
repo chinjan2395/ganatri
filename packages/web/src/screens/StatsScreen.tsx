@@ -24,6 +24,11 @@ function formatPct(rate: number): string {
   return `${Math.round(rate * 100)}%`;
 }
 
+function formatAvgFinish(avg: number): string {
+  if (!Number.isFinite(avg) || avg === 0) return '—';
+  return avg.toFixed(1);
+}
+
 interface StatCardProps {
   label: string;
   value: string | number;
@@ -107,6 +112,7 @@ export function StatsScreen(): React.ReactNode {
         <div className="stats__grid">
           <StatCard label="Games played" value={state.stats.gamesPlayed} />
           <StatCard label="Win rate" value={formatPct(state.stats.winRate)} accent />
+          <StatCard label="Avg finish" value={formatAvgFinish(state.stats.avgFinish)} />
           <StatCard label="Wins" value={state.stats.gamesWon} />
           <StatCard label="Losses" value={state.stats.gamesLost} />
           <StatCard label="Abandoned" value={state.stats.gamesAbandoned} />

@@ -97,6 +97,7 @@ export interface PlayerStatsView {
   totalPlayTimeMs: number;
   currentWinStreak: number;
   longestWinStreak: number;
+  avgFinish: number; // sumFinishPositions / gamesPlayed; 0 when gamesPlayed === 0
   updatedAt: string | null;
 }
 

@@ -418,6 +418,7 @@ export class PgPersistence implements GamePersistence {
         totalPlayTimeMs: inc(delta.totalPlayTimeMs),
         longestWinStreak: delta.longestWinStreak ?? 0,
         currentWinStreak: delta.currentWinStreak ?? 0,
+        sumFinishPositions: inc(delta.sumFinishPositions),
       })
       .onConflictDoUpdate({
         target: playerStats.userId,
@@ -439,6 +440,7 @@ export class PgPersistence implements GamePersistence {
             delta.currentWinStreak !== undefined
               ? delta.currentWinStreak
               : sql`${playerStats.currentWinStreak}`,
+          sumFinishPositions: sql`${playerStats.sumFinishPositions} + ${inc(delta.sumFinishPositions)}`,
           updatedAt: new Date(),
         },
       })

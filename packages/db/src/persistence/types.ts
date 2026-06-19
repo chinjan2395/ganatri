@@ -181,6 +181,7 @@ export interface PlayerStatsDelta {
   longestWinStreak?: number;
   /** Absolute value to set (not incremented). */
   currentWinStreak?: number;
+  sumFinishPositions?: number;
 }
 
 // ---------------------------------------------------------------------------

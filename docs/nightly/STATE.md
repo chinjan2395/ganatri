@@ -35,17 +35,17 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-19
-- Outcome: ✅ Phase 6g — Display-name unification. When signed in, account.displayName now shown for the local player in RoomScreen (SeatSlot nameFor), GameScreen (resolvedPlayerNames useMemo fed to Part2Board/EndScreen/nameFor/lastEvent effect), and EndScreen (nameFor helper). Part2Board trick-card labels now use the same unified override. Code-review Important fix applied: resolvedPlayerNames computed once via useMemo in GameScreen rather than scattered inline checks. All 301 tests passing; web build green.
-- Branch/PR: nightly/2026-06-19-1851
+- Outcome: ✅ Phase 6e — Average finishing position. Added `sum_finish_positions` column to `player_stats` (migration 0002), wired through PgPersistence + MemoryPersistence, incremented in `writePlayerStats` (0 for abandoned games). `avgFinish` derived as `sumFinishPositions / (gamesPlayed - gamesAbandoned)` in `mapStatsView` (correctly excludes abandoned games from denominator). Added to `PlayerStatsView` in both server + web protocol.ts, displayed as "Avg finish" StatCard in StatsScreen with em-dash fallback for 0. Code-review bugs fixed: denominator was `gamesPlayed` (biased), and `avgFinish` assertion added to server stats test. All 302 tests passing (153 engine + 102 db + 47 server); web build green.
+- Branch/PR: nightly/2026-06-19-2211
 
 ## Blockers / Needs Human Input
 (none)
 
 ## Notes for Next Run
-Display-name unification (#1) is now DONE. Remaining self-contained next units within Phase 6:
+Average finishing position (#1) is now DONE. Remaining self-contained next units within Phase 6:
 
-1. **6e: Average finishing position** (derived metric) — requires a small schema migration: add a `sum_finish_positions` column to `player_stats`, increment it in `recordGameEnd`/`upsertPlayerStats` (sum of 1-based finalRank per game-end), and surface `avgFinish` in `get_my_stats` + StatsScreen. Bigger because it touches db schema + a NEW migration (0002) + the drift-guard test + persistence write path + the stats view. Do as its own unit. **Note:** adding a migration means running drizzle-kit generate, committing the SQL, and keeping `schema.test.ts` drift-guard green — verify carefully. (backend-dev for db+server, then frontend-dev) — **Recommended next**.
+1. **6e: Leaderboard polish** — time-windowed boards (weekly/monthly) and/or showing the logged-in user's global rank when they're outside the top 20 (server computes rank via a count query; surface in `GetLeaderboardAck`). Builds on the shipped `getLeaderboard`. — **Recommended next**.
 
-2. **6e: Leaderboard polish** — time-windowed boards (weekly/monthly) and/or showing the logged-in user's global rank when they're outside the top 20 (server computes rank via a count query; surface in `GetLeaderboardAck`). Builds on the shipped `getLeaderboard`.
+2. **Schema drift-guard enhancement** (minor) — The drift-guard test in `packages/db/tests/schema.test.ts` verifies table count, table names, indexes, and the `seed` column type, but doesn't assert that `player_stats.sum_finish_positions` exists with `integer NOT NULL DEFAULT 0`. A column-existence query against `information_schema.columns` would catch accidental migration omissions. Low priority but good hygiene.
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev (it has Read/Write/Edit/Bash and worked cleanly combined with server endpoint work).

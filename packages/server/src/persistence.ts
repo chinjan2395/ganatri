@@ -276,6 +276,7 @@ async function writePlayerStats(
       totalPlayTimeMs: durationMs,
       currentWinStreak,
       longestWinStreak,
+      sumFinishPositions: isAbandoned ? 0 : (player.finalRank ?? 0),
     };
 
     try {

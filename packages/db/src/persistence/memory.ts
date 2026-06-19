@@ -420,6 +420,7 @@ export class MemoryPersistence implements GamePersistence {
         totalPlayTimeMs: inc(delta.totalPlayTimeMs),
         longestWinStreak: delta.longestWinStreak ?? 0,
         currentWinStreak: delta.currentWinStreak ?? 0,
+        sumFinishPositions: inc(delta.sumFinishPositions),
         updatedAt: new Date(),
       };
       this.stats.set(delta.userId, row);
@@ -444,6 +445,7 @@ export class MemoryPersistence implements GamePersistence {
         delta.currentWinStreak !== undefined
           ? delta.currentWinStreak
           : existing.currentWinStreak,
+      sumFinishPositions: existing.sumFinishPositions + inc(delta.sumFinishPositions),
       updatedAt: new Date(),
     };
     this.stats.set(delta.userId, updated);

@@ -1110,6 +1110,7 @@ function mapStatsView(row: PlayerStatsRow): PlayerStatsView {
     totalPlayTimeMs: row.totalPlayTimeMs,
     currentWinStreak: row.currentWinStreak,
     longestWinStreak: row.longestWinStreak,
+    avgFinish: (row.gamesPlayed - row.gamesAbandoned) > 0 ? row.sumFinishPositions / (row.gamesPlayed - row.gamesAbandoned) : 0,
     updatedAt: row.updatedAt.toISOString(),
   };
 }
@@ -1161,6 +1162,7 @@ function zeroStatsView(): PlayerStatsView {
     totalPlayTimeMs: 0,
     currentWinStreak: 0,
     longestWinStreak: 0,
+    avgFinish: 0,
     updatedAt: null,
   };
 }
