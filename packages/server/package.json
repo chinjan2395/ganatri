@@ -12,6 +12,7 @@
   "dependencies": {
     "@ganatri/db": "0.0.0",
     "@ganatri/engine": "*",
+    "google-auth-library": "^9.15.0",
     "socket.io": "^4.8.0",
     "uuid": "^11.0.0"
   },

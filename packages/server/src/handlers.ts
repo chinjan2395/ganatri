@@ -19,6 +19,8 @@ import {
   type MakeMoveAck,
   type StartGameAck,
   type RequestStateAck,
+  type RequestHistoryAck,
+  type GameHistoryEntry as WireGameHistoryEntry,
   type VoiceOfferPayload,
   type VoiceAnswerPayload,
   type VoiceIcePayload,
@@ -26,7 +28,8 @@ import {
   type RequestIceServersAck,
   EVENTS,
 } from './protocol.js';
-import { getConfig, isAdminEmail, updateConfig } from './config.js';
+import type { GameHistoryEntry as DbGameHistoryEntry } from '@ganatri/db';
+import { getConfig, isAdminEmail, updateConfig, RETENTION_DAYS } from './config.js';
 import { getIceServers } from './iceConfig.js';
 import {
   type RoomState,
@@ -41,7 +44,7 @@ import {
 } from './store.js';
 import type { GameTransport } from './transport.js';
 import { SocketTransport } from './socketTransport.js';
-import { recordGameStart, recordEvents, recordGameEnd } from './persistence.js';
+import { recordGameStart, recordEvents, recordGameEnd, getPersistence } from './persistence.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -230,7 +233,32 @@ function gracePeriodExpired(roomCode: string, playerId: string, t: GameTransport
 // Public entry point
 // ---------------------------------------------------------------------------
 
-export function setupSocketHandlers(io: Server): void {
+/** Timers created by setupSocketHandlers, returned so createApp can clear them. */
+export interface SocketHandlerTimers {
+  /** 60s DONE-room cleanup interval. */
+  roomCleanup: ReturnType<typeof setInterval>;
+  /** Daily data-retention prune interval. */
+  retention: ReturnType<typeof setInterval>;
+}
+
+/**
+ * Run the data-retention prune (events + abandoned games older than the
+ * retention window). No-op when persistence is unconfigured. Never throws.
+ */
+async function runRetention(): Promise<void> {
+  const p = getPersistence();
+  if (!p) return;
+  const cutoff = new Date(Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000);
+  try {
+    const events = await p.pruneGameEventsBefore(cutoff);
+    const games = await p.pruneAbandonedGamesBefore(cutoff);
+    console.log(`[retention] pruned ${events} event(s) and ${games} abandoned game(s) older than ${RETENTION_DAYS}d`);
+  } catch (err) {
+    console.error('[retention] prune failed:', err);
+  }
+}
+
+export function setupSocketHandlers(io: Server): SocketHandlerTimers {
   transport = new SocketTransport(io);
 
   io.on('connection', (socket) => {
@@ -238,7 +266,7 @@ export function setupSocketHandlers(io: Server): void {
   });
 
   // Periodically delete DONE rooms that have passed their expiry window.
-  setInterval(() => {
+  const roomCleanup = setInterval(() => {
     const now = Date.now();
     const expiryMs = getConfig().roomExpiryMs;
     for (const [code, room] of store.rooms) {
@@ -248,6 +276,14 @@ export function setupSocketHandlers(io: Server): void {
       }
     }
   }, 60_000);
+
+  // Data-retention job: run once on startup, then daily.
+  void runRetention();
+  const retention = setInterval(() => {
+    void runRetention();
+  }, 24 * 60 * 60 * 1000);
+
+  return { roomCleanup, retention };
 }
 
 // ---------------------------------------------------------------------------
@@ -265,6 +301,7 @@ function handleConnection(io: Server, socket: Socket): void {
       // Reconnect path: restore socket binding.
       session = existing;
       existing.socketId = socket.id;
+      bindAccount(socket, session);
       handleReconnect(socket, session);
     } else {
       // Unknown token → issue fresh session (treat as new player).
@@ -287,12 +324,53 @@ function handleConnection(io: Server, socket: Socket): void {
 // Session helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Copy any logged-in account info resolved by the socket auth middleware onto
+ * the session. For a fresh logged-in session the playerId already equals the
+ * userId (see issueNewSession). For a pre-existing guest token that arrives
+ * with a login cookie we record the account but keep the original guest
+ * playerId to avoid disrupting any in-progress room membership.
+ */
+function bindAccount(socket: Socket, session: SessionState): void {
+  const userId = socket.data.userId;
+  const account = socket.data.account;
+  if (userId === undefined || account === undefined) return;
+  session.userId = userId;
+  session.account = account;
+  if (!session.name && account.displayName) session.name = account.displayName;
+}
+
 function issueNewSession(socket: Socket): SessionState {
   const token = uuidv4();
-  const playerId = uuidv4();
+  // Durable identity: a logged-in account uses its user id as the playerId so
+  // history/stats survive restarts. Guests get a fresh random uuid.
+  const playerId = socket.data.userId ?? uuidv4();
   const session = createSession(token, playerId, socket.id);
-  socket.emit(EVENTS.SESSION, { token, playerId });
+  bindAccount(socket, session);
+  socket.emit(EVENTS.SESSION, sessionPayload(session));
   return session;
+}
+
+/** Build the SESSION payload, including account fields when logged in. */
+function sessionPayload(session: SessionState): {
+  token: string;
+  playerId: string;
+  loggedIn: boolean;
+  displayName?: string;
+  email?: string;
+  avatarUrl?: string;
+} {
+  if (session.userId !== null && session.account !== null) {
+    return {
+      token: session.token,
+      playerId: session.playerId,
+      loggedIn: true,
+      displayName: session.account.displayName,
+      ...(session.account.email !== null ? { email: session.account.email } : {}),
+      ...(session.account.avatarUrl !== null ? { avatarUrl: session.account.avatarUrl } : {}),
+    };
+  }
+  return { token: session.token, playerId: session.playerId, loggedIn: false };
 }
 
 // ---------------------------------------------------------------------------
@@ -334,8 +412,8 @@ function handleReconnect(socket: Socket, session: SessionState): void {
     }
   }
 
-  // Re-issue the session payload (client may need the playerId).
-  socket.emit(EVENTS.SESSION, { token: session.token, playerId: session.playerId });
+  // Re-issue the session payload (client may need the playerId + account info).
+  socket.emit(EVENTS.SESSION, sessionPayload(session));
 }
 
 // ---------------------------------------------------------------------------
@@ -468,6 +546,11 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
   socket.on(EVENTS.REQUEST_STATE, (ack: (res: RequestStateAck) => void) => {
     if (typeof ack !== 'function') return;
     handleRequestState(session, ack);
+  });
+
+  socket.on(EVENTS.REQUEST_HISTORY, (ack: (res: RequestHistoryAck) => void) => {
+    if (typeof ack !== 'function') return;
+    void handleRequestHistory(session, ack);
   });
 
   // Admin: authenticate
@@ -899,6 +982,69 @@ function handleRequestState(session: SessionState, ack: (res: RequestStateAck) =
   }
 
   ack({ view: viewFor(room.gameState, playerId) });
+}
+
+// ---------------------------------------------------------------------------
+// request_history
+// ---------------------------------------------------------------------------
+
+async function handleRequestHistory(
+  session: SessionState,
+  ack: (res: RequestHistoryAck) => void,
+): Promise<void> {
+  // Only durable (logged-in) accounts have a queryable history.
+  if (session.userId === null) {
+    ack({ ok: false, error: 'NOT_LOGGED_IN' });
+    return;
+  }
+
+  const p = getPersistence();
+  if (!p) {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+
+  try {
+    const games = await p.getUserGameHistory(session.userId);
+    ack({ ok: true, games: games.map(flattenHistoryEntry) });
+  } catch (err) {
+    console.error(`[history] getUserGameHistory failed for ${session.userId}:`, err);
+    ack({ ok: false, error: 'UNAVAILABLE' });
+  }
+}
+
+/**
+ * Convert the DB's nested `GameHistoryEntry` (with a `game` sub-object and
+ * `Date` fields) into the FLAT wire shape the web client expects. Date fields
+ * are converted to ISO strings explicitly rather than relying on socket.io's
+ * JSON coercion, so the wire contract is deterministic.
+ */
+function flattenHistoryEntry(e: DbGameHistoryEntry): WireGameHistoryEntry {
+  return {
+    id: e.game.id,
+    startedAt: e.game.startedAt.toISOString(),
+    endedAt: e.game.endedAt?.toISOString() ?? null,
+    durationMs: e.game.durationMs ?? 0,
+    playerCount: e.game.playerCount,
+    isAbandoned: e.game.isAbandoned,
+    winnerId: e.game.winnerId,
+    you: {
+      seatIndex: e.you.seatIndex,
+      finalRank: e.you.finalRank,
+      result: e.you.result,
+      captureCount: e.you.captureCount,
+      wasCut: e.you.wasCut,
+    },
+    players: e.players.map((pl) => ({
+      userId: pl.userId,
+      displayNameSnapshot: pl.displayNameSnapshot,
+      seatIndex: pl.seatIndex,
+      finalRank: pl.finalRank,
+      result: pl.result,
+      captureCount: pl.captureCount,
+      wasCut: pl.wasCut,
+    })),
+  };
 }
 
 // ---------------------------------------------------------------------------

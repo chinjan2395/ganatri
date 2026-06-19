@@ -22,6 +22,13 @@ export interface SessionState {
   roomCode: string | null;
   /** The current socket.id, or null when disconnected. */
   socketId: string | null;
+  /**
+   * The durable account user id when this session is bound to a logged-in
+   * (OAuth) account, else null. When set, playerId === userId.
+   */
+  userId: string | null;
+  /** Cached account profile for logged-in sessions, else null. */
+  account: { displayName: string; email: string | null; avatarUrl: string | null } | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -107,7 +114,15 @@ export function getSessionByPlayerId(playerId: string): SessionState | undefined
 
 /** Create a brand-new session and register it in the store. */
 export function createSession(token: string, playerId: string, socketId: string, name = ''): SessionState {
-  const session: SessionState = { token, playerId, name, roomCode: null, socketId };
+  const session: SessionState = {
+    token,
+    playerId,
+    name,
+    roomCode: null,
+    socketId,
+    userId: null,
+    account: null,
+  };
   store.sessions.set(token, session);
   store.playerIndex.set(playerId, token);
   return session;
