@@ -82,6 +82,65 @@ export interface RequestStateAck {
   view: PlayerView | null; // null if not in a game
 }
 
+export interface RequestHistoryPayload {
+  // no payload; server responds with the caller's game history
+}
+
+/**
+ * One player's row within a game history entry (wire shape).
+ * Mirrors `packages/web/src/protocol.ts` field-for-field.
+ */
+export interface GameHistoryPlayer {
+  userId: string | null;
+  displayNameSnapshot: string;
+  seatIndex: number;
+  finalRank: number | null;
+  result: string | null;
+  captureCount: number;
+  wasCut: boolean;
+}
+
+/**
+ * A single completed game in the logged-in player's history (wire shape).
+ *
+ * This is the AUTHORITATIVE cross-package wire contract: it is FLAT (no nested
+ * `game`) and timestamps are ISO strings. It must match
+ * `packages/web/src/protocol.ts` `GameHistoryEntry` field-for-field. The DB's
+ * own nested `GameHistoryEntry` (with a `game` sub-object and `Date` fields) is
+ * flattened by the REQUEST_HISTORY handler before it goes on the wire.
+ */
+export interface GameHistoryEntry {
+  id: string;
+  /** ISO timestamp string. */
+  startedAt: string;
+  /** ISO timestamp string, or null if not recorded. */
+  endedAt: string | null;
+  durationMs: number;
+  playerCount: number;
+  isAbandoned: boolean;
+  winnerId: string | null;
+  /** This player's own row. */
+  you: {
+    seatIndex: number;
+    finalRank: number | null;
+    result: string | null;
+    captureCount: number;
+    wasCut: boolean;
+  };
+  /** Every player in the game (including you). */
+  players: GameHistoryPlayer[];
+}
+
+/**
+ * Ack for request_history.
+ * - logged-in account → list of completed games (newest first), flattened
+ * - guest connection → NOT_LOGGED_IN
+ * - no persistence configured → UNAVAILABLE
+ */
+export type RequestHistoryAck =
+  | { ok: true; games: GameHistoryEntry[] }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
+
 // ---------------------------------------------------------------------------
 // Server → Client pushed events
 // ---------------------------------------------------------------------------
@@ -90,6 +149,14 @@ export interface RequestStateAck {
 export interface SessionPayload {
   token: string;
   playerId: string;
+  /** True when the connection is bound to a durable (OAuth) account. */
+  loggedIn: boolean;
+  /** Account display name (only when loggedIn). */
+  displayName?: string;
+  /** Account email, if the provider supplied one (only when loggedIn). */
+  email?: string;
+  /** Account avatar URL (only when loggedIn). */
+  avatarUrl?: string;
 }
 
 /** Broadcast to the room whenever players join/leave or the game starts. */
@@ -243,6 +310,7 @@ export const EVENTS = {
   START_GAME: 'start_game',
   MAKE_MOVE: 'make_move',
   REQUEST_STATE: 'request_state',
+  REQUEST_HISTORY: 'request_history',
 
   // Admin (Client → Server)
   ADMIN_AUTH: 'admin_auth',

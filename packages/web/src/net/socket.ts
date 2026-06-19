@@ -15,12 +15,13 @@ import {
   type MakeMoveAck,
   type MakeMovePayload,
   type RequestStateAck,
+  type RequestHistoryAck,
   type RequestIceServersAck,
   type StartGameAck,
 } from '../protocol';
 
 const TOKEN_KEY = 'ganatri.token';
-const SERVER_URL = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:4000';
+export const SERVER_URL = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:4000';
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -34,6 +35,7 @@ export function setToken(token: string): void {
 
 export const socket: Socket = io(SERVER_URL, {
   autoConnect: true,
+  withCredentials: true,
   auth: { token: getToken() ?? undefined },
   transports: ['websocket', 'polling'],
 });
@@ -73,6 +75,21 @@ export function makeMove(move: Move): Promise<MakeMoveAck> {
 
 export function requestState(): Promise<RequestStateAck> {
   return emitAck<RequestStateAck>(EVENTS.REQUEST_STATE);
+}
+
+export function requestHistory(): Promise<RequestHistoryAck> {
+  return emitAck<RequestHistoryAck>(EVENTS.REQUEST_HISTORY);
+}
+
+/** Full-page navigation to the server's Google OAuth entry point so the
+ *  httpOnly session cookie round-trips through the browser. */
+export function loginWithGoogle(): void {
+  window.location.assign(`${SERVER_URL}/auth/google/login`);
+}
+
+/** Full-page navigation to clear the server session cookie. */
+export function logout(): void {
+  window.location.assign(`${SERVER_URL}/auth/logout`);
 }
 
 export function requestIceServers(): Promise<RequestIceServersAck> {

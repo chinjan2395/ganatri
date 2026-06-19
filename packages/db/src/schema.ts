@@ -62,6 +62,7 @@ export const users = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     displayName: varchar('display_name', { length: 100 }).notNull(),
     email: varchar('email', { length: 255 }).unique(),
+    avatarUrl: varchar('avatar_url', { length: 512 }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -73,6 +74,62 @@ export const users = pgTable(
   (table) => {
     return {
       emailIdx: index('users_email_idx').on(table.email),
+    };
+  }
+);
+
+// ---------------------------------------------------------------------------
+// OAuth Accounts (federated identity, e.g. Google)
+// ---------------------------------------------------------------------------
+
+export const oauthAccounts = pgTable(
+  'oauth_accounts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    provider: varchar('provider', { length: 20 }).notNull(),
+    providerUserId: varchar('provider_user_id', { length: 255 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => {
+    return {
+      providerIdentityIdx: uniqueIndex('oauth_accounts_provider_identity_idx').on(
+        table.provider,
+        table.providerUserId
+      ),
+      userIdIdx: index('oauth_accounts_user_id_idx').on(table.userId),
+    };
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Auth Sessions (durable login sessions)
+// ---------------------------------------------------------------------------
+
+export const authSessions = pgTable(
+  'auth_sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    // SHA-256 hex digest of the opaque session token (never store the raw token).
+    tokenHash: varchar('token_hash', { length: 64 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    revoked: boolean('revoked').notNull().default(false),
+    userAgent: varchar('user_agent', { length: 255 }),
+  },
+  (table) => {
+    return {
+      tokenHashIdx: uniqueIndex('auth_sessions_token_hash_idx').on(table.tokenHash),
+      userIdIdx: index('auth_sessions_user_id_idx').on(table.userId),
     };
   }
 );
@@ -135,6 +192,11 @@ export const games = pgTable(
       roomIdIdx: index('games_room_id_idx').on(table.roomId),
       winnerIdIdx: index('games_winner_id_idx').on(table.winnerId),
       startedAtIdx: index('games_started_at_idx').on(table.startedAt),
+      // Retention sweep: find abandoned games past their cutoff.
+      abandonedEndedAtIdx: index('games_abandoned_ended_at_idx').on(
+        table.isAbandoned,
+        table.endedAt
+      ),
     };
   }
 );
@@ -193,6 +255,8 @@ export const gameEvents = pgTable(
       gameIdIdx: index('game_events_game_id_idx').on(table.gameId),
       gameIdSeqIdx: uniqueIndex('game_events_game_id_seq_idx').on(table.gameId, table.seq),
       actorUserIdIdx: index('game_events_actor_user_id_idx').on(table.actorUserId),
+      // Retention sweep: prune events older than a cutoff timestamp.
+      tsIdx: index('game_events_ts_idx').on(table.ts),
     };
   }
 );

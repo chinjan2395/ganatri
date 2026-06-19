@@ -189,6 +189,170 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
     expect(s!.totalCaptures).toBe(5);
   });
 
+  // Auth --------------------------------------------------------------------
+
+  it('upsertOAuthUser: new identity creates a non-guest user, repeat login is idempotent', async () => {
+    const first = await repo.upsertOAuthUser({
+      provider: 'google',
+      providerUserId: 'oauth-1',
+      email: 'one@example.com',
+      displayName: 'One',
+    });
+    expect(first.isGuest).toBe(false);
+    const second = await repo.upsertOAuthUser({
+      provider: 'google',
+      providerUserId: 'oauth-1',
+      email: 'one@example.com',
+      displayName: 'One Renamed',
+    });
+    expect(second.id).toBe(first.id);
+    expect(second.displayName).toBe('One Renamed');
+  });
+
+  it('upsertOAuthUser links a new identity onto a user matched by email', async () => {
+    // First login establishes the user + email.
+    const created = await repo.upsertOAuthUser({
+      provider: 'google',
+      providerUserId: 'oauth-email-a',
+      email: 'shared@example.com',
+      displayName: 'Shared',
+    });
+    // A different provider identity but same email links to the same user.
+    const linked = await repo.upsertOAuthUser({
+      provider: 'github',
+      providerUserId: 'oauth-email-b',
+      email: 'shared@example.com',
+      displayName: 'Shared Linked',
+    });
+    expect(linked.id).toBe(created.id);
+    expect(linked.isGuest).toBe(false);
+  });
+
+  it('auth sessions: valid lookup, expired -> null, revoked -> null', async () => {
+    const user = await repo.upsertOAuthUser({
+      provider: 'google',
+      providerUserId: 'oauth-sess',
+      email: 'sess@example.com',
+      displayName: 'Sess',
+    });
+    await repo.createAuthSession({
+      userId: user.id,
+      tokenHash: 'valid'.padEnd(64, '0'),
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    const found = await repo.getUserBySessionTokenHash('valid'.padEnd(64, '0'));
+    expect(found!.id).toBe(user.id);
+
+    await repo.createAuthSession({
+      userId: user.id,
+      tokenHash: 'expired'.padEnd(64, '0'),
+      expiresAt: new Date(Date.now() - 1_000),
+    });
+    expect(
+      await repo.getUserBySessionTokenHash('expired'.padEnd(64, '0'))
+    ).toBeNull();
+
+    await repo.revokeAuthSession('valid'.padEnd(64, '0'));
+    expect(await repo.getUserBySessionTokenHash('valid'.padEnd(64, '0'))).toBeNull();
+  });
+
+  // History -----------------------------------------------------------------
+
+  it('getUserGameHistory orders newest-first with you vs players', async () => {
+    const me = await freshUser('Me');
+    const them = await freshUser('Them');
+    const room = await repo.recordRoomCreated({ roomCode: 'CONH01', hostUserId: me });
+
+    const g1 = await repo.recordGameStarted({
+      roomId: room.id,
+      seed: 'h1',
+      seatingOrder: [me, them],
+      startedAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+    const g2 = await repo.recordGameStarted({
+      roomId: room.id,
+      seed: 'h2',
+      seatingOrder: [me, them],
+      startedAt: new Date('2026-01-02T00:00:00.000Z'),
+    });
+    for (const [g, winner] of [[g1, me], [g2, them]] as const) {
+      await repo.recordGameFinished({
+        gameId: g.id,
+        winnerId: winner,
+        players: [
+          { userId: me, seatIndex: 0, displayName: 'Me', finalRank: winner === me ? 1 : 2, wasCut: false, captureCount: 3, result: winner === me ? 'WIN' : 'LOSS' },
+          { userId: them, seatIndex: 1, displayName: 'Them', finalRank: winner === them ? 1 : 2, wasCut: false, captureCount: 2, result: winner === them ? 'WIN' : 'LOSS' },
+        ],
+      });
+    }
+
+    const history = await repo.getUserGameHistory(me);
+    expect(history.map((h) => h.game.id)).toEqual([g2.id, g1.id]);
+    expect(history[0]!.you.result).toBe('LOSS');
+    expect(history[0]!.players.map((p) => p.seatIndex)).toEqual([0, 1]);
+
+    const page = await repo.getUserGameHistory(me, 1, 1);
+    expect(page.map((h) => h.game.id)).toEqual([g1.id]);
+  });
+
+  // Retention ---------------------------------------------------------------
+
+  it('pruneGameEventsBefore removes only events older than the cutoff', async () => {
+    const host = await freshUser();
+    const room = await repo.recordRoomCreated({ roomCode: 'CONR01', hostUserId: host });
+    const game = await repo.recordGameStarted({
+      roomId: room.id,
+      seed: 'r',
+      seatingOrder: [host],
+    });
+    await repo.appendGameEvent({ gameId: game.id, seq: 0, ts: new Date('2026-01-01T00:00:00.000Z'), eventType: 'CARD_PLAYED', payload: {} });
+    await repo.appendGameEvent({ gameId: game.id, seq: 1, ts: new Date('2026-06-01T00:00:00.000Z'), eventType: 'CAPTURED', payload: {} });
+
+    const deleted = await repo.pruneGameEventsBefore(new Date('2026-03-01T00:00:00.000Z'));
+    expect(deleted).toBe(1);
+    const events = await repo.loadGameEvents(game.id);
+    expect(events.map((e) => e.seq)).toEqual([1]);
+  });
+
+  it('pruneAbandonedGamesBefore removes only old abandoned games and cascades', async () => {
+    const host = await freshUser();
+    const room = await repo.recordRoomCreated({ roomCode: 'CONR02', hostUserId: host });
+
+    const oldAbandoned = await repo.recordGameStarted({
+      roomId: room.id,
+      seed: 'a',
+      seatingOrder: [host],
+      startedAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+    await repo.appendGameEvent({ gameId: oldAbandoned.id, seq: 0, eventType: 'CUT', payload: {} });
+    await repo.recordGameFinished({
+      gameId: oldAbandoned.id,
+      endedAt: new Date('2026-01-01T00:10:00.000Z'),
+      isAbandoned: true,
+      players: [{ userId: host, seatIndex: 0, displayName: 'H', finalRank: null, wasCut: false, captureCount: 0, result: 'ABANDONED' }],
+    });
+
+    const completed = await repo.recordGameStarted({
+      roomId: room.id,
+      seed: 'b',
+      seatingOrder: [host],
+      startedAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+    await repo.recordGameFinished({
+      gameId: completed.id,
+      endedAt: new Date('2026-01-01T00:10:00.000Z'),
+      isAbandoned: false,
+      winnerId: host,
+      players: [{ userId: host, seatIndex: 0, displayName: 'H', finalRank: 1, wasCut: false, captureCount: 1, result: 'WIN' }],
+    });
+
+    const deleted = await repo.pruneAbandonedGamesBefore(new Date('2026-03-01T00:00:00.000Z'));
+    expect(deleted).toBe(1);
+    expect(await repo.loadGameWithPlayers(oldAbandoned.id)).toBeNull();
+    expect(await repo.loadGameEvents(oldAbandoned.id)).toEqual([]);
+    expect(await repo.loadGameWithPlayers(completed.id)).not.toBeNull();
+  });
+
   it('loadActiveGames returns PLAYING, unfinished games only', async () => {
     const host = await freshUser();
     const playing = await repo.recordRoomCreated({ roomCode: 'CON005', hostUserId: host });

@@ -46,10 +46,53 @@ export interface RequestStateAck {
   view: PlayerView | null;
 }
 
+/** One player's row within a game history entry. */
+export interface GameHistoryPlayer {
+  userId: string | null;
+  displayNameSnapshot: string;
+  seatIndex: number;
+  finalRank: number | null;
+  result: string | null;
+  captureCount: number;
+  wasCut: boolean;
+}
+
+/** A single completed game in the logged-in player's history. */
+export interface GameHistoryEntry {
+  id: string;
+  /** ISO timestamp string. */
+  startedAt: string;
+  /** ISO timestamp string, or null if not recorded. */
+  endedAt: string | null;
+  durationMs: number;
+  playerCount: number;
+  isAbandoned: boolean;
+  winnerId: string | null;
+  /** This player's own row. */
+  you: {
+    seatIndex: number;
+    finalRank: number | null;
+    result: string | null;
+    captureCount: number;
+    wasCut: boolean;
+  };
+  /** Every player in the game (including you). */
+  players: GameHistoryPlayer[];
+}
+
+export type RequestHistoryAck =
+  | { ok: true; games: GameHistoryEntry[] }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
+
 // --- Server → Client pushed payloads ---
 export interface SessionPayload {
   token: string;
   playerId: string;
+  /** Whether this session is authenticated via Google. Guests are false. */
+  loggedIn: boolean;
+  displayName?: string;
+  email?: string;
+  avatarUrl?: string;
 }
 export interface RoomUpdatePayload {
   roomCode: string;
@@ -147,6 +190,7 @@ export const EVENTS = {
   START_GAME: 'start_game',
   MAKE_MOVE: 'make_move',
   REQUEST_STATE: 'request_state',
+  REQUEST_HISTORY: 'request_history',
   SESSION: 'session',
   ROOM_UPDATE: 'room_update',
   GAME_EVENT: 'game_event',

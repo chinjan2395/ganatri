@@ -8,21 +8,26 @@
  */
 
 import type { Database } from '../db';
-import { PgPersistence } from './pg';
+import { PgPersistence, toHistoryEntry } from './pg';
 import type {
   AppendEventInput,
+  AuthSessionRow,
+  CreateAuthSessionInput,
   GameEventRow,
+  GameHistoryEntry,
   GamePersistence,
   GamePlayerRow,
   GameRow,
   GameWithPlayers,
   NewUser,
+  OAuthAccountRow,
   PlayerStatsDelta,
   PlayerStatsRow,
   RecordGameFinishedInput,
   RecordGameStartedInput,
   RoomRow,
   RoomStatus,
+  UpsertOAuthUserInput,
   UserRow,
 } from './types';
 
@@ -39,6 +44,8 @@ export class MemoryPersistence implements GamePersistence {
   private readonly gamePlayers = new Map<string, GamePlayerRow>();
   private readonly events = new Map<string, GameEventRow>();
   private readonly stats = new Map<string, PlayerStatsRow>();
+  private readonly oauthAccounts = new Map<string, OAuthAccountRow>();
+  private readonly authSessions = new Map<string, AuthSessionRow>();
   /** Enforces (gameId, seq) uniqueness. */
   private readonly eventSeq = new Set<string>();
 
@@ -50,6 +57,7 @@ export class MemoryPersistence implements GamePersistence {
       id: user.id,
       displayName: user.displayName,
       email: user.email ?? null,
+      avatarUrl: user.avatarUrl ?? existing?.avatarUrl ?? null,
       createdAt: existing?.createdAt ?? new Date(),
       lastSeenAt: new Date(),
       isGuest: user.isGuest ?? existing?.isGuest ?? true,
@@ -69,12 +77,171 @@ export class MemoryPersistence implements GamePersistence {
       id,
       displayName,
       email: null,
+      avatarUrl: null,
       createdAt: new Date(),
       lastSeenAt: new Date(),
       isGuest: true,
     };
     this.users.set(id, row);
     return row;
+  }
+
+  // Auth (OAuth + sessions) -------------------------------------------------
+
+  async upsertOAuthUser(input: UpsertOAuthUserInput): Promise<UserRow> {
+    // (a) Existing federated identity.
+    const account = [...this.oauthAccounts.values()].find(
+      (a) => a.provider === input.provider && a.providerUserId === input.providerUserId
+    );
+    if (account) {
+      const user = this.users.get(account.userId)!;
+      const updated: UserRow = {
+        ...user,
+        displayName: input.displayName,
+        avatarUrl: input.avatarUrl ?? null,
+        lastSeenAt: new Date(),
+      };
+      this.users.set(updated.id, updated);
+      return updated;
+    }
+
+    // (b) Match an existing user by email -> link a new account.
+    if (input.email !== null) {
+      const existing = [...this.users.values()].find((u) => u.email === input.email);
+      if (existing) {
+        this.insertOAuthAccount(existing.id, input.provider, input.providerUserId);
+        const updated: UserRow = {
+          ...existing,
+          displayName: input.displayName,
+          avatarUrl: input.avatarUrl ?? null,
+          isGuest: false,
+          lastSeenAt: new Date(),
+        };
+        this.users.set(updated.id, updated);
+        return updated;
+      }
+    }
+
+    // (c) Create a fresh (non-guest) user + linked account.
+    const user: UserRow = {
+      id: newId('user'),
+      displayName: input.displayName,
+      email: input.email ?? null,
+      avatarUrl: input.avatarUrl ?? null,
+      createdAt: new Date(),
+      lastSeenAt: new Date(),
+      isGuest: false,
+    };
+    this.users.set(user.id, user);
+    this.insertOAuthAccount(user.id, input.provider, input.providerUserId);
+    return user;
+  }
+
+  private insertOAuthAccount(
+    userId: string,
+    provider: string,
+    providerUserId: string
+  ): void {
+    const row: OAuthAccountRow = {
+      id: newId('oauth'),
+      userId,
+      provider,
+      providerUserId,
+      createdAt: new Date(),
+    };
+    this.oauthAccounts.set(row.id, row);
+  }
+
+  async createAuthSession(input: CreateAuthSessionInput): Promise<void> {
+    if (!this.users.has(input.userId)) {
+      throw new Error(`FK violation: user ${input.userId} not found`);
+    }
+    const row: AuthSessionRow = {
+      id: newId('sess'),
+      userId: input.userId,
+      tokenHash: input.tokenHash,
+      createdAt: new Date(),
+      expiresAt: input.expiresAt,
+      revoked: false,
+      userAgent: input.userAgent ?? null,
+    };
+    this.authSessions.set(row.id, row);
+  }
+
+  async getUserBySessionTokenHash(tokenHash: string): Promise<UserRow | null> {
+    const now = Date.now();
+    const session = [...this.authSessions.values()].find(
+      (s) =>
+        s.tokenHash === tokenHash &&
+        !s.revoked &&
+        s.expiresAt.getTime() > now
+    );
+    if (!session) return null;
+    return this.users.get(session.userId) ?? null;
+  }
+
+  async revokeAuthSession(tokenHash: string): Promise<void> {
+    for (const [id, s] of this.authSessions) {
+      if (s.tokenHash === tokenHash) {
+        this.authSessions.set(id, { ...s, revoked: true });
+      }
+    }
+  }
+
+  // History -----------------------------------------------------------------
+
+  async getUserGameHistory(
+    userId: string,
+    limit = 50,
+    offset = 0
+  ): Promise<GameHistoryEntry[]> {
+    const myGameIds = new Set(
+      [...this.gamePlayers.values()]
+        .filter((p) => p.userId === userId)
+        .map((p) => p.gameId)
+    );
+    const sorted = [...this.games.values()]
+      .filter((g) => myGameIds.has(g.id))
+      .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
+      .slice(offset, offset + limit);
+
+    return sorted.map((game) =>
+      toHistoryEntry(game, this.playersOf(game.id), userId)
+    );
+  }
+
+  // Retention ---------------------------------------------------------------
+
+  async pruneGameEventsBefore(cutoff: Date): Promise<number> {
+    let deleted = 0;
+    for (const [id, ev] of this.events) {
+      if (ev.ts.getTime() < cutoff.getTime()) {
+        this.events.delete(id);
+        this.eventSeq.delete(`${ev.gameId}#${ev.seq}`);
+        deleted += 1;
+      }
+    }
+    return deleted;
+  }
+
+  async pruneAbandonedGamesBefore(cutoff: Date): Promise<number> {
+    const targets = [...this.games.values()].filter(
+      (g) => g.isAbandoned && g.endedAt != null && g.endedAt.getTime() < cutoff.getTime()
+    );
+    if (targets.length === 0) return 0;
+    const ids = new Set(targets.map((g) => g.id));
+
+    for (const [id, ev] of this.events) {
+      if (ids.has(ev.gameId)) {
+        this.events.delete(id);
+        this.eventSeq.delete(`${ev.gameId}#${ev.seq}`);
+      }
+    }
+    for (const [id, gp] of this.gamePlayers) {
+      if (ids.has(gp.gameId)) this.gamePlayers.delete(id);
+    }
+    for (const id of ids) this.games.delete(id);
+    return ids.size;
   }
 
   // Rooms -------------------------------------------------------------------

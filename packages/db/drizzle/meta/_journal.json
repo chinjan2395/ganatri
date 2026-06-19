@@ -8,6 +8,13 @@
       "when": 1781795346440,
       "tag": "0000_black_justin_hammer",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781865739458,
+      "tag": "0001_broken_joystick",
+      "breakpoints": true
     }
   ]
 }

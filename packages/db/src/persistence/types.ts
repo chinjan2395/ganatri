@@ -13,6 +13,8 @@
 
 import type {
   users,
+  oauthAccounts,
+  authSessions,
   rooms,
   games,
   gamePlayers,
@@ -26,6 +28,8 @@ import type {
 
 export type UserRow = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+export type OAuthAccountRow = typeof oauthAccounts.$inferSelect;
+export type AuthSessionRow = typeof authSessions.$inferSelect;
 export type RoomRow = typeof rooms.$inferSelect;
 export type GameRow = typeof games.$inferSelect;
 export type GamePlayerRow = typeof gamePlayers.$inferSelect;
@@ -92,6 +96,63 @@ export interface GameWithPlayers {
   players: GamePlayerRow[];
 }
 
+// ---------------------------------------------------------------------------
+// Auth (OAuth + sessions)
+// ---------------------------------------------------------------------------
+
+/** Input to resolve/create a user from a federated OAuth login. */
+export interface UpsertOAuthUserInput {
+  /** Provider key, e.g. 'google'. */
+  provider: string;
+  /** Stable per-provider subject identifier. */
+  providerUserId: string;
+  /** Verified email if the provider supplied one, else null. */
+  email: string | null;
+  displayName: string;
+  avatarUrl?: string | null;
+}
+
+/** Input to create a durable auth session. */
+export interface CreateAuthSessionInput {
+  userId: string;
+  /** SHA-256 hex digest of the opaque session token. */
+  tokenHash: string;
+  expiresAt: Date;
+  userAgent?: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Game history (list + score-card detail)
+// ---------------------------------------------------------------------------
+
+/** A single player's outcome within a game (subset of `game_players`). */
+export interface GameHistoryPlayer {
+  userId: string | null;
+  displayNameSnapshot: string;
+  seatIndex: number;
+  finalRank: number | null;
+  result: string | null;
+  captureCount: number;
+  wasCut: boolean;
+}
+
+/** One row of a user's game history: the game, their result, and all players. */
+export interface GameHistoryEntry {
+  game: {
+    id: string;
+    startedAt: Date;
+    endedAt: Date | null;
+    durationMs: number | null;
+    playerCount: number;
+    isAbandoned: boolean;
+    winnerId: string | null;
+  };
+  /** The requesting user's own game_players row. */
+  you: GameHistoryPlayer;
+  /** Every player in the game, ordered by seatIndex. */
+  players: GameHistoryPlayer[];
+}
+
 /** Increment-style delta applied to a player's aggregate stats. */
 export interface PlayerStatsDelta {
   userId: string;
@@ -122,6 +183,53 @@ export interface GamePersistence {
 
   /** Ensure a guest user row exists for the given id; returns it. */
   ensureGuest(id: string, displayName: string): Promise<UserRow>;
+
+  // Auth (OAuth + sessions) -------------------------------------------------
+
+  /**
+   * Resolve (or create) a user from a federated OAuth login. Resolution order:
+   * (a) existing oauth_accounts row for (provider, providerUserId) -> its user;
+   * (b) else an existing user matching `email` (when non-null) -> link account;
+   * (c) else create a new (non-guest) user + oauth_accounts row.
+   * Idempotent across repeat logins. Always returns the resolved UserRow.
+   */
+  upsertOAuthUser(input: UpsertOAuthUserInput): Promise<UserRow>;
+
+  /** Create a durable auth session row. */
+  createAuthSession(input: CreateAuthSessionInput): Promise<void>;
+
+  /**
+   * Look up the user owning a session token hash, but only when the matching
+   * session is not revoked and has not expired. Returns null otherwise.
+   */
+  getUserBySessionTokenHash(tokenHash: string): Promise<UserRow | null>;
+
+  /** Mark a session revoked (no-op if the token hash is unknown). */
+  revokeAuthSession(tokenHash: string): Promise<void>;
+
+  // History -----------------------------------------------------------------
+
+  /**
+   * A user's games, newest first (games.started_at DESC), with their own result
+   * (`you`) and every player's result (`players`). Serves both the list view
+   * and the per-game score card.
+   */
+  getUserGameHistory(
+    userId: string,
+    limit?: number,
+    offset?: number
+  ): Promise<GameHistoryEntry[]>;
+
+  // Retention ---------------------------------------------------------------
+
+  /** Delete game_events with ts < cutoff; returns the number deleted. */
+  pruneGameEventsBefore(cutoff: Date): Promise<number>;
+
+  /**
+   * Delete abandoned games whose ended_at < cutoff (cascading their events and
+   * player rows first). Returns the number of games deleted.
+   */
+  pruneAbandonedGamesBefore(cutoff: Date): Promise<number>;
 
   // Rooms -------------------------------------------------------------------
 

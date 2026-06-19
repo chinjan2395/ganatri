@@ -1,0 +1,167 @@
+.history {
+  gap: 14px;
+}
+.history__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(560px, 94vw);
+  gap: 12px;
+}
+.history__title {
+  font-family: var(--font-display), serif;
+  font-size: clamp(20px, 6vw, 28px);
+  color: var(--accent);
+  text-shadow: var(--glow-gold);
+}
+.history__header-spacer {
+  /* Balances the Back button so the title stays centered. */
+  width: 72px;
+}
+.history__center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.history__message {
+  border: 1px solid rgba(231, 195, 74, 0.4);
+  align-items: center;
+  text-align: center;
+}
+
+.history__list {
+  width: min(560px, 94vw);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.history__row {
+  background: var(--panel);
+  border: 1px solid rgba(231, 195, 74, 0.22);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+.history__row-head {
+  /* Reset the gold button styling — this is a full-width row toggle. */
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--text);
+  text-shadow: none;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  text-align: left;
+}
+.history__row-head:hover:not(:disabled) {
+  filter: none;
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.03);
+}
+.history__row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.history__date {
+  font-weight: 700;
+}
+.history__opponents {
+  font-size: 13px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history__row-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.history__meta-line {
+  font-size: 12px;
+}
+.history__outcome {
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+}
+.history__outcome--won {
+  color: var(--accent);
+}
+.history__outcome--lost {
+  color: var(--danger);
+}
+.history__outcome--abandoned {
+  color: var(--text-dim);
+  font-style: italic;
+}
+.history__outcome--neutral {
+  color: var(--text);
+}
+.history__chevron {
+  color: var(--accent);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+.history__chevron--open {
+  transform: rotate(180deg);
+}
+
+.history__scorecard {
+  overflow: hidden;
+}
+.history__scorecard-inner {
+  padding: 4px 14px 14px;
+  border-top: 1px solid rgba(231, 195, 74, 0.16);
+}
+.history__sc-grid {
+  display: grid;
+  grid-template-columns: 1fr 44px 52px 72px 40px;
+  align-items: center;
+  gap: 6px;
+}
+.history__sc-head {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  padding: 8px 0 6px;
+}
+.history__sc-row {
+  padding: 7px 0;
+  font-size: 13px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+.history__sc-row--you {
+  color: var(--accent);
+  font-weight: 600;
+}
+.history__sc-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history__sc-youtag {
+  font-size: 10px;
+  text-transform: uppercase;
+  background: var(--panel-2);
+  color: var(--accent);
+  border-radius: 4px;
+  padding: 1px 5px;
+  letter-spacing: 0.5px;
+}
