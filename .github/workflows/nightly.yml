@@ -2,7 +2,7 @@ name: Ganatri Nightly Build
 
 on:
   schedule:
-    - cron: '11,41 * * * *'  # TESTING: every 30 min at :11/:41 (avoids GitHub's :00/:30 congestion window). Revert to '30 19 * * *' (01:00 IST) once stable.
+    - cron: '7 */3 * * *'   # every 3 hours, at :07 (off the :00 congestion window so GitHub is less likely to drop the run)
   workflow_dispatch:      # manual "Run workflow" button for testing
 
 # Prevent overlapping runs
@@ -34,14 +34,42 @@ jobs:
       - name: Install deps
         run: npm ci
 
+      - name: Prune merged nightly branches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          git fetch origin --prune
+          # Delete any nightly/* branch already merged into main; leaves unmerged work untouched.
+          for b in $(git branch -r --merged origin/main | grep 'origin/nightly/' | sed 's#origin/##'); do
+            echo "Deleting merged branch: $b"
+            git push origin --delete "$b" || true
+          done
+
+      - name: Decide whether to run
+        id: gate
+        run: |
+          # Status is the first non-empty line after the "## Status" heading, minus any HTML comment.
+          STATUS=$(awk '/^## Status/{getline; while ($0 ~ /^[[:space:]]*$/) getline; print; exit}' \
+                     docs/nightly/STATE.md | sed 's/<!--.*-->//')
+          echo "STATE.md status: ${STATUS}"
+          if echo "$STATUS" | grep -q 'BLOCKED'; then
+            echo "Skipping Claude run — project is BLOCKED, needs human input."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create working branch
         id: branch
+        if: steps.gate.outputs.run == 'true'
         run: |
           BRANCH="nightly/$(date +%Y-%m-%d-%H%M)"
           git checkout -b "$BRANCH"
           echo "name=$BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: Run Claude on next phase
+        if: steps.gate.outputs.run == 'true'
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -93,18 +121,27 @@ jobs:
             - Never skip tests. Never use --no-verify.
             - If you are unsure about a game rule, mark BLOCKED and ask — do not guess.
           claude_args: >-
-            --model claude-opus-4-8
+            --model claude-sonnet-4-6
             --max-turns 60
             --allowedTools Edit,Read,Write,Bash,Agent
 
       - name: Push branch
+        id: push
+        if: steps.gate.outputs.run == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          if [ "$(git rev-list --count origin/main..HEAD)" -eq 0 ]; then
+            echo "No commits this run — skipping push (no empty branch left behind)."
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
           git push origin "${{ steps.branch.outputs.name }}"
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
 
       - name: Open Pull Request
+        if: steps.push.outputs.pushed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
