@@ -398,6 +398,203 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
     expect(r3?.userId).toBe(u3);
   });
 
+  // Windowed leaderboard (week / month) -------------------------------------
+
+  /**
+   * Seed helper: creates a non-guest user, a room, a started game, then
+   * finishes the game with a given endedAt and a WIN result for the user.
+   * Returns the userId.
+   */
+  async function seedGameForUser(
+    displayName: string,
+    result: 'WIN' | 'LOSS',
+    endedAt: Date,
+  ): Promise<string> {
+    const userId = h.newUserId();
+    await repo.upsertUser({ id: userId, displayName, isGuest: false });
+    // A second host user is needed to satisfy the FK for recordRoomCreated.
+    const hostId = h.newUserId();
+    await repo.ensureGuest(hostId, 'host');
+    const code = `W${Math.random().toString(36).slice(2, 7).toUpperCase()}`.slice(0, 6);
+    const room = await repo.recordRoomCreated({ roomCode: code, hostUserId: hostId });
+    const game = await repo.recordGameStarted({
+      roomId: room.id,
+      seed: 'seed',
+      seatingOrder: [userId, hostId],
+      startedAt: new Date(endedAt.getTime() - 60_000),
+    });
+    await repo.recordGameFinished({
+      gameId: game.id,
+      endedAt,
+      winnerId: result === 'WIN' ? userId : null,
+      isAbandoned: false,
+      players: [
+        { userId, seatIndex: 0, displayName, finalRank: result === 'WIN' ? 1 : 2, wasCut: false, captureCount: 3, result },
+        { userId: hostId, seatIndex: 1, displayName: 'host', finalRank: result === 'WIN' ? 2 : 1, wasCut: false, captureCount: 1, result: result === 'WIN' ? 'LOSS' : 'WIN' },
+      ],
+    });
+    return userId;
+  }
+
+  it('week window returns only games from the last 7 days', async () => {
+    // "3 days ago" (2026-06-17) is within 7 days; "10 days ago" (2026-06-10) is not.
+    const recentEnded = new Date('2026-06-17T12:00:00Z');
+    const oldEnded = new Date('2026-06-10T12:00:00Z');
+
+    const userId = h.newUserId();
+    await repo.upsertUser({ id: userId, displayName: 'Windowed', isGuest: false });
+    const hostId = h.newUserId();
+    await repo.ensureGuest(hostId, 'host');
+    const room = await repo.recordRoomCreated({ roomCode: 'WNDW01', hostUserId: hostId });
+
+    // Game 1: ended 3 days ago (in window).
+    const g1 = await repo.recordGameStarted({ roomId: room.id, seed: 's1', seatingOrder: [userId, hostId], startedAt: new Date('2026-06-17T11:00:00Z') });
+    await repo.recordGameFinished({
+      gameId: g1.id,
+      endedAt: recentEnded,
+      winnerId: userId,
+      isAbandoned: false,
+      players: [
+        { userId, seatIndex: 0, displayName: 'Windowed', finalRank: 1, wasCut: false, captureCount: 3, result: 'WIN' },
+        { userId: hostId, seatIndex: 1, displayName: 'host', finalRank: 2, wasCut: false, captureCount: 1, result: 'LOSS' },
+      ],
+    });
+
+    // Game 2: ended 10 days ago (outside week window).
+    const g2 = await repo.recordGameStarted({ roomId: room.id, seed: 's2', seatingOrder: [userId, hostId], startedAt: new Date('2026-06-10T11:00:00Z') });
+    await repo.recordGameFinished({
+      gameId: g2.id,
+      endedAt: oldEnded,
+      winnerId: userId,
+      isAbandoned: false,
+      players: [
+        { userId, seatIndex: 0, displayName: 'Windowed', finalRank: 1, wasCut: false, captureCount: 3, result: 'WIN' },
+        { userId: hostId, seatIndex: 1, displayName: 'host', finalRank: 2, wasCut: false, captureCount: 1, result: 'LOSS' },
+      ],
+    });
+
+    const board = await repo.getLeaderboard(20, 0, 'week');
+    const entry = board.find((e) => e.userId === userId);
+    // Only the recent game should be counted.
+    expect(entry).toBeDefined();
+    expect(entry!.gamesPlayed).toBe(1);
+    expect(entry!.gamesWon).toBe(1);
+  });
+
+  it('month window is wider than week window', async () => {
+    // "20 days ago" (2026-05-31) is within 30 days but NOT within 7 days.
+    const mediumEnded = new Date('2026-05-31T12:00:00Z');
+
+    const userId = h.newUserId();
+    await repo.upsertUser({ id: userId, displayName: 'Monthly', isGuest: false });
+    const hostId = h.newUserId();
+    await repo.ensureGuest(hostId, 'host');
+    const room = await repo.recordRoomCreated({ roomCode: 'MNTH01', hostUserId: hostId });
+
+    const g = await repo.recordGameStarted({ roomId: room.id, seed: 'sm', seatingOrder: [userId, hostId], startedAt: new Date('2026-05-31T11:00:00Z') });
+    await repo.recordGameFinished({
+      gameId: g.id,
+      endedAt: mediumEnded,
+      winnerId: userId,
+      isAbandoned: false,
+      players: [
+        { userId, seatIndex: 0, displayName: 'Monthly', finalRank: 1, wasCut: false, captureCount: 3, result: 'WIN' },
+        { userId: hostId, seatIndex: 1, displayName: 'host', finalRank: 2, wasCut: false, captureCount: 1, result: 'LOSS' },
+      ],
+    });
+
+    const weekBoard = await repo.getLeaderboard(20, 0, 'week');
+    const monthBoard = await repo.getLeaderboard(20, 0, 'month');
+
+    // Game is 20 days ago: outside week, inside month.
+    expect(weekBoard.find((e) => e.userId === userId)).toBeUndefined();
+    const monthEntry = monthBoard.find((e) => e.userId === userId);
+    expect(monthEntry).toBeDefined();
+    expect(monthEntry!.gamesPlayed).toBe(1);
+  });
+
+  it('window returns empty when no games are in range', async () => {
+    // "40 days ago" (2026-05-11) is outside both week and month windows.
+    const oldEnded = new Date('2026-05-11T12:00:00Z');
+    await seedGameForUser('OldPlayer', 'WIN', oldEnded);
+
+    const weekBoard = await repo.getLeaderboard(20, 0, 'week');
+    const monthBoard = await repo.getLeaderboard(20, 0, 'month');
+    // OldPlayer's game is too old for both windows.
+    expect(weekBoard.find((e) => e.displayName === 'OldPlayer')).toBeUndefined();
+    expect(monthBoard.find((e) => e.displayName === 'OldPlayer')).toBeUndefined();
+  });
+
+  it('getMyLeaderboardRank with week window returns rank 1 for a user with a recent game', async () => {
+    // "3 days ago" (2026-06-17) is within 7 days.
+    const recentEnded = new Date('2026-06-17T12:00:00Z');
+    const userId = h.newUserId();
+    await repo.upsertUser({ id: userId, displayName: 'WeekRanker', isGuest: false });
+    const hostId = h.newUserId();
+    await repo.ensureGuest(hostId, 'host');
+    const room = await repo.recordRoomCreated({ roomCode: 'WKRK01', hostUserId: hostId });
+
+    const g = await repo.recordGameStarted({ roomId: room.id, seed: 'wr', seatingOrder: [userId, hostId], startedAt: new Date('2026-06-17T11:00:00Z') });
+    await repo.recordGameFinished({
+      gameId: g.id,
+      endedAt: recentEnded,
+      winnerId: userId,
+      isAbandoned: false,
+      players: [
+        { userId, seatIndex: 0, displayName: 'WeekRanker', finalRank: 1, wasCut: false, captureCount: 3, result: 'WIN' },
+        { userId: hostId, seatIndex: 1, displayName: 'host', finalRank: 2, wasCut: false, captureCount: 1, result: 'LOSS' },
+      ],
+    });
+
+    const rank = await repo.getMyLeaderboardRank(userId, 'week');
+    expect(rank).not.toBeNull();
+    expect(rank!.rank).toBe(1);
+    expect(rank!.userId).toBe(userId);
+    expect(rank!.gamesPlayed).toBe(1);
+    expect(rank!.gamesWon).toBe(1);
+  });
+
+  it('getMyLeaderboardRank with week window returns null when only old games exist', async () => {
+    // Game ended 10 days ago — outside the 7-day window.
+    const oldEnded = new Date('2026-06-10T12:00:00Z');
+    const userId = await seedGameForUser('OldRanker', 'WIN', oldEnded);
+
+    const rank = await repo.getMyLeaderboardRank(userId, 'week');
+    expect(rank).toBeNull();
+  });
+
+  it('week window excludes abandoned games', async () => {
+    // Seed a non-guest user with a recent game (3 days ago) that is abandoned.
+    const recentEnded = new Date('2026-06-17T12:00:00Z');
+    const userId = h.newUserId();
+    await repo.upsertUser({ id: userId, displayName: 'AbandonedPlayer', isGuest: false });
+    const hostId = h.newUserId();
+    await repo.ensureGuest(hostId, 'host');
+    const room = await repo.recordRoomCreated({ roomCode: 'ABND01', hostUserId: hostId });
+
+    const g = await repo.recordGameStarted({
+      roomId: room.id,
+      seed: 'sabd',
+      seatingOrder: [userId, hostId],
+      startedAt: new Date('2026-06-17T11:00:00Z'),
+    });
+    await repo.recordGameFinished({
+      gameId: g.id,
+      endedAt: recentEnded,
+      winnerId: null,
+      isAbandoned: true,
+      players: [
+        { userId, seatIndex: 0, displayName: 'AbandonedPlayer', finalRank: null, wasCut: false, captureCount: 0, result: 'ABANDONED' },
+        { userId: hostId, seatIndex: 1, displayName: 'host', finalRank: null, wasCut: false, captureCount: 0, result: 'ABANDONED' },
+      ],
+    });
+
+    // The week window leaderboard should not include the abandoned game.
+    const board = await repo.getLeaderboard(20, 0, 'week');
+    const entry = board.find((e) => e.userId === userId);
+    expect(entry).toBeUndefined();
+  });
+
   // Retention ---------------------------------------------------------------
 
   it('pruneGameEventsBefore removes only events older than the cutoff', async () => {

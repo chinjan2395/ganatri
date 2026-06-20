@@ -173,6 +173,11 @@ export type GetMyStatsAck =
   | { ok: true; stats: PlayerStatsView }
   | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
 
+/** Client → Server request payload for get_leaderboard. */
+export interface GetLeaderboardRequest {
+  timeWindow?: 'week' | 'month';
+}
+
 /** One leaderboard row (wire shape). Mirrors packages/web/src/protocol.ts. */
 export interface LeaderboardEntryView {
   rank: number; // 1-based, assigned by the server after ordering

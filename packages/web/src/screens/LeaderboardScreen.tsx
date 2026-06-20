@@ -4,6 +4,8 @@ import { useGame } from '../state/GameProvider';
 import type { LeaderboardEntryView } from '../protocol';
 import './LeaderboardScreen.css';
 
+type TimeWindow = 'week' | 'month' | undefined;
+
 type LoadState =
   | { status: 'loading' }
   | { status: 'error'; error: 'UNAVAILABLE' }
@@ -54,13 +56,27 @@ function LeaderboardRow({ entry, isMe }: RowProps): React.ReactNode {
   );
 }
 
+const TAB_LABELS: { value: TimeWindow; label: string }[] = [
+  { value: undefined, label: 'All Time' },
+  { value: 'week', label: 'This Week' },
+  { value: 'month', label: 'This Month' },
+];
+
+function emptyMessage(timeWindow: TimeWindow): string {
+  if (timeWindow === 'week') return 'No games completed this week yet.';
+  if (timeWindow === 'month') return 'No games completed this month yet.';
+  return 'No ranked players yet — finish a game to get on the board!';
+}
+
 export function LeaderboardScreen(): React.ReactNode {
   const { requestLeaderboard, setScreen, session } = useGame();
+  const [timeWindow, setTimeWindow] = useState<TimeWindow>(undefined);
   const [state, setState] = useState<LoadState>({ status: 'loading' });
 
   useEffect(() => {
+    setState({ status: 'loading' });
     let cancelled = false;
-    void requestLeaderboard().then((ack) => {
+    void requestLeaderboard(timeWindow).then((ack) => {
       if (cancelled) return;
       if (ack.ok) {
         setState({ status: 'ready', entries: ack.entries, myEntry: ack.myEntry });
@@ -71,7 +87,7 @@ export function LeaderboardScreen(): React.ReactNode {
     return () => {
       cancelled = true;
     };
-  }, [requestLeaderboard]);
+  }, [requestLeaderboard, timeWindow]);
 
   const myId = session?.playerId ?? null;
 
@@ -79,16 +95,31 @@ export function LeaderboardScreen(): React.ReactNode {
     <div className="center-screen lb">
       <div className="lb__header">
         <button type="button" className="secondary" onClick={() => setScreen('main')}>
-          ← Back
+          Back
         </button>
         <h1 className="lb__title">Leaderboard</h1>
         <span className="lb__header-spacer" aria-hidden="true" />
       </div>
 
+      <div className="lb__tabs" role="tablist">
+        {TAB_LABELS.map(({ value, label }) => (
+          <button
+            key={label}
+            type="button"
+            role="tab"
+            aria-selected={timeWindow === value}
+            className={`lb__tab${timeWindow === value ? ' lb__tab--active' : ''}`}
+            onClick={() => setTimeWindow(value)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {state.status === 'loading' && (
         <div className="lb__center">
           <div className="spinner" />
-          <p className="muted">Loading leaderboard…</p>
+          <p className="muted">Loading leaderboard...</p>
         </div>
       )}
 
@@ -103,7 +134,7 @@ export function LeaderboardScreen(): React.ReactNode {
 
       {state.status === 'ready' && state.entries.length === 0 && (
         <div className="card-surface lb__message">
-          <p>No ranked players yet — finish a game to get on the board!</p>
+          <p>{emptyMessage(timeWindow)}</p>
           <button type="button" className="secondary" onClick={() => setScreen('main')}>
             Back to lobby
           </button>

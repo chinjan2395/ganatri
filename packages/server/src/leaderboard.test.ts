@@ -15,7 +15,7 @@ import { resetStore } from './store.js';
 import { resetLastMoveTime } from './handlers.js';
 import { EVENTS } from './protocol.js';
 import { __setPersistenceForTests } from './persistence.js';
-import type { GetLeaderboardAck, SessionPayload } from './protocol.js';
+import type { GetLeaderboardAck, GetLeaderboardRequest, SessionPayload } from './protocol.js';
 
 function waitFor<T>(socket: ClientSocket, event: string, timeoutMs = 3000): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -72,7 +72,7 @@ describe('GET_LEADERBOARD', () => {
     try {
       await waitFor<SessionPayload>(client, EVENTS.SESSION);
       __setPersistenceForTests(null);
-      const ack = await emitAck<GetLeaderboardAck>(client, EVENTS.GET_LEADERBOARD);
+      const ack = await emitAck<GetLeaderboardAck>(client, EVENTS.GET_LEADERBOARD, {});
       expect(ack).toEqual({ ok: false, error: 'UNAVAILABLE' });
     } finally {
       client.disconnect();
@@ -90,7 +90,7 @@ describe('GET_LEADERBOARD', () => {
       const session = await waitFor<SessionPayload>(client, EVENTS.SESSION);
       expect(session.loggedIn).toBe(false);
 
-      const ack = await emitAck<GetLeaderboardAck>(client, EVENTS.GET_LEADERBOARD);
+      const ack = await emitAck<GetLeaderboardAck>(client, EVENTS.GET_LEADERBOARD, {});
       expect(ack.ok).toBe(true);
       if (ack.ok) {
         // gamesWon DESC, then winRate DESC for the Alice/Bob tie.
@@ -108,7 +108,7 @@ describe('GET_LEADERBOARD', () => {
     const client = ioClient(`http://localhost:${port}`, { autoConnect: true, reconnection: false });
     try {
       await waitFor<SessionPayload>(client, EVENTS.SESSION);
-      const ack = await emitAck<GetLeaderboardAck>(client, EVENTS.GET_LEADERBOARD);
+      const ack = await emitAck<GetLeaderboardAck>(client, EVENTS.GET_LEADERBOARD, {});
       expect(ack).toEqual({ ok: true, entries: [] });
     } finally {
       client.disconnect();
@@ -121,9 +121,94 @@ describe('GET_LEADERBOARD', () => {
     try {
       const session = await waitFor<SessionPayload>(client, EVENTS.SESSION);
       expect(session.loggedIn).toBe(false);
-      const ack = await emitAck<GetLeaderboardAck>(client, EVENTS.GET_LEADERBOARD);
+      const ack = await emitAck<GetLeaderboardAck>(client, EVENTS.GET_LEADERBOARD, {});
       expect(ack.ok).toBe(true);
       if (ack.ok) expect(ack.myEntry).toBeUndefined();
+    } finally {
+      client.disconnect();
+    }
+  });
+
+  // Windowed leaderboard -----------------------------------------------------
+
+  /**
+   * Seed a completed game in persistence: creates a room + game + game_players
+   * so windowed queries that join game_players + games can find the data.
+   */
+  async function seedGameResult(
+    p: MemoryPersistence,
+    userId: string,
+    result: 'WIN' | 'LOSS',
+    endedAt: Date,
+  ): Promise<void> {
+    const hostId = `host-${Math.random().toString(36).slice(2)}`;
+    await p.ensureGuest(hostId, 'host');
+    const code = `T${Math.random().toString(36).slice(2, 7).toUpperCase()}`.slice(0, 6);
+    const room = await p.recordRoomCreated({ roomCode: code, hostUserId: hostId });
+    const game = await p.recordGameStarted({
+      roomId: room.id,
+      seed: 'seed',
+      seatingOrder: [userId, hostId],
+      startedAt: new Date(endedAt.getTime() - 60_000),
+    });
+    await p.recordGameFinished({
+      gameId: game.id,
+      endedAt,
+      winnerId: result === 'WIN' ? userId : null,
+      isAbandoned: false,
+      players: [
+        { userId, seatIndex: 0, displayName: 'U', finalRank: result === 'WIN' ? 1 : 2, wasCut: false, captureCount: 1, result },
+        { userId: hostId, seatIndex: 1, displayName: 'host', finalRank: result === 'WIN' ? 2 : 1, wasCut: false, captureCount: 1, result: result === 'WIN' ? 'LOSS' : 'WIN' },
+      ],
+    });
+  }
+
+  it('returns entries for week window when persistence has data', async () => {
+    // Seed a user with a game that ended 3 days ago (2026-06-17), within the week window.
+    const userId = 'u-weektest';
+    await persistence.upsertUser({ id: userId, displayName: 'WeekUser', isGuest: false });
+    await seedGameResult(persistence, userId, 'WIN', new Date('2026-06-17T12:00:00Z'));
+
+    const client = ioClient(`http://localhost:${port}`, { autoConnect: true, reconnection: false });
+    try {
+      await waitFor<SessionPayload>(client, EVENTS.SESSION);
+      const req: GetLeaderboardRequest = { timeWindow: 'week' };
+      const ack = await emitAck<GetLeaderboardAck>(client, EVENTS.GET_LEADERBOARD, req);
+      expect(ack.ok).toBe(true);
+      if (ack.ok) {
+        const entry = ack.entries.find((e) => e.userId === userId);
+        expect(entry).toBeDefined();
+        expect(entry!.gamesWon).toBe(1);
+        expect(entry!.rank).toBe(1);
+      }
+    } finally {
+      client.disconnect();
+    }
+  });
+
+  it('passes timeWindow through: month window returns ok response', async () => {
+    const userId = 'u-monthtest';
+    await persistence.upsertUser({ id: userId, displayName: 'MonthUser', isGuest: false });
+    // Game ended 20 days ago (2026-05-31) — within month, outside week.
+    await seedGameResult(persistence, userId, 'WIN', new Date('2026-05-31T12:00:00Z'));
+
+    const client = ioClient(`http://localhost:${port}`, { autoConnect: true, reconnection: false });
+    try {
+      await waitFor<SessionPayload>(client, EVENTS.SESSION);
+      const monthAck = await emitAck<GetLeaderboardAck>(client, EVENTS.GET_LEADERBOARD, { timeWindow: 'month' } as GetLeaderboardRequest);
+      expect(monthAck.ok).toBe(true);
+      if (monthAck.ok) {
+        const entry = monthAck.entries.find((e) => e.userId === userId);
+        expect(entry).toBeDefined();
+      }
+
+      const weekAck = await emitAck<GetLeaderboardAck>(client, EVENTS.GET_LEADERBOARD, { timeWindow: 'week' } as GetLeaderboardRequest);
+      expect(weekAck.ok).toBe(true);
+      if (weekAck.ok) {
+        // Game is 20 days old — outside week window.
+        const entry = weekAck.entries.find((e) => e.userId === userId);
+        expect(entry).toBeUndefined();
+      }
     } finally {
       client.disconnect();
     }

@@ -24,6 +24,7 @@ import {
   type GetMyStatsAck,
   type PlayerStatsView,
   type GetLeaderboardAck,
+  type GetLeaderboardRequest,
   type LeaderboardEntryView,
   type VoiceOfferPayload,
   type VoiceAnswerPayload,
@@ -566,9 +567,19 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
     void handleGetMyStats(session, ack);
   });
 
-  socket.on(EVENTS.GET_LEADERBOARD, (ack: (res: GetLeaderboardAck) => void) => {
-    if (typeof ack !== 'function') return;
-    void handleGetLeaderboard(session, ack);
+  socket.on(EVENTS.GET_LEADERBOARD, (reqOrAck: GetLeaderboardRequest | ((res: GetLeaderboardAck) => void), maybeAck?: (res: GetLeaderboardAck) => void) => {
+    // Support both: emit(event, payload, ack) and legacy emit(event, ack).
+    let req: GetLeaderboardRequest;
+    let ack: (res: GetLeaderboardAck) => void;
+    if (typeof reqOrAck === 'function') {
+      req = {};
+      ack = reqOrAck;
+    } else {
+      req = reqOrAck ?? {};
+      if (typeof maybeAck !== 'function') return;
+      ack = maybeAck;
+    }
+    void handleGetLeaderboard(session, req, ack);
   });
 
   // Admin: authenticate
@@ -1121,6 +1132,7 @@ function mapStatsView(row: PlayerStatsRow): PlayerStatsView {
 
 async function handleGetLeaderboard(
   session: SessionState,
+  req: GetLeaderboardRequest,
   ack: (res: GetLeaderboardAck) => void,
 ): Promise<void> {
   const p = getPersistence();
@@ -1129,7 +1141,10 @@ async function handleGetLeaderboard(
     return;
   }
   try {
-    const rows = await p.getLeaderboard(20, 0);
+    const timeWindow = (req.timeWindow === 'week' || req.timeWindow === 'month')
+      ? req.timeWindow
+      : undefined;
+    const rows = await p.getLeaderboard(20, 0, timeWindow);
     const entries = rows.map((r, i) => mapLeaderboardEntry(r, i));
 
     // When the requesting user is logged in but not in the top page, fetch
@@ -1138,7 +1153,7 @@ async function handleGetLeaderboard(
     if (session.userId !== null) {
       const inTop = entries.some((e) => e.userId === session.userId);
       if (!inTop) {
-        const myRank = await p.getMyLeaderboardRank(session.userId);
+        const myRank = await p.getMyLeaderboardRank(session.userId, timeWindow);
         if (myRank) {
           myEntry = { ...mapLeaderboardEntry(myRank, 0), rank: myRank.rank };
         }

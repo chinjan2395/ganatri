@@ -458,7 +458,57 @@ export class PgPersistence implements GamePersistence {
     return rows[0] ?? null;
   }
 
-  async getLeaderboard(limit = 20, offset = 0): Promise<LeaderboardEntry[]> {
+  async getLeaderboard(limit = 20, offset = 0, timeWindow?: 'week' | 'month'): Promise<LeaderboardEntry[]> {
+    if (timeWindow !== undefined) {
+      const now = Date.now();
+      const cutoff = new Date(now - (timeWindow === 'week' ? 7 : 30) * 24 * 60 * 60 * 1000);
+      const result = await this.db.execute(sql`
+        WITH windowed AS (
+          SELECT
+            gp.user_id,
+            u.display_name,
+            u.avatar_url,
+            COUNT(*)::int AS games_played,
+            COUNT(*) FILTER (WHERE gp.result = 'WIN')::int AS games_won,
+            COUNT(*) FILTER (WHERE gp.result = 'LOSS')::int AS games_lost,
+            0::int AS games_abandoned
+          FROM game_players gp
+          JOIN games g ON g.id = gp.game_id
+          JOIN users u ON u.id = gp.user_id
+          WHERE
+            gp.user_id IS NOT NULL
+            AND u.is_guest = false
+            AND g.ended_at IS NOT NULL
+            AND g.is_abandoned = false
+            AND g.ended_at >= ${cutoff}
+          GROUP BY gp.user_id, u.display_name, u.avatar_url
+        )
+        SELECT * FROM windowed
+        ORDER BY games_won DESC,
+                 (games_won::float / games_played) DESC,
+                 games_played DESC,
+                 user_id ASC
+        LIMIT ${limit} OFFSET ${offset}
+      `);
+      return (result.rows as Array<{
+        user_id: string;
+        display_name: string;
+        avatar_url: string | null;
+        games_played: number | string;
+        games_won: number | string;
+        games_lost: number | string;
+      }>).map((row) =>
+        toLeaderboardEntry({
+          userId: row.user_id,
+          displayName: row.display_name,
+          avatarUrl: row.avatar_url,
+          gamesPlayed: Number(row.games_played),
+          gamesWon: Number(row.games_won),
+          gamesLost: Number(row.games_lost),
+        })
+      );
+    }
+
     const rows = await this.db
       .select({
         userId: users.id,
@@ -484,7 +534,66 @@ export class PgPersistence implements GamePersistence {
     return rows.map(toLeaderboardEntry);
   }
 
-  async getMyLeaderboardRank(userId: string): Promise<RankedLeaderboardEntry | null> {
+  async getMyLeaderboardRank(userId: string, timeWindow?: 'week' | 'month'): Promise<RankedLeaderboardEntry | null> {
+    if (timeWindow !== undefined) {
+      const now = Date.now();
+      const cutoff = new Date(now - (timeWindow === 'week' ? 7 : 30) * 24 * 60 * 60 * 1000);
+      const result = await this.db.execute(sql`
+        WITH windowed AS (
+          SELECT
+            gp.user_id,
+            u.display_name,
+            u.avatar_url,
+            COUNT(*)::int AS games_played,
+            COUNT(*) FILTER (WHERE gp.result = 'WIN')::int AS games_won,
+            COUNT(*) FILTER (WHERE gp.result = 'LOSS')::int AS games_lost,
+            0::int AS games_abandoned
+          FROM game_players gp
+          JOIN games g ON g.id = gp.game_id
+          JOIN users u ON u.id = gp.user_id
+          WHERE
+            gp.user_id IS NOT NULL
+            AND u.is_guest = false
+            AND g.ended_at IS NOT NULL
+            AND g.is_abandoned = false
+            AND g.ended_at >= ${cutoff}
+          GROUP BY gp.user_id, u.display_name, u.avatar_url
+        ),
+        ranked AS (
+          SELECT *,
+            ROW_NUMBER() OVER (
+              ORDER BY games_won DESC,
+                       (games_won::float / games_played) DESC,
+                       games_played DESC,
+                       user_id ASC
+            )::int AS rank
+          FROM windowed
+        )
+        SELECT * FROM ranked WHERE user_id = ${userId}
+      `);
+      const row = result.rows[0] as {
+        user_id: string;
+        display_name: string;
+        avatar_url: string | null;
+        games_played: number | string;
+        games_won: number | string;
+        games_lost: number | string;
+        rank: number | string;
+      } | undefined;
+      if (!row) return null;
+      return {
+        ...toLeaderboardEntry({
+          userId: row.user_id,
+          displayName: row.display_name,
+          avatarUrl: row.avatar_url,
+          gamesPlayed: Number(row.games_played),
+          gamesWon: Number(row.games_won),
+          gamesLost: Number(row.games_lost),
+        }),
+        rank: Number(row.rank),
+      };
+    }
+
     const result = await this.db.execute(sql`
       WITH qualifying AS (
         SELECT

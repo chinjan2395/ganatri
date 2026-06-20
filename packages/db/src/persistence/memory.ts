@@ -457,7 +457,23 @@ export class MemoryPersistence implements GamePersistence {
     return this.stats.get(userId) ?? null;
   }
 
-  async getLeaderboard(limit = 20, offset = 0): Promise<LeaderboardEntry[]> {
+  async getLeaderboard(limit = 20, offset = 0, timeWindow?: 'week' | 'month'): Promise<LeaderboardEntry[]> {
+    if (timeWindow !== undefined) {
+      const now = Date.now();
+      const cutoff = new Date(now - (timeWindow === 'week' ? 7 : 30) * 24 * 60 * 60 * 1000);
+      const qualifying = this.aggregateWindowed(cutoff);
+      return qualifying.slice(offset, offset + limit).map((row) =>
+        toLeaderboardEntry({
+          userId: row.userId,
+          displayName: row.displayName,
+          avatarUrl: row.avatarUrl,
+          gamesPlayed: row.gamesPlayed,
+          gamesWon: row.gamesWon,
+          gamesLost: row.gamesLost,
+        })
+      );
+    }
+
     const winRate = (s: PlayerStatsRow) =>
       s.gamesPlayed > 0 ? s.gamesWon / s.gamesPlayed : 0;
     const qualifying = [...this.stats.values()]
@@ -493,9 +509,30 @@ export class MemoryPersistence implements GamePersistence {
     );
   }
 
-  async getMyLeaderboardRank(userId: string): Promise<RankedLeaderboardEntry | null> {
+  async getMyLeaderboardRank(userId: string, timeWindow?: 'week' | 'month'): Promise<RankedLeaderboardEntry | null> {
     const user = this.users.get(userId);
     if (!user || user.isGuest) return null;
+
+    if (timeWindow !== undefined) {
+      const now = Date.now();
+      const cutoff = new Date(now - (timeWindow === 'week' ? 7 : 30) * 24 * 60 * 60 * 1000);
+      const qualifying = this.aggregateWindowed(cutoff);
+      const idx = qualifying.findIndex((row) => row.userId === userId);
+      if (idx === -1) return null;
+      const entry = qualifying[idx]!;
+      return {
+        ...toLeaderboardEntry({
+          userId: entry.userId,
+          displayName: entry.displayName,
+          avatarUrl: entry.avatarUrl,
+          gamesPlayed: entry.gamesPlayed,
+          gamesWon: entry.gamesWon,
+          gamesLost: entry.gamesLost,
+        }),
+        rank: idx + 1,
+      };
+    }
+
     const stats = this.stats.get(userId);
     if (!stats || stats.gamesPlayed === 0) return null;
 
@@ -528,6 +565,62 @@ export class MemoryPersistence implements GamePersistence {
       }),
       rank: idx + 1,
     };
+  }
+
+  /**
+   * Aggregate game_players + games for a time-windowed leaderboard.
+   * Returns entries sorted: gamesWon DESC, winRate DESC, gamesPlayed DESC, userId ASC.
+   */
+  private aggregateWindowed(cutoff: Date): Array<{
+    userId: string;
+    displayName: string;
+    avatarUrl: string | null;
+    gamesPlayed: number;
+    gamesWon: number;
+    gamesLost: number;
+  }> {
+    const cutoffMs = cutoff.getTime();
+    // Collect game_players rows whose game ended_at >= cutoff and game is not abandoned.
+    const byUser = new Map<string, { gamesPlayed: number; gamesWon: number; gamesLost: number }>();
+    for (const gp of this.gamePlayers.values()) {
+      if (gp.userId === null) continue;
+      const user = this.users.get(gp.userId);
+      if (!user || user.isGuest) continue;
+      const game = this.games.get(gp.gameId);
+      if (!game || game.endedAt === null || game.endedAt.getTime() < cutoffMs) continue;
+      if (game.isAbandoned) continue;
+
+      const agg = byUser.get(gp.userId) ?? { gamesPlayed: 0, gamesWon: 0, gamesLost: 0 };
+      agg.gamesPlayed += 1;
+      if (gp.result === 'WIN') agg.gamesWon += 1;
+      if (gp.result === 'LOSS') agg.gamesLost += 1;
+      byUser.set(gp.userId, agg);
+    }
+
+    const rows = [...byUser.entries()]
+      .filter(([, agg]) => agg.gamesPlayed > 0)
+      .map(([userId, agg]) => {
+        const user = this.users.get(userId)!;
+        return {
+          userId,
+          displayName: user.displayName,
+          avatarUrl: user.avatarUrl,
+          gamesPlayed: agg.gamesPlayed,
+          gamesWon: agg.gamesWon,
+          gamesLost: agg.gamesLost,
+        };
+      });
+
+    rows.sort((a, b) => {
+      if (b.gamesWon !== a.gamesWon) return b.gamesWon - a.gamesWon;
+      const wrA = a.gamesPlayed > 0 ? a.gamesWon / a.gamesPlayed : 0;
+      const wrB = b.gamesPlayed > 0 ? b.gamesWon / b.gamesPlayed : 0;
+      if (wrB !== wrA) return wrB - wrA;
+      if (b.gamesPlayed !== a.gamesPlayed) return b.gamesPlayed - a.gamesPlayed;
+      return a.userId < b.userId ? -1 : a.userId > b.userId ? 1 : 0;
+    });
+
+    return rows;
   }
 
   // Recovery reads ----------------------------------------------------------

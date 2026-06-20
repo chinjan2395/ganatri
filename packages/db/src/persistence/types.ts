@@ -290,15 +290,18 @@ export interface GamePersistence {
    * gamesWon DESC, winRate DESC, gamesPlayed DESC, userId ASC (stable).
    * Excludes guests and users with zero games played. Joins `users` for the
    * display name + avatar. Paginated.
+   * When `timeWindow` is set, dynamically aggregates from `game_players JOIN
+   * games` filtered by `games.ended_at >= cutoff` instead of `player_stats`.
    */
-  getLeaderboard(limit?: number, offset?: number): Promise<LeaderboardEntry[]>;
+  getLeaderboard(limit?: number, offset?: number, timeWindow?: 'week' | 'month'): Promise<LeaderboardEntry[]>;
 
   /**
    * Return the given user's own leaderboard entry with their global rank, or
    * null if the user is a guest, has zero games played, or does not exist.
    * Used to surface the viewer's position when they are outside the top page.
+   * When `timeWindow` is set, aggregates dynamically from the recent window.
    */
-  getMyLeaderboardRank(userId: string): Promise<RankedLeaderboardEntry | null>;
+  getMyLeaderboardRank(userId: string, timeWindow?: 'week' | 'month'): Promise<RankedLeaderboardEntry | null>;
 
   // Recovery reads ----------------------------------------------------------
 
