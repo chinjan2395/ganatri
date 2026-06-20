@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useGame } from '../state/GameProvider';
 import logo from '../assets/ganatri-logo.png';
 import './LobbyScreen.css';
 
 export function LobbyScreen(): React.ReactNode {
-  const { createRoom, joinRoom, account, loginWithGoogle, logout, setScreen } = useGame();
+  const { createRoom, joinRoom, account, loginWithGoogle, logout, setScreen, updateDisplayName } = useGame();
   const loggedIn = account?.loggedIn ?? false;
   const [name, setName] = useState(() => (loggedIn ? account?.displayName ?? '' : ''));
   const [code, setCode] = useState('');
@@ -14,6 +14,13 @@ export function LobbyScreen(): React.ReactNode {
   const [loginError, setLoginError] = useState(false);
   // ALREADY_IN_GAME -> offer rejoin to the existing room.
   const [rejoin, setRejoin] = useState<string | null>(null);
+
+  // Display-name edit state
+  const [editingName, setEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState('');
+  const [editNameBusy, setEditNameBusy] = useState(false);
+  const [editNameError, setEditNameError] = useState<string | null>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
 
   // Prefill the name field with the account display name once login resolves.
   useEffect(() => {
@@ -33,6 +40,41 @@ export function LobbyScreen(): React.ReactNode {
       window.history.replaceState(null, '', url);
     }
   }, []);
+
+  function openEditName(): void {
+    setEditNameValue(account?.displayName ?? '');
+    setEditNameError(null);
+    setEditingName(true);
+    // Focus the input after it mounts
+    setTimeout(() => editInputRef.current?.focus(), 0);
+  }
+
+  function cancelEditName(): void {
+    setEditingName(false);
+    setEditNameError(null);
+  }
+
+  async function handleSaveName(): Promise<void> {
+    const newName = editNameValue.trim();
+    if (newName === (account?.displayName ?? '')) {
+      cancelEditName();
+      return;
+    }
+    setEditNameBusy(true);
+    setEditNameError(null);
+    const ack = await updateDisplayName(newName);
+    setEditNameBusy(false);
+    if (ack.ok) {
+      setEditingName(false);
+      // SESSION re-emit will update account.displayName automatically
+    } else {
+      if (ack.error === 'INVALID_NAME') {
+        setEditNameError('Name cannot be empty.');
+      } else {
+        setEditNameError('Unavailable, try again.');
+      }
+    }
+  }
 
   function validateName(): boolean {
     if (!name.trim()) {
@@ -183,9 +225,58 @@ export function LobbyScreen(): React.ReactNode {
                     {(account?.displayName ?? '?').charAt(0).toUpperCase()}
                   </span>
                 )}
-                <span className="lobby__account-name">
-                  {account?.displayName ?? 'Signed in'}
-                </span>
+                {editingName ? (
+                  <div className="lobby__name-edit">
+                    <input
+                      ref={editInputRef}
+                      className="lobby__name-input"
+                      aria-label="Display name"
+                      value={editNameValue}
+                      onChange={(e) => setEditNameValue(e.target.value.slice(0, 20))}
+                      maxLength={20}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') void handleSaveName();
+                        if (e.key === 'Escape') cancelEditName();
+                      }}
+                    />
+                    <div className="lobby__name-edit-actions">
+                      <button
+                        type="button"
+                        className="lobby__name-save-btn"
+                        onClick={() => void handleSaveName()}
+                        disabled={editNameBusy}
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary lobby__name-cancel-btn"
+                        onClick={cancelEditName}
+                        disabled={editNameBusy}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    {editNameError && (
+                      <div className="lobby__name-edit-error">{editNameError}</div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="lobby__name-row">
+                    <span className="lobby__account-name">
+                      {account?.displayName ?? 'Signed in'}
+                    </span>
+                    <button
+                      type="button"
+                      className="lobby__name-edit-btn"
+                      onClick={openEditName}
+                      title="Edit display name"
+                      aria-label="Edit display name"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="row lobby__account-actions">
                 <button

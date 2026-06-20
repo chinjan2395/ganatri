@@ -81,6 +81,13 @@ export class PgPersistence implements GamePersistence {
     return rows[0]!;
   }
 
+  async updateUserDisplayName(userId: string, newDisplayName: string): Promise<void> {
+    await this.db
+      .update(users)
+      .set({ displayName: newDisplayName })
+      .where(eq(users.id, userId));
+  }
+
   // Auth (OAuth + sessions) -------------------------------------------------
 
   async upsertOAuthUser(input: UpsertOAuthUserInput): Promise<UserRow> {

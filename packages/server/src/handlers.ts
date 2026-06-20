@@ -26,6 +26,8 @@ import {
   type GetLeaderboardAck,
   type GetLeaderboardRequest,
   type LeaderboardEntryView,
+  type UpdateDisplayNamePayload,
+  type UpdateDisplayNameAck,
   type VoiceOfferPayload,
   type VoiceAnswerPayload,
   type VoiceIcePayload,
@@ -580,6 +582,11 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
       ack = maybeAck;
     }
     void handleGetLeaderboard(session, req, ack);
+  });
+
+  socket.on(EVENTS.UPDATE_DISPLAY_NAME, (payload: unknown, ack: (res: UpdateDisplayNameAck) => void) => {
+    if (typeof ack !== 'function') return;
+    void handleUpdateDisplayName(socket, session, payload, ack).catch(console.error);
   });
 
   // Admin: authenticate
@@ -1198,6 +1205,65 @@ function zeroStatsView(): PlayerStatsView {
     avgFinish: 0,
     updatedAt: null,
   };
+}
+
+// ---------------------------------------------------------------------------
+// update_display_name
+// ---------------------------------------------------------------------------
+
+async function handleUpdateDisplayName(
+  socket: Socket,
+  session: SessionState,
+  payload: unknown,
+  ack: (res: UpdateDisplayNameAck) => void,
+): Promise<void> {
+  // Guard: must be a logged-in account (userId and account are set together by bindAccount).
+  if (session.userId === null || session.account === null) {
+    ack({ ok: false, error: 'NOT_LOGGED_IN' });
+    return;
+  }
+
+  // Validate and sanitize the incoming name.
+  if (
+    typeof payload !== 'object' ||
+    payload === null ||
+    typeof (payload as Record<string, unknown>)['newDisplayName'] !== 'string'
+  ) {
+    ack({ ok: false, error: 'INVALID_NAME' });
+    return;
+  }
+
+  const sanitized = sanitizePlayerName(
+    (payload as UpdateDisplayNamePayload).newDisplayName
+  );
+  if (sanitized === '') {
+    ack({ ok: false, error: 'INVALID_NAME' });
+    return;
+  }
+
+  const p = getPersistence();
+  if (!p) {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+
+  try {
+    await p.updateUserDisplayName(session.userId, sanitized);
+  } catch (err) {
+    console.error(`[account] updateUserDisplayName failed for ${session.userId}:`, err);
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+
+  // Update the in-memory session so subsequent broadcasts/SESSIONs are correct.
+  // session.account is guaranteed non-null (guarded above).
+  session.account.displayName = sanitized;
+  updateSession(session.token, { name: sanitized });
+
+  // Re-emit SESSION so the frontend picks up the new display name immediately.
+  socket.emit(EVENTS.SESSION, sessionPayload(session));
+
+  ack({ ok: true, displayName: sanitized });
 }
 
 // ---------------------------------------------------------------------------

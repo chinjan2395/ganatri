@@ -36,17 +36,19 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-20
-- Outcome: ✅ Phase 6c — Guest → registered upgrade flow complete: `mergeGuestIntoUser` DB method (Pg+Memory), guest session token relay via `ganatri_guest` httpOnly cookie through OAuth flow, server merge call in callback (non-fatal), web `loginWithGoogle()` passes `?session_token=`. DB tests 121→129. All 332 tests passing (153 engine + 129 db + 50 server).
-- Branch/PR: nightly/2026-06-20-1641
+- Outcome: ✅ Phase 6c (account settings) — Edit display name: `updateUserDisplayName` in DB (Pg+Memory, 4 contract tests), `update_display_name` socket event with NOT_LOGGED_IN/INVALID_NAME/UNAVAILABLE guards + SESSION re-emit on success (4 server tests in `account.test.ts`), web UI inline editor in LobbyScreen (aria-labels, save/cancel/error states). DB: 129→133, Server: 50→54, Total: 153 engine + 133 db + 54 server = 340 passing.
+- Branch/PR: nightly/2026-06-20-1725
 
 ## Blockers / Needs Human Input
 (none)
 
 ## Notes for Next Run
-Phase 6c (guest→registered upgrade) is now DONE. Remaining self-contained next units within Phase 6:
+Display name edit (account settings) is DONE. Remaining self-contained next units within Phase 6:
 
-1. **6h: Admin analytics dashboard extensions** — Live ops view + KPI charts in AdminScreen. Larger scope. Route to frontend-dev (AdminScreen UI) + backend-dev (admin data endpoints). Consider sequencing: harden admin auth (Phase 7e "Strengthen admin authentication") before building the analytics views.
+1. **7e: Strengthen admin authentication** — Email-only check is weak; add a shared secret or signed token. Small scoped change. Route to backend-dev (`handlers.ts` admin auth + server tests). **Prerequisite for Phase 6h admin analytics dashboard.**
 
-2. **6c account settings** — Edit display name + avatar, link/unlink OAuth (still ⬜ in plan).
+2. **6h: Admin analytics dashboard extensions** — Live ops view + KPI charts in AdminScreen. Larger scope. Do 7e first, then route UI work to frontend-dev + backend-dev (admin data endpoints).
+
+3. **6c remaining account settings** — Avatar URL edit + OAuth link/unlink (more complex; skip until display name ships and is validated).
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.

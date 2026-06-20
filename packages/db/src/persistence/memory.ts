@@ -88,6 +88,13 @@ export class MemoryPersistence implements GamePersistence {
     return row;
   }
 
+  async updateUserDisplayName(userId: string, newDisplayName: string): Promise<void> {
+    const existing = this.users.get(userId);
+    if (existing) {
+      this.users.set(userId, { ...existing, displayName: newDisplayName });
+    }
+  }
+
   // Auth (OAuth + sessions) -------------------------------------------------
 
   async upsertOAuthUser(input: UpsertOAuthUserInput): Promise<UserRow> {

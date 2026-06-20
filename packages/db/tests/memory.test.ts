@@ -777,6 +777,29 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
     await expect(repo.mergeGuestIntoUser('nonexistent-id', regId)).resolves.toBeUndefined();
   });
 
+  // updateUserDisplayName ---------------------------------------------------
+
+  it('updateUserDisplayName — updates a registered user\'s display name', async () => {
+    const userId = h.newUserId();
+    await repo.upsertUser({ id: userId, displayName: 'OldName', isGuest: false });
+    await repo.upsertPlayerStats({ userId, gamesPlayed: 1, gamesWon: 1, gamesLost: 0 });
+
+    await repo.updateUserDisplayName(userId, 'NewName');
+
+    // Verify the change is reflected in the leaderboard, which reads displayName
+    // directly from the users table.
+    const board = await repo.getLeaderboard();
+    const entry = board.find((e) => e.userId === userId);
+    expect(entry).toBeDefined();
+    expect(entry!.displayName).toBe('NewName');
+  });
+
+  it('updateUserDisplayName — no-op for unknown user (does not throw)', async () => {
+    const unknownId = h.newUserId();
+    // Should resolve without throwing.
+    await expect(repo.updateUserDisplayName(unknownId, 'SomeName')).resolves.toBeUndefined();
+  });
+
   it('loadActiveGames returns PLAYING, unfinished games only', async () => {
     const host = await freshUser();
     const playing = await repo.recordRoomCreated({ roomCode: 'CON005', hostUserId: host });

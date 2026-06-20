@@ -200,6 +200,14 @@ export type GetLeaderboardAck =
   | { ok: true; entries: LeaderboardEntryView[]; myEntry?: LeaderboardEntryView }
   | { ok: false; error: 'UNAVAILABLE' };
 
+export interface UpdateDisplayNamePayload {
+  newDisplayName: string;
+}
+
+export type UpdateDisplayNameAck =
+  | { ok: true; displayName: string }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' | 'INVALID_NAME' };
+
 // ---------------------------------------------------------------------------
 // Server → Client pushed events
 // ---------------------------------------------------------------------------
@@ -372,6 +380,7 @@ export const EVENTS = {
   REQUEST_HISTORY: 'request_history',
   GET_MY_STATS: 'get_my_stats',
   GET_LEADERBOARD: 'get_leaderboard',
+  UPDATE_DISPLAY_NAME: 'update_display_name',
 
   // Admin (Client → Server)
   ADMIN_AUTH: 'admin_auth',
