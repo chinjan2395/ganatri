@@ -7,7 +7,7 @@ import './LeaderboardScreen.css';
 type LoadState =
   | { status: 'loading' }
   | { status: 'error'; error: 'UNAVAILABLE' }
-  | { status: 'ready'; entries: LeaderboardEntryView[] };
+  | { status: 'ready'; entries: LeaderboardEntryView[]; myEntry?: LeaderboardEntryView };
 
 function formatPct(rate: number): string {
   if (!Number.isFinite(rate)) return '0%';
@@ -63,7 +63,7 @@ export function LeaderboardScreen(): React.ReactNode {
     void requestLeaderboard().then((ack) => {
       if (cancelled) return;
       if (ack.ok) {
-        setState({ status: 'ready', entries: ack.entries });
+        setState({ status: 'ready', entries: ack.entries, myEntry: ack.myEntry });
       } else {
         setState({ status: 'error', error: ack.error });
       }
@@ -111,19 +111,27 @@ export function LeaderboardScreen(): React.ReactNode {
       )}
 
       {state.status === 'ready' && state.entries.length > 0 && (
-        <div className="lb__table">
-          <div className="lb__row lb__row--head" aria-hidden="true">
-            <span className="lb__rank">#</span>
-            <span className="lb__avatar-head" />
-            <span className="lb__name">Player</span>
-            <span className="lb__stat lb__stat--wins">Won</span>
-            <span className="lb__stat">Played</span>
-            <span className="lb__stat lb__stat--rate">Win %</span>
+        <>
+          <div className="lb__table">
+            <div className="lb__row lb__row--head" aria-hidden="true">
+              <span className="lb__rank">#</span>
+              <span className="lb__avatar-head" />
+              <span className="lb__name">Player</span>
+              <span className="lb__stat lb__stat--wins">Won</span>
+              <span className="lb__stat">Played</span>
+              <span className="lb__stat lb__stat--rate">Win %</span>
+            </div>
+            {state.entries.map((entry) => (
+              <LeaderboardRow key={entry.userId} entry={entry} isMe={entry.userId === myId} />
+            ))}
           </div>
-          {state.entries.map((entry) => (
-            <LeaderboardRow key={entry.userId} entry={entry} isMe={entry.userId === myId} />
-          ))}
-        </div>
+          {state.myEntry && (
+            <div className="lb__my-rank">
+              <p className="lb__my-rank-label">Your ranking</p>
+              <LeaderboardRow entry={state.myEntry} isMe={true} />
+            </div>
+          )}
+        </>
       )}
     </div>
   );

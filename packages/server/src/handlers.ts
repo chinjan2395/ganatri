@@ -568,7 +568,7 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
 
   socket.on(EVENTS.GET_LEADERBOARD, (ack: (res: GetLeaderboardAck) => void) => {
     if (typeof ack !== 'function') return;
-    void handleGetLeaderboard(ack);
+    void handleGetLeaderboard(session, ack);
   });
 
   // Admin: authenticate
@@ -1119,7 +1119,10 @@ function mapStatsView(row: PlayerStatsRow): PlayerStatsView {
 // get_leaderboard (public)
 // ---------------------------------------------------------------------------
 
-async function handleGetLeaderboard(ack: (res: GetLeaderboardAck) => void): Promise<void> {
+async function handleGetLeaderboard(
+  session: SessionState,
+  ack: (res: GetLeaderboardAck) => void,
+): Promise<void> {
   const p = getPersistence();
   if (!p) {
     ack({ ok: false, error: 'UNAVAILABLE' });
@@ -1127,7 +1130,22 @@ async function handleGetLeaderboard(ack: (res: GetLeaderboardAck) => void): Prom
   }
   try {
     const rows = await p.getLeaderboard(20, 0);
-    ack({ ok: true, entries: rows.map((r, i) => mapLeaderboardEntry(r, i)) });
+    const entries = rows.map((r, i) => mapLeaderboardEntry(r, i));
+
+    // When the requesting user is logged in but not in the top page, fetch
+    // their own rank so the client can show their position below the list.
+    let myEntry: LeaderboardEntryView | undefined;
+    if (session.userId !== null) {
+      const inTop = entries.some((e) => e.userId === session.userId);
+      if (!inTop) {
+        const myRank = await p.getMyLeaderboardRank(session.userId);
+        if (myRank) {
+          myEntry = { ...mapLeaderboardEntry(myRank, 0), rank: myRank.rank };
+        }
+      }
+    }
+
+    ack({ ok: true, entries, ...(myEntry !== undefined ? { myEntry } : {}) });
   } catch (err) {
     console.error('[leaderboard] getLeaderboard failed:', err);
     ack({ ok: false, error: 'UNAVAILABLE' });

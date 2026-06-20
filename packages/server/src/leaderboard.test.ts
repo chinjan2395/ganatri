@@ -114,4 +114,18 @@ describe('GET_LEADERBOARD', () => {
       client.disconnect();
     }
   });
+
+  it('omits myEntry for a guest connection', async () => {
+    await seedRankedUser(persistence, 'u-alice', 'Alice', { gamesPlayed: 10, gamesWon: 5, gamesLost: 5 });
+    const client = ioClient(`http://localhost:${port}`, { autoConnect: true, reconnection: false });
+    try {
+      const session = await waitFor<SessionPayload>(client, EVENTS.SESSION);
+      expect(session.loggedIn).toBe(false);
+      const ack = await emitAck<GetLeaderboardAck>(client, EVENTS.GET_LEADERBOARD);
+      expect(ack.ok).toBe(true);
+      if (ack.ok) expect(ack.myEntry).toBeUndefined();
+    } finally {
+      client.disconnect();
+    }
+  });
 });

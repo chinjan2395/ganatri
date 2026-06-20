@@ -116,7 +116,7 @@ export interface LeaderboardEntryView {
 }
 
 export type GetLeaderboardAck =
-  | { ok: true; entries: LeaderboardEntryView[] }
+  | { ok: true; entries: LeaderboardEntryView[]; myEntry?: LeaderboardEntryView }
   | { ok: false; error: 'UNAVAILABLE' };
 
 // --- Server → Client pushed payloads ---
