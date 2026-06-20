@@ -40,6 +40,8 @@ async function resolveSession(socket: Socket): Promise<void> {
 
     const cookies = parseCookies(socket.handshake.headers.cookie);
     const token = cookies[SESSION_COOKIE_NAME];
+    console.log('[auth] session middleware: cookie header =', socket.handshake.headers.cookie ? 'present' : 'missing');
+    console.log('[auth] session middleware: token found =', !!token);
     if (!token) return;
 
     const user = await p.getUserBySessionTokenHash(hashToken(token));
