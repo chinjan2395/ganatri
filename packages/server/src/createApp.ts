@@ -168,8 +168,7 @@ async function handleGoogleCallback(
       userAgent: req.headers['user-agent'] ?? null,
     });
 
-    redirect(res, webRedirectBase, [
-      buildSessionCookie(token, SESSION_TTL_DAYS, cookiesSecure()),
+    redirect(res, `${webRedirectBase}?auth_token=${encodeURIComponent(token)}`, [
       buildClearStateCookie(cookiesSecure()),
     ]);
   } catch (err) {
