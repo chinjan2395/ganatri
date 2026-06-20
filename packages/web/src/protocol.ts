@@ -11,6 +11,14 @@ import type { GameEvent, Move, MoveError, PlayerView } from '@ganatri/engine';
 export interface CreateRoomPayload {
   name?: string;
 }
+
+export interface UpdateDisplayNamePayload {
+  newDisplayName: string;
+}
+
+export type UpdateDisplayNameAck =
+  | { ok: true; displayName: string }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' | 'INVALID_NAME' };
 export interface JoinRoomPayload {
   roomCode: string;
   name?: string;
@@ -232,6 +240,7 @@ export const EVENTS = {
   REQUEST_HISTORY: 'request_history',
   GET_MY_STATS: 'get_my_stats',
   GET_LEADERBOARD: 'get_leaderboard',
+  UPDATE_DISPLAY_NAME: 'update_display_name',
   SESSION: 'session',
   ROOM_UPDATE: 'room_update',
   GAME_EVENT: 'game_event',

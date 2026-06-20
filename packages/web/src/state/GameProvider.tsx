@@ -23,6 +23,7 @@ import {
   setToken,
   socket,
   startGame as netStartGame,
+  updateDisplayName as netUpdateDisplayName,
 } from '../net/socket';
 import {
   EVENTS,
@@ -34,6 +35,7 @@ import {
   type RequestHistoryAck,
   type GetMyStatsAck,
   type GetLeaderboardAck,
+  type UpdateDisplayNameAck,
   type RoomUpdatePayload,
   type SessionPayload,
   type StartGameAck,
@@ -83,6 +85,7 @@ export interface GameContextValue {
   requestHistory: () => Promise<RequestHistoryAck>;
   requestMyStats: () => Promise<GetMyStatsAck>;
   requestLeaderboard: (timeWindow?: 'week' | 'month') => Promise<GetLeaderboardAck>;
+  updateDisplayName: (newName: string) => Promise<UpdateDisplayNameAck>;
   loginWithGoogle: () => void;
   logout: () => void;
 }
@@ -254,6 +257,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
   const requestHistory = useCallback(() => netRequestHistory(), []);
   const requestMyStats = useCallback(() => netRequestMyStats(), []);
   const requestLeaderboard = useCallback((timeWindow?: 'week' | 'month') => netRequestLeaderboard(timeWindow), []);
+  const updateDisplayName = useCallback((newName: string) => netUpdateDisplayName(newName), []);
   const loginWithGoogle = useCallback(() => netLoginWithGoogle(), []);
   const logout = useCallback(() => netLogout(), []);
 
@@ -318,6 +322,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       requestHistory,
       requestMyStats,
       requestLeaderboard,
+      updateDisplayName,
       loginWithGoogle,
       logout,
     }),
@@ -344,6 +349,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       requestHistory,
       requestMyStats,
       requestLeaderboard,
+      updateDisplayName,
       loginWithGoogle,
       logout,
     ],

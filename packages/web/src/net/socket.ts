@@ -21,6 +21,7 @@ import {
   type GetLeaderboardRequest,
   type RequestIceServersAck,
   type StartGameAck,
+  type UpdateDisplayNameAck,
 } from '../protocol';
 
 const TOKEN_KEY = 'ganatri.token';
@@ -112,4 +113,8 @@ export function logout(): void {
 
 export function requestIceServers(): Promise<RequestIceServersAck> {
   return emitAck<RequestIceServersAck>(EVENTS.VOICE_ICE_SERVERS);
+}
+
+export function updateDisplayName(newDisplayName: string): Promise<UpdateDisplayNameAck> {
+  return emitAck<UpdateDisplayNameAck>(EVENTS.UPDATE_DISPLAY_NAME, { newDisplayName });
 }

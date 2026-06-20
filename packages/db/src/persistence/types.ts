@@ -202,6 +202,9 @@ export interface GamePersistence {
   /** Ensure a guest user row exists for the given id; returns it. */
   ensureGuest(id: string, displayName: string): Promise<UserRow>;
 
+  /** Update a registered user's display name. No-op if the user does not exist. */
+  updateUserDisplayName(userId: string, newDisplayName: string): Promise<void>;
+
   // Auth (OAuth + sessions) -------------------------------------------------
 
   /**
