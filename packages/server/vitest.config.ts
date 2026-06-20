@@ -12,6 +12,11 @@ export default defineConfig({
     hookTimeout: 10_000,
     // Use the vite transform pipeline (handles TS + ESM interop natively).
     pool: 'forks',
+    // Set ADMIN_EMAILS so config._adminEmails is populated when tests run.
+    // This is the test admin email used by admin.test.ts.
+    env: {
+      ADMIN_EMAILS: 'admin@test.com',
+    },
   },
   resolve: {
     // Mirror the tsconfig paths so vitest resolves @ganatri/engine to source.

@@ -40,7 +40,7 @@ import type {
   PlayerStatsRow,
   LeaderboardEntry,
 } from '@ganatri/db';
-import { getConfig, isAdminEmail, updateConfig, RETENTION_DAYS } from './config.js';
+import { getConfig, isAdminEmail, adminSecret, updateConfig, RETENTION_DAYS } from './config.js';
 import { getIceServers } from './iceConfig.js';
 import {
   type RoomState,
@@ -596,7 +596,9 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
       ack({ ok: false, reason: 'invalid_payload' });
       return;
     }
-    if (isAdminEmail(payload.email)) {
+    const secret = adminSecret();
+    const secretOk = secret === '' || payload.secret === secret;
+    if (isAdminEmail(payload.email) && secretOk) {
       store.adminSockets.add(socket.id);
       ack({ ok: true });
     } else {
@@ -611,7 +613,9 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
       ack({ ok: false, reason: 'not_authorized' });
       return;
     }
-    ack({ config: getConfig() });
+    // Strip server-only fields (e.g. databaseUrl) before sending to the client.
+    const { databaseUrl: _omit, ...adminConfig } = getConfig();
+    ack({ config: adminConfig as Readonly<import('./config.js').GameConfig> });
   });
 
   // Admin: update config

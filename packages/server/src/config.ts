@@ -88,3 +88,8 @@ const _adminEmails = new Set(
 export function isAdminEmail(email: string): boolean {
   return _adminEmails.has(email.trim().toLowerCase());
 }
+
+/** Returns the configured admin secret, or empty string if not set. */
+export function adminSecret(): string {
+  return process.env['ADMIN_SECRET']?.trim() ?? '';
+}
