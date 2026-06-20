@@ -62,4 +62,20 @@ describe('player_stats (pg)', () => {
     );
     expect(Number(res.rows[0]!.count)).toBe(1);
   });
+
+  it('accumulates sumFinishPositions across games', async () => {
+    const u = await seedUser(t);
+    // Game 1: rank 2
+    await t.repo.upsertPlayerStats({ userId: u, gamesPlayed: 1, sumFinishPositions: 2 });
+    const after1 = await t.repo.getPlayerStats(u);
+    expect(after1!.sumFinishPositions).toBe(2);
+
+    // Game 2: rank 1
+    await t.repo.upsertPlayerStats({ userId: u, gamesPlayed: 1, sumFinishPositions: 1 });
+    const after2 = await t.repo.getPlayerStats(u);
+    expect(after2!.sumFinishPositions).toBe(3);
+
+    // avgFinish = 3 / 2 = 1.5
+    expect(after2!.gamesPlayed).toBe(2);
+  });
 });

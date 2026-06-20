@@ -135,6 +135,7 @@ describe('GET_MY_STATS', () => {
       totalPlayTimeMs: 60000,
       currentWinStreak: 2,
       longestWinStreak: 3,
+      sumFinishPositions: 6,
     });
 
     const client = ioClient(`http://localhost:${port}`, {
@@ -153,6 +154,7 @@ describe('GET_MY_STATS', () => {
         expect(ack.stats.gamesPlayed).toBe(4);
         expect(ack.stats.gamesWon).toBe(3);
         expect(ack.stats.winRate).toBe(0.75);
+        expect(ack.stats.avgFinish).toBe(1.5);
         expect(typeof ack.stats.updatedAt).toBe('string');
       }
     } finally {
@@ -179,6 +181,7 @@ describe('GET_MY_STATS', () => {
       if (ack.ok) {
         expect(ack.stats.gamesPlayed).toBe(0);
         expect(ack.stats.winRate).toBe(0);
+        expect(ack.stats.avgFinish).toBe(0);
         expect(ack.stats.updatedAt).toBeNull();
       }
     } finally {

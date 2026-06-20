@@ -15,6 +15,13 @@
       "when": 1781865739458,
       "tag": "0001_broken_joystick",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781907294813,
+      "tag": "0002_add_sum_finish_positions",
+      "breakpoints": true
     }
   ]
 }

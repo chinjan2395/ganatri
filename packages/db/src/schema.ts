@@ -284,6 +284,7 @@ export const playerStats = pgTable(
     totalPlayTimeMs: integer('total_play_time_ms').notNull().default(0),
     longestWinStreak: integer('longest_win_streak').notNull().default(0),
     currentWinStreak: integer('current_win_streak').notNull().default(0),
+    sumFinishPositions: integer('sum_finish_positions').notNull().default(0),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

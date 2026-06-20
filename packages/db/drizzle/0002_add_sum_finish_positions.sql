@@ -1,0 +1,1 @@
+ALTER TABLE "player_stats" ADD COLUMN "sum_finish_positions" integer DEFAULT 0 NOT NULL;
