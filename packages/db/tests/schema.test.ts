@@ -89,6 +89,22 @@ describe('schema migration', () => {
     );
     expect(res.rows[0]!.data_type).toBe('text');
   });
+
+  it('player_stats.sum_finish_positions exists as integer NOT NULL DEFAULT 0', async () => {
+    const res = await t.pglite.query<{
+      data_type: string;
+      is_nullable: string;
+      column_default: string;
+    }>(
+      `SELECT data_type, is_nullable, column_default
+       FROM information_schema.columns
+       WHERE table_name = 'player_stats' AND column_name = 'sum_finish_positions'`
+    );
+    expect(res.rows.length).toBe(1);
+    expect(res.rows[0]!.data_type).toBe('integer');
+    expect(res.rows[0]!.is_nullable).toBe('NO');
+    expect(res.rows[0]!.column_default).toBe('0');
+  });
 });
 
 describe('enum-drift guard', () => {
