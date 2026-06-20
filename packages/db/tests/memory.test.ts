@@ -653,6 +653,130 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
     expect(await repo.loadGameWithPlayers(completed.id)).not.toBeNull();
   });
 
+  // mergeGuestIntoUser ---------------------------------------------------
+
+  it('mergeGuestIntoUser: merges guest stats and game_players into registered user (no prior stats)', async () => {
+    const guestId = h.newUserId();
+    await repo.ensureGuest(guestId, 'GuestPlayer');
+
+    const regUser = await repo.upsertOAuthUser({
+      provider: 'google',
+      providerUserId: 'merge-oauth-1',
+      email: 'merge1@example.com',
+      displayName: 'Registered',
+    });
+
+    // Give the guest a game
+    const roomCode = `MG${Math.random().toString(36).slice(2, 6).toUpperCase()}`.slice(0, 6);
+    const room = await repo.recordRoomCreated({ roomCode, hostUserId: guestId });
+    const game = await repo.recordGameStarted({
+      roomId: room.id,
+      seed: 'merge-seed',
+      seatingOrder: [guestId, regUser.id],
+    });
+    await repo.recordGameFinished({
+      gameId: game.id,
+      winnerId: guestId,
+      players: [
+        { userId: guestId, seatIndex: 0, displayName: 'GuestPlayer', finalRank: 1, wasCut: false, captureCount: 5, result: 'WIN' },
+        { userId: regUser.id, seatIndex: 1, displayName: 'Registered', finalRank: 2, wasCut: false, captureCount: 2, result: 'LOSS' },
+      ],
+    });
+
+    // Give the guest some stats
+    await repo.upsertPlayerStats({
+      userId: guestId,
+      gamesPlayed: 3,
+      gamesWon: 2,
+      gamesLost: 1,
+      totalCaptures: 10,
+      longestWinStreak: 2,
+      currentWinStreak: 1,
+    });
+
+    await repo.mergeGuestIntoUser(guestId, regUser.id);
+
+    // Stats transferred
+    const stats = await repo.getPlayerStats(regUser.id);
+    expect(stats).not.toBeNull();
+    expect(stats!.gamesPlayed).toBe(3);
+    expect(stats!.gamesWon).toBe(2);
+    expect(stats!.totalCaptures).toBe(10);
+
+    // Guest stats gone
+    expect(await repo.getPlayerStats(guestId)).toBeNull();
+
+    // Game history now shows for registered user
+    const history = await repo.getUserGameHistory(regUser.id);
+    expect(history.length).toBeGreaterThanOrEqual(1);
+    expect(history.some((e) => e.game.id === game.id)).toBe(true);
+  });
+
+  it('mergeGuestIntoUser: sums stats when registered user already has stats', async () => {
+    const guestId = h.newUserId();
+    await repo.ensureGuest(guestId, 'GuestWithStats');
+
+    const regUser = await repo.upsertOAuthUser({
+      provider: 'google',
+      providerUserId: 'merge-oauth-2',
+      email: 'merge2@example.com',
+      displayName: 'RegWithStats',
+    });
+
+    // Stats for guest
+    await repo.upsertPlayerStats({
+      userId: guestId,
+      gamesPlayed: 4,
+      gamesWon: 3,
+      gamesLost: 1,
+      totalCaptures: 8,
+      longestWinStreak: 3,
+      currentWinStreak: 2,
+    });
+
+    // Stats for registered user
+    await repo.upsertPlayerStats({
+      userId: regUser.id,
+      gamesPlayed: 2,
+      gamesWon: 1,
+      gamesLost: 1,
+      totalCaptures: 5,
+      longestWinStreak: 1,
+      currentWinStreak: 1,
+    });
+
+    await repo.mergeGuestIntoUser(guestId, regUser.id);
+
+    const stats = await repo.getPlayerStats(regUser.id);
+    expect(stats).not.toBeNull();
+    expect(stats!.gamesPlayed).toBe(6);  // 4 + 2
+    expect(stats!.gamesWon).toBe(4);     // 3 + 1
+    expect(stats!.gamesLost).toBe(2);    // 1 + 1
+    expect(stats!.totalCaptures).toBe(13); // 8 + 5
+    // longestWinStreak is max(3, 1) = 3
+    expect(stats!.longestWinStreak).toBe(3);
+
+    // Guest stats gone
+    expect(await repo.getPlayerStats(guestId)).toBeNull();
+  });
+
+  it('mergeGuestIntoUser: no-op when guestId === registeredId', async () => {
+    const userId = h.newUserId();
+    await repo.upsertUser({ id: userId, displayName: 'SameUser', isGuest: false });
+    await repo.upsertPlayerStats({ userId, gamesPlayed: 5, gamesWon: 3, gamesLost: 2 });
+
+    await repo.mergeGuestIntoUser(userId, userId);
+
+    const stats = await repo.getPlayerStats(userId);
+    expect(stats!.gamesPlayed).toBe(5);
+  });
+
+  it('mergeGuestIntoUser: no-op when guest not found', async () => {
+    const regId = h.newUserId();
+    // Should not throw even when guestUserId does not exist
+    await expect(repo.mergeGuestIntoUser('nonexistent-id', regId)).resolves.toBeUndefined();
+  });
+
   it('loadActiveGames returns PLAYING, unfinished games only', async () => {
     const host = await freshUser();
     const playing = await repo.recordRoomCreated({ roomCode: 'CON005', hostUserId: host });

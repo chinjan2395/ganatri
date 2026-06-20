@@ -94,9 +94,15 @@ export function requestLeaderboard(timeWindow?: 'week' | 'month'): Promise<GetLe
 }
 
 /** Full-page navigation to the server's Google OAuth entry point so the
- *  httpOnly session cookie round-trips through the browser. */
+ *  httpOnly session cookie round-trips through the browser. Passes the
+ *  current guest session token so the server can merge guest stats into
+ *  the new registered account (Phase 6c guest→registered upgrade). */
 export function loginWithGoogle(): void {
-  window.location.assign(`${SERVER_URL}/auth/google/login`);
+  const token = getToken();
+  const url = token
+    ? `${SERVER_URL}/auth/google/login?session_token=${encodeURIComponent(token)}`
+    : `${SERVER_URL}/auth/google/login`;
+  window.location.assign(url);
 }
 
 /** Full-page navigation to clear the server session cookie. */
