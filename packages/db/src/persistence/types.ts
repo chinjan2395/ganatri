@@ -165,6 +165,11 @@ export interface LeaderboardEntry {
   winRate: number;
 }
 
+/** A leaderboard entry with an explicit global rank attached. */
+export interface RankedLeaderboardEntry extends LeaderboardEntry {
+  rank: number; // 1-based global rank
+}
+
 /** Increment-style delta applied to a player's aggregate stats. */
 export interface PlayerStatsDelta {
   userId: string;
@@ -287,6 +292,13 @@ export interface GamePersistence {
    * display name + avatar. Paginated.
    */
   getLeaderboard(limit?: number, offset?: number): Promise<LeaderboardEntry[]>;
+
+  /**
+   * Return the given user's own leaderboard entry with their global rank, or
+   * null if the user is a guest, has zero games played, or does not exist.
+   * Used to surface the viewer's position when they are outside the top page.
+   */
+  getMyLeaderboardRank(userId: string): Promise<RankedLeaderboardEntry | null>;
 
   // Recovery reads ----------------------------------------------------------
 

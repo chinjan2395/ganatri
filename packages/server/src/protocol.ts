@@ -188,9 +188,11 @@ export interface LeaderboardEntryView {
  * Ack for get_leaderboard. Public — guests may view it.
  * - persistence available → ranked entries (possibly empty)
  * - no persistence configured / DB error → UNAVAILABLE
+ * - when the requesting user is logged in but outside the top page, myEntry
+ *   carries their own rank so they can see where they stand
  */
 export type GetLeaderboardAck =
-  | { ok: true; entries: LeaderboardEntryView[] }
+  | { ok: true; entries: LeaderboardEntryView[]; myEntry?: LeaderboardEntryView }
   | { ok: false; error: 'UNAVAILABLE' };
 
 // ---------------------------------------------------------------------------

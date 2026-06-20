@@ -34,17 +34,17 @@ small full-stack vertical slices that mirror the history slice.
 Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — skip in nightly runs.
 
 ## Last Run
-- Date: 2026-06-19
-- Outcome: ✅ Phase 6e — Average finishing position. Added `sum_finish_positions` column to `player_stats` (migration 0002), wired through PgPersistence + MemoryPersistence, incremented in `writePlayerStats` (0 for abandoned games). `avgFinish` derived as `sumFinishPositions / (gamesPlayed - gamesAbandoned)` in `mapStatsView` (correctly excludes abandoned games from denominator). Added to `PlayerStatsView` in both server + web protocol.ts, displayed as "Avg finish" StatCard in StatsScreen with em-dash fallback for 0. Code-review bugs fixed: denominator was `gamesPlayed` (biased), and `avgFinish` assertion added to server stats test. All 302 tests passing (153 engine + 102 db + 47 server); web build green.
-- Branch/PR: nightly/2026-06-19-2211
+- Date: 2026-06-20
+- Outcome: ✅ Phase 6e (leaderboard polish) — User's own rank when outside top 20. Added `RankedLeaderboardEntry` type + `getMyLeaderboardRank(userId)` to `GamePersistence` (Pg: CTE + ROW_NUMBER; Memory: same tiebreak sort + findIndex). Server `handleGetLeaderboard` now accepts `session`; when logged-in user is not in the top entries, calls `getMyLeaderboardRank` and attaches result as `myEntry` in `GetLeaderboardAck`. Web `LeaderboardScreen` renders a "Your ranking" pinned section below the table when `myEntry` is present. 6 new db contract tests + 1 server test. All 309 tests passing (153 engine + 108 db + 48 server); web build green.
+- Branch/PR: nightly/2026-06-20-0426
 
 ## Blockers / Needs Human Input
 (none)
 
 ## Notes for Next Run
-Average finishing position (#1) is now DONE. Remaining self-contained next units within Phase 6:
+Leaderboard polish — user rank outside top 20 — is now DONE. Remaining self-contained next units within Phase 6:
 
-1. **6e: Leaderboard polish** — time-windowed boards (weekly/monthly) and/or showing the logged-in user's global rank when they're outside the top 20 (server computes rank via a count query; surface in `GetLeaderboardAck`). Builds on the shipped `getLeaderboard`. — **Recommended next**.
+1. **6e: Time-windowed leaderboard** — weekly/monthly filtered boards. The `player_stats` table is all-time aggregate; time windows require querying `game_players` + `games` filtered by `started_at`. Would need a new `getLeaderboard(timeWindow?: 'week'|'month')` path and UI tabs/toggle on `LeaderboardScreen`. Medium complexity. — **Recommended next**.
 
 2. **Schema drift-guard enhancement** (minor) — The drift-guard test in `packages/db/tests/schema.test.ts` verifies table count, table names, indexes, and the `seed` column type, but doesn't assert that `player_stats.sum_finish_positions` exists with `integer NOT NULL DEFAULT 0`. A column-existence query against `information_schema.columns` would catch accidental migration omissions. Low priority but good hygiene.
 

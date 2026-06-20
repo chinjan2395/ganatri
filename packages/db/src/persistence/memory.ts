@@ -24,6 +24,7 @@ import type {
   OAuthAccountRow,
   PlayerStatsDelta,
   PlayerStatsRow,
+  RankedLeaderboardEntry,
   RecordGameFinishedInput,
   RecordGameStartedInput,
   RoomRow,
@@ -490,6 +491,43 @@ export class MemoryPersistence implements GamePersistence {
         gamesLost: row.stats.gamesLost,
       })
     );
+  }
+
+  async getMyLeaderboardRank(userId: string): Promise<RankedLeaderboardEntry | null> {
+    const user = this.users.get(userId);
+    if (!user || user.isGuest) return null;
+    const stats = this.stats.get(userId);
+    if (!stats || stats.gamesPlayed === 0) return null;
+
+    const winRate = (s: PlayerStatsRow) =>
+      s.gamesPlayed > 0 ? s.gamesWon / s.gamesPlayed : 0;
+    const qualifying = [...this.stats.values()]
+      .map((s) => ({ stats: s, user: this.users.get(s.userId) }))
+      .filter(
+        (row): row is { stats: PlayerStatsRow; user: UserRow } =>
+          row.user !== undefined && !row.user.isGuest && row.stats.gamesPlayed > 0
+      );
+    // Same tiebreak sort as getLeaderboard.
+    qualifying.sort((a, b) => {
+      if (b.stats.gamesWon !== a.stats.gamesWon) return b.stats.gamesWon - a.stats.gamesWon;
+      const wr = winRate(b.stats) - winRate(a.stats);
+      if (wr !== 0) return wr;
+      if (b.stats.gamesPlayed !== a.stats.gamesPlayed) return b.stats.gamesPlayed - a.stats.gamesPlayed;
+      return a.user.id < b.user.id ? -1 : a.user.id > b.user.id ? 1 : 0;
+    });
+    const idx = qualifying.findIndex((row) => row.user.id === userId);
+    if (idx === -1) return null;
+    return {
+      ...toLeaderboardEntry({
+        userId: user.id,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+        gamesPlayed: stats.gamesPlayed,
+        gamesWon: stats.gamesWon,
+        gamesLost: stats.gamesLost,
+      }),
+      rank: idx + 1,
+    };
   }
 
   // Recovery reads ----------------------------------------------------------

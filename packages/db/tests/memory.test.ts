@@ -360,6 +360,44 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
     expect(page.map((e) => e.userId)).toEqual([ids[1], ids[2]]);
   });
 
+  // getMyLeaderboardRank ----------------------------------------------------
+
+  it('getMyLeaderboardRank returns null for a guest user', async () => {
+    const guest = h.newUserId();
+    await repo.ensureGuest(guest, 'Guest');
+    await repo.upsertPlayerStats({ userId: guest, gamesPlayed: 10, gamesWon: 9, gamesLost: 1 });
+    expect(await repo.getMyLeaderboardRank(guest)).toBeNull();
+  });
+
+  it('getMyLeaderboardRank returns null for a user with zero games played', async () => {
+    const idle = h.newUserId();
+    await repo.upsertUser({ id: idle, displayName: 'Idle', isGuest: false });
+    await repo.upsertPlayerStats({ userId: idle, gamesPlayed: 0, gamesWon: 0, gamesLost: 0 });
+    expect(await repo.getMyLeaderboardRank(idle)).toBeNull();
+  });
+
+  it('getMyLeaderboardRank returns correct rank for a qualifying user', async () => {
+    const u1 = h.newUserId();
+    const u2 = h.newUserId();
+    const u3 = h.newUserId();
+    await repo.upsertUser({ id: u1, displayName: 'U1', isGuest: false });
+    await repo.upsertUser({ id: u2, displayName: 'U2', isGuest: false });
+    await repo.upsertUser({ id: u3, displayName: 'U3', isGuest: false });
+    // u1: 10 wins, u2: 5 wins, u3: 2 wins — clear ordering.
+    await repo.upsertPlayerStats({ userId: u1, gamesPlayed: 10, gamesWon: 10, gamesLost: 0 });
+    await repo.upsertPlayerStats({ userId: u2, gamesPlayed: 10, gamesWon: 5, gamesLost: 5 });
+    await repo.upsertPlayerStats({ userId: u3, gamesPlayed: 10, gamesWon: 2, gamesLost: 8 });
+
+    const r1 = await repo.getMyLeaderboardRank(u1);
+    expect(r1?.rank).toBe(1);
+    expect(r1?.userId).toBe(u1);
+    expect(r1?.gamesWon).toBe(10);
+
+    const r3 = await repo.getMyLeaderboardRank(u3);
+    expect(r3?.rank).toBe(3);
+    expect(r3?.userId).toBe(u3);
+  });
+
   // Retention ---------------------------------------------------------------
 
   it('pruneGameEventsBefore removes only events older than the cutoff', async () => {

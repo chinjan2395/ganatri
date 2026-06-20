@@ -34,6 +34,7 @@ import type {
   NewUser,
   PlayerStatsDelta,
   PlayerStatsRow,
+  RankedLeaderboardEntry,
   RecordGameFinishedInput,
   RecordGameStartedInput,
   RoomRow,
@@ -481,6 +482,59 @@ export class PgPersistence implements GamePersistence {
       .limit(limit)
       .offset(offset);
     return rows.map(toLeaderboardEntry);
+  }
+
+  async getMyLeaderboardRank(userId: string): Promise<RankedLeaderboardEntry | null> {
+    const result = await this.db.execute(sql`
+      WITH qualifying AS (
+        SELECT
+          u.id                    AS user_id,
+          u.display_name,
+          u.avatar_url,
+          ps.games_played,
+          ps.games_won,
+          ps.games_lost,
+          ROW_NUMBER() OVER (
+            ORDER BY
+              ps.games_won DESC,
+              CASE WHEN ps.games_played > 0
+                   THEN ps.games_won::float / ps.games_played
+                   ELSE 0.0 END DESC,
+              ps.games_played DESC,
+              u.id ASC
+          ) AS rank
+        FROM player_stats ps
+        INNER JOIN users u ON ps.user_id = u.id
+        WHERE u.is_guest = false AND ps.games_played > 0
+      )
+      SELECT user_id, display_name, avatar_url, games_played, games_won, games_lost, rank
+      FROM qualifying
+      WHERE user_id = ${userId}
+    `);
+    const row = result.rows[0] as {
+      user_id: string;
+      display_name: string;
+      avatar_url: string | null;
+      games_played: number;
+      games_won: number;
+      games_lost: number;
+      rank: string | number;
+    } | undefined;
+    if (!row) return null;
+    const gamesPlayed = Number(row.games_played);
+    const gamesWon = Number(row.games_won);
+    const gamesLost = Number(row.games_lost);
+    return {
+      ...toLeaderboardEntry({
+        userId: row.user_id,
+        displayName: row.display_name,
+        avatarUrl: row.avatar_url,
+        gamesPlayed,
+        gamesWon,
+        gamesLost,
+      }),
+      rank: Number(row.rank),
+    };
   }
 
   // Recovery reads ----------------------------------------------------------
