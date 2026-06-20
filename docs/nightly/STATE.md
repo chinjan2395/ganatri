@@ -24,6 +24,7 @@ IN_PROGRESS — Phase 6 stats/accounts vertical slices landing incrementally.  <
 - [x] Phase C — Web OAuth UI + game-history/score-card `HistoryScreen`
 - [x] Phase 6e/6g — `get_my_stats` endpoint + personal `StatsScreen` dashboard
 - [x] Phase 6f/6g (this run, 2026-06-19) — `get_leaderboard` slice: db `getLeaderboard` (Pg+Memory) + PUBLIC server endpoint + web `LeaderboardScreen`
+- [x] Phase 6c (2026-06-20) — Guest → registered upgrade flow: `mergeGuestIntoUser` in DB (Pg+Memory, 4 contract tests each = 8 runs), guest cookie relay through OAuth state, server merge call in callback (non-fatal), `loginWithGoogle()` passes `?session_token=`
 
 ## Sequencing Note
 STATE.md was previously stale (claimed only 6a complete). It has been reconciled with
@@ -35,17 +36,17 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-20
-- Outcome: ✅ Schema drift-guard enhancement — Added `it('player_stats.sum_finish_positions exists as integer NOT NULL DEFAULT 0')` to `packages/db/tests/schema.test.ts`. Queries `information_schema.columns` and asserts data_type='integer', is_nullable='NO', column_default='0'. DB tests 120→121. All 324 tests passing (153 engine + 121 db + 50 server).
-- Branch/PR: nightly/2026-06-20-1424
+- Outcome: ✅ Phase 6c — Guest → registered upgrade flow complete: `mergeGuestIntoUser` DB method (Pg+Memory), guest session token relay via `ganatri_guest` httpOnly cookie through OAuth flow, server merge call in callback (non-fatal), web `loginWithGoogle()` passes `?session_token=`. DB tests 121→129. All 332 tests passing (153 engine + 129 db + 50 server).
+- Branch/PR: nightly/2026-06-20-1641
 
 ## Blockers / Needs Human Input
 (none)
 
 ## Notes for Next Run
-Schema drift-guard enhancement is now DONE. Remaining self-contained next units within Phase 6:
+Phase 6c (guest→registered upgrade) is now DONE. Remaining self-contained next units within Phase 6:
 
-1. **6c: Guest → registered upgrade flow** — Merge a guest user's games/stats into the new account on first OAuth sign-in. Medium complexity; needs careful handling of duplicate stats. Route to backend-dev (server+db) and frontend-dev (web prompt) in parallel.
+1. **6h: Admin analytics dashboard extensions** — Live ops view + KPI charts in AdminScreen. Larger scope. Route to frontend-dev (AdminScreen UI) + backend-dev (admin data endpoints). Consider sequencing: harden admin auth (Phase 7e "Strengthen admin authentication") before building the analytics views.
 
-2. **6h: Admin analytics dashboard extensions** — Live ops view + KPI charts in AdminScreen. Larger scope.
+2. **6c account settings** — Edit display name + avatar, link/unlink OAuth (still ⬜ in plan).
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.

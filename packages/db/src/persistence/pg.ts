@@ -458,6 +458,86 @@ export class PgPersistence implements GamePersistence {
     return rows[0] ?? null;
   }
 
+  async mergeGuestIntoUser(guestUserId: string, registeredUserId: string): Promise<void> {
+    if (guestUserId === registeredUserId) return;
+    // Validate that guestUserId looks like a UUID before hitting the DB.
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRe.test(guestUserId)) return;
+    await this.db.transaction(async (tx) => {
+      // Only merge actual guests
+      const guestRows = await tx.select().from(users).where(eq(users.id, guestUserId)).limit(1);
+      const guest = guestRows[0];
+      if (!guest || !guest.isGuest) return;
+
+      // Re-point all game_players from guest to registered
+      await tx.update(gamePlayers).set({ userId: registeredUserId }).where(eq(gamePlayers.userId, guestUserId));
+
+      // Nullify games.winner_id where it still points to the guest
+      // (The guest won games — re-point the winner to registered user)
+      await tx.update(games).set({ winnerId: registeredUserId }).where(eq(games.winnerId, guestUserId));
+
+      // Nullify game_events.actor_user_id where it points to the guest
+      await tx.update(gameEvents).set({ actorUserId: registeredUserId }).where(eq(gameEvents.actorUserId, guestUserId));
+
+      // Re-point rooms.host_user_id where guest is the host
+      await tx.update(rooms).set({ hostUserId: registeredUserId }).where(eq(rooms.hostUserId, guestUserId));
+
+      // Merge player_stats
+      const [guestStats] = await tx.select().from(playerStats).where(eq(playerStats.userId, guestUserId)).limit(1);
+      if (guestStats) {
+        const [regStats] = await tx.select().from(playerStats).where(eq(playerStats.userId, registeredUserId)).limit(1);
+        const mergedLongest = regStats ? Math.max(regStats.longestWinStreak, guestStats.longestWinStreak) : guestStats.longestWinStreak;
+        const mergedCurrent = regStats ? Math.max(regStats.currentWinStreak, guestStats.currentWinStreak) : guestStats.currentWinStreak;
+
+        if (!regStats) {
+          await tx.insert(playerStats).values({
+            userId: registeredUserId,
+            gamesPlayed: guestStats.gamesPlayed,
+            gamesWon: guestStats.gamesWon,
+            gamesLost: guestStats.gamesLost,
+            gamesAbandoned: guestStats.gamesAbandoned,
+            totalCaptures: guestStats.totalCaptures,
+            cutsGiven: guestStats.cutsGiven,
+            cutsReceived: guestStats.cutsReceived,
+            timesSafe: guestStats.timesSafe,
+            totalPlayTimeMs: guestStats.totalPlayTimeMs,
+            longestWinStreak: mergedLongest,
+            currentWinStreak: mergedCurrent,
+            sumFinishPositions: guestStats.sumFinishPositions,
+          });
+        } else {
+          await tx.update(playerStats)
+            .set({
+              gamesPlayed: sql`${playerStats.gamesPlayed} + ${guestStats.gamesPlayed}`,
+              gamesWon: sql`${playerStats.gamesWon} + ${guestStats.gamesWon}`,
+              gamesLost: sql`${playerStats.gamesLost} + ${guestStats.gamesLost}`,
+              gamesAbandoned: sql`${playerStats.gamesAbandoned} + ${guestStats.gamesAbandoned}`,
+              totalCaptures: sql`${playerStats.totalCaptures} + ${guestStats.totalCaptures}`,
+              cutsGiven: sql`${playerStats.cutsGiven} + ${guestStats.cutsGiven}`,
+              cutsReceived: sql`${playerStats.cutsReceived} + ${guestStats.cutsReceived}`,
+              timesSafe: sql`${playerStats.timesSafe} + ${guestStats.timesSafe}`,
+              totalPlayTimeMs: sql`${playerStats.totalPlayTimeMs} + ${guestStats.totalPlayTimeMs}`,
+              longestWinStreak: mergedLongest,
+              currentWinStreak: mergedCurrent,
+              sumFinishPositions: sql`${playerStats.sumFinishPositions} + ${guestStats.sumFinishPositions}`,
+              updatedAt: new Date(),
+            })
+            .where(eq(playerStats.userId, registeredUserId));
+        }
+
+        await tx.delete(playerStats).where(eq(playerStats.userId, guestUserId));
+      }
+
+      // Clean up any auth rows for the guest before deleting the user row
+      // (guests never have auth sessions in practice, but guard against FK violations)
+      await tx.delete(authSessions).where(eq(authSessions.userId, guestUserId));
+      await tx.delete(oauthAccounts).where(eq(oauthAccounts.userId, guestUserId));
+
+      // Delete the guest user row (all FK refs have been re-pointed above)
+      await tx.delete(users).where(and(eq(users.id, guestUserId), eq(users.isGuest, true)));
+    });
+  }
+
   async getLeaderboard(limit = 20, offset = 0, timeWindow?: 'week' | 'month'): Promise<LeaderboardEntry[]> {
     if (timeWindow !== undefined) {
       const now = Date.now();

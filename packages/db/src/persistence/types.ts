@@ -303,6 +303,16 @@ export interface GamePersistence {
    */
   getMyLeaderboardRank(userId: string, timeWindow?: 'week' | 'month'): Promise<RankedLeaderboardEntry | null>;
 
+  /**
+   * Merge a guest user's game history and stats into a registered account.
+   * Re-points all game_players rows from guestUserId to registeredUserId,
+   * sums incremental stats, takes the max of streaks, then removes the
+   * guest's player_stats row and users row.
+   * No-op when: guestUserId === registeredUserId, guest not found, or
+   * the "guest" is already a registered user (isGuest = false).
+   */
+  mergeGuestIntoUser(guestUserId: string, registeredUserId: string): Promise<void>;
+
   // Recovery reads ----------------------------------------------------------
 
   /** Games whose room is still PLAYING (for restart rehydration). */

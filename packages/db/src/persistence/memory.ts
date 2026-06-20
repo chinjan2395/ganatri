@@ -457,6 +457,70 @@ export class MemoryPersistence implements GamePersistence {
     return this.stats.get(userId) ?? null;
   }
 
+  async mergeGuestIntoUser(guestUserId: string, registeredUserId: string): Promise<void> {
+    if (guestUserId === registeredUserId) return;
+    const guest = this.users.get(guestUserId);
+    if (!guest || !guest.isGuest) return;
+
+    // Re-point game_players
+    for (const [id, gp] of this.gamePlayers) {
+      if (gp.userId === guestUserId) {
+        this.gamePlayers.set(id, { ...gp, userId: registeredUserId });
+      }
+    }
+
+    // Re-point games.winnerId, game_events.actorUserId, rooms.hostUserId
+    for (const [id, g] of this.games) {
+      if (g.winnerId === guestUserId) this.games.set(id, { ...g, winnerId: registeredUserId });
+    }
+    for (const [id, ev] of this.events) {
+      if (ev.actorUserId === guestUserId) this.events.set(id, { ...ev, actorUserId: registeredUserId });
+    }
+    for (const [id, r] of this.rooms) {
+      if (r.hostUserId === guestUserId) this.rooms.set(id, { ...r, hostUserId: registeredUserId });
+    }
+
+    // Merge stats
+    const guestStats = this.stats.get(guestUserId);
+    if (guestStats) {
+      const regStats = this.stats.get(registeredUserId);
+      const mergedLongest = regStats ? Math.max(regStats.longestWinStreak, guestStats.longestWinStreak) : guestStats.longestWinStreak;
+      const mergedCurrent = regStats ? Math.max(regStats.currentWinStreak, guestStats.currentWinStreak) : guestStats.currentWinStreak;
+
+      if (!regStats) {
+        this.stats.set(registeredUserId, {
+          ...guestStats,
+          id: newId('stats'),
+          userId: registeredUserId,
+          longestWinStreak: mergedLongest,
+          currentWinStreak: mergedCurrent,
+          updatedAt: new Date(),
+        });
+      } else {
+        this.stats.set(registeredUserId, {
+          ...regStats,
+          gamesPlayed: regStats.gamesPlayed + guestStats.gamesPlayed,
+          gamesWon: regStats.gamesWon + guestStats.gamesWon,
+          gamesLost: regStats.gamesLost + guestStats.gamesLost,
+          gamesAbandoned: regStats.gamesAbandoned + guestStats.gamesAbandoned,
+          totalCaptures: regStats.totalCaptures + guestStats.totalCaptures,
+          cutsGiven: regStats.cutsGiven + guestStats.cutsGiven,
+          cutsReceived: regStats.cutsReceived + guestStats.cutsReceived,
+          timesSafe: regStats.timesSafe + guestStats.timesSafe,
+          totalPlayTimeMs: regStats.totalPlayTimeMs + guestStats.totalPlayTimeMs,
+          longestWinStreak: mergedLongest,
+          currentWinStreak: mergedCurrent,
+          sumFinishPositions: regStats.sumFinishPositions + guestStats.sumFinishPositions,
+          updatedAt: new Date(),
+        });
+      }
+      this.stats.delete(guestUserId);
+    }
+
+    // Remove the guest user
+    this.users.delete(guestUserId);
+  }
+
   async getLeaderboard(limit = 20, offset = 0, timeWindow?: 'week' | 'month'): Promise<LeaderboardEntry[]> {
     if (timeWindow !== undefined) {
       const now = Date.now();

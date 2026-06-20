@@ -26,9 +26,13 @@ import {
   buildClearCookie,
   buildStateCookie,
   buildClearStateCookie,
+  buildGuestCookie,
+  buildClearGuestCookie,
   SESSION_COOKIE_NAME,
   OAUTH_STATE_COOKIE_NAME,
+  GUEST_COOKIE_NAME,
 } from './auth/session.js';
+import { getSession } from './store.js';
 
 export interface AppInstance {
   io: Server;
@@ -97,7 +101,12 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       return;
     }
     const state = randomBytes(16).toString('hex');
-    redirect(res, getGoogleAuthUrl(state), [buildStateCookie(state, cookiesSecure())]);
+    const sessionToken = url.searchParams.get('session_token');
+    const cookies: string[] = [buildStateCookie(state, cookiesSecure())];
+    if (sessionToken) {
+      cookies.push(buildGuestCookie(sessionToken, cookiesSecure()));
+    }
+    redirect(res, getGoogleAuthUrl(state), cookies);
     return;
   }
 
@@ -168,14 +177,31 @@ async function handleGoogleCallback(
       userAgent: req.headers['user-agent'] ?? null,
     });
 
+    // Attempt guest → registered merge (non-fatal)
+    const guestToken = cookies[GUEST_COOKIE_NAME];
+    if (guestToken) {
+      try {
+        const guestSession = getSession(guestToken);
+        if (guestSession && guestSession.userId === null) {
+          await p.mergeGuestIntoUser(guestSession.playerId, user.id);
+        }
+      } catch (err) {
+        console.error('[auth] guest merge failed (non-fatal):', err);
+      }
+    }
+
     redirect(res, `${webRedirectBase}?auth_token=${encodeURIComponent(token)}`, [
       buildClearStateCookie(cookiesSecure()),
+      buildClearGuestCookie(cookiesSecure()),
     ]);
   } catch (err) {
     console.error('[auth] google callback failed:', err);
     // Don't 500 the browser — bounce back to the client with an error flag.
     const base = WEB_ORIGIN ?? '';
-    redirect(res, `${base}/?login=error`, [buildClearStateCookie(cookiesSecure())]);
+    redirect(res, `${base}/?login=error`, [
+      buildClearStateCookie(cookiesSecure()),
+      buildClearGuestCookie(cookiesSecure()),
+    ]);
   }
 }
 

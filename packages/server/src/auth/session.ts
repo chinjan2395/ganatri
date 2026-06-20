@@ -76,3 +76,16 @@ export function buildStateCookie(state: string, secure = true): string {
 export function buildClearStateCookie(secure = true): string {
   return `${OAUTH_STATE_COOKIE_NAME}=; Max-Age=0; Path=/; HttpOnly${secureFlag(secure)}; SameSite=Lax`;
 }
+
+/** The short-lived cookie that carries the guest session token during OAuth. */
+export const GUEST_COOKIE_NAME = 'ganatri_guest';
+
+/** Build a short-lived (10 min) httpOnly cookie holding the guest session token. */
+export function buildGuestCookie(token: string, secure = true): string {
+  return `${GUEST_COOKIE_NAME}=${encodeURIComponent(token)}; Max-Age=600; Path=/; HttpOnly${secureFlag(secure)}; SameSite=Lax`;
+}
+
+/** Build the `Set-Cookie` value that clears the guest token cookie. */
+export function buildClearGuestCookie(secure = true): string {
+  return `${GUEST_COOKIE_NAME}=; Max-Age=0; Path=/; HttpOnly${secureFlag(secure)}; SameSite=Lax`;
+}
