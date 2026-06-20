@@ -82,7 +82,7 @@ export interface GameContextValue {
   setScreen: (screen: 'main' | 'history' | 'stats' | 'leaderboard') => void;
   requestHistory: () => Promise<RequestHistoryAck>;
   requestMyStats: () => Promise<GetMyStatsAck>;
-  requestLeaderboard: () => Promise<GetLeaderboardAck>;
+  requestLeaderboard: (timeWindow?: 'week' | 'month') => Promise<GetLeaderboardAck>;
   loginWithGoogle: () => void;
   logout: () => void;
 }
@@ -253,7 +253,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
 
   const requestHistory = useCallback(() => netRequestHistory(), []);
   const requestMyStats = useCallback(() => netRequestMyStats(), []);
-  const requestLeaderboard = useCallback(() => netRequestLeaderboard(), []);
+  const requestLeaderboard = useCallback((timeWindow?: 'week' | 'month') => netRequestLeaderboard(timeWindow), []);
   const loginWithGoogle = useCallback(() => netLoginWithGoogle(), []);
   const logout = useCallback(() => netLogout(), []);
 

@@ -115,6 +115,10 @@ export interface LeaderboardEntryView {
   winRate: number; // [0,1]
 }
 
+export interface GetLeaderboardRequest {
+  timeWindow?: 'week' | 'month';
+}
+
 export type GetLeaderboardAck =
   | { ok: true; entries: LeaderboardEntryView[]; myEntry?: LeaderboardEntryView }
   | { ok: false; error: 'UNAVAILABLE' };
