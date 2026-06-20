@@ -77,7 +77,7 @@ export function isOAuthEnabled(): boolean {
   return Boolean(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET && OAUTH_REDIRECT_URI);
 }
 
-const _adminEmails = new Set(
+let _adminEmails = new Set(
   (process.env['ADMIN_EMAILS'] ?? '')
     .split(',')
     .map((e) => e.trim().toLowerCase())
@@ -87,4 +87,21 @@ const _adminEmails = new Set(
 /** Returns true if the given email is in the ADMIN_EMAILS set. */
 export function isAdminEmail(email: string): boolean {
   return _adminEmails.has(email.trim().toLowerCase());
+}
+
+/** TEST ONLY — replace the admin email set without reloading the module. */
+export function __setAdminEmailsForTests(emails: string[]): void {
+  _adminEmails = new Set(emails.map((e) => e.trim().toLowerCase()));
+}
+
+let _adminSecret: string | undefined = process.env['ADMIN_SECRET'] || undefined;
+
+/** Returns the configured ADMIN_SECRET, or undefined if not set. */
+export function getAdminSecret(): string | undefined {
+  return _adminSecret;
+}
+
+/** TEST ONLY — override the admin secret without reloading the module. */
+export function __setAdminSecretForTests(s: string | undefined): void {
+  _adminSecret = s;
 }

@@ -25,6 +25,7 @@ IN_PROGRESS — Phase 6 stats/accounts vertical slices landing incrementally.  <
 - [x] Phase 6e/6g — `get_my_stats` endpoint + personal `StatsScreen` dashboard
 - [x] Phase 6f/6g (this run, 2026-06-19) — `get_leaderboard` slice: db `getLeaderboard` (Pg+Memory) + PUBLIC server endpoint + web `LeaderboardScreen`
 - [x] Phase 6c (2026-06-20) — Guest → registered upgrade flow: `mergeGuestIntoUser` in DB (Pg+Memory, 4 contract tests each = 8 runs), guest cookie relay through OAuth state, server merge call in callback (non-fatal), `loginWithGoogle()` passes `?session_token=`
+- [x] Phase 7e (2026-06-20) — Strengthen admin auth: `ADMIN_SECRET` env var; `getAdminSecret`/`__setAdminSecretForTests`/`__setAdminEmailsForTests` in `config.ts`; `AdminAuthPayload.secret?` in server `protocol.ts`; dual-mode ADMIN_AUTH handler (email+secret required when set, email-only fallback); 5 new server tests in `admin.test.ts`; `AdminScreen.tsx` adds `secret` state + password input. Server: 54→59.
 
 ## Sequencing Note
 STATE.md was previously stale (claimed only 6a complete). It has been reconciled with
@@ -36,19 +37,17 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-20
-- Outcome: ✅ Phase 6c (account settings) — Edit display name: `updateUserDisplayName` in DB (Pg+Memory, 4 contract tests), `update_display_name` socket event with NOT_LOGGED_IN/INVALID_NAME/UNAVAILABLE guards + SESSION re-emit on success (4 server tests in `account.test.ts`), web UI inline editor in LobbyScreen (aria-labels, save/cancel/error states). DB: 129→133, Server: 50→54, Total: 153 engine + 133 db + 54 server = 340 passing.
-- Branch/PR: nightly/2026-06-20-1725
+- Outcome: ✅ Phase 7e — Strengthen admin auth: `ADMIN_SECRET` shared-secret env var added; dual-mode ADMIN_AUTH handler (email+secret when hardened, email-only legacy fallback); 5 new server integration tests in `admin.test.ts`; `AdminScreen.tsx` adds password input. Server: 54→59. Total: 153 engine + 133 db + 59 server = 345 passing.
+- Branch/PR: nightly/2026-06-20-1949
 
 ## Blockers / Needs Human Input
 (none)
 
 ## Notes for Next Run
-Display name edit (account settings) is DONE. Remaining self-contained next units within Phase 6:
+Phase 7e (admin auth hardening) is DONE. Remaining self-contained next units within Phase 6:
 
-1. **7e: Strengthen admin authentication** — Email-only check is weak; add a shared secret or signed token. Small scoped change. Route to backend-dev (`handlers.ts` admin auth + server tests). **Prerequisite for Phase 6h admin analytics dashboard.**
+1. **6h: Admin analytics dashboard** — Live ops view (active rooms/players, in-flight voice sessions) + KPI charts (DAU, games/day, abandonment rate) in `AdminScreen`. Route backend data endpoints to backend-dev, UI work to frontend-dev. Admin auth is now hardened (7e prerequisite done). Code reviewer noted: `ADMIN_GET_CONFIG` currently leaks `databaseUrl` from `getConfig()` ack — strip it before emitting in `handlers.ts` as part of 6h secure endpoints work.
 
-2. **6h: Admin analytics dashboard extensions** — Live ops view + KPI charts in AdminScreen. Larger scope. Do 7e first, then route UI work to frontend-dev + backend-dev (admin data endpoints).
-
-3. **6c remaining account settings** — Avatar URL edit + OAuth link/unlink (more complex; skip until display name ships and is validated).
+2. **6c remaining account settings** — Avatar URL edit + OAuth link/unlink (more complex; skip until 6h is done).
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.
