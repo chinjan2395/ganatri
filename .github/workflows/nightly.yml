@@ -51,7 +51,21 @@ jobs:
 
       - name: Decide whether to run
         id: gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Skip if an unmerged nightly PR is already open — avoids re-doing the same task
+          # while the previous run's work is sitting in review.
+          OPEN_PR=$(gh pr list --base main --state open --json number,headRefName \
+                      --jq '.[] | select(.headRefName | startswith("nightly/")) | "#\(.number) (\(.headRefName))"' \
+                      | head -1)
+          if [ -n "$OPEN_PR" ]; then
+            echo "Skipping — open nightly PR exists: ${OPEN_PR}. Merge or close it first."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "priority=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           # Status is the first non-empty line after the "## Status" heading, minus any HTML comment.
           STATUS=$(awk '/^## Status/{getline; while ($0 ~ /^[[:space:]]*$/) getline; print; exit}' \
                      docs/nightly/STATE.md | sed 's/<!--.*-->//')
@@ -203,11 +217,16 @@ jobs:
             --max-turns 30
             --allowedTools Edit,Read,Write,Bash,Agent
 
+      - name: Set report artifact name
+        if: steps.gate.outputs.run == 'true'
+        id: report-artifact
+        run: echo "name=ganatri-development-report-$(date +%Y-%m-%d-%H%M%S)" >> "$GITHUB_OUTPUT"
+
       - name: Upload report artifact
         if: steps.gate.outputs.run == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ganatri-development-report
+          name: ${{ steps.report-artifact.outputs.name }}
           path: reports/
           if-no-files-found: warn
           retention-days: 30
