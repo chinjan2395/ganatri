@@ -217,11 +217,16 @@ jobs:
             --max-turns 30
             --allowedTools Edit,Read,Write,Bash,Agent
 
+      - name: Set report artifact name
+        if: steps.gate.outputs.run == 'true'
+        id: report-artifact
+        run: echo "name=ganatri-development-report-$(date +%Y-%m-%d-%H%M%S)" >> "$GITHUB_OUTPUT"
+
       - name: Upload report artifact
         if: steps.gate.outputs.run == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ganatri-development-report
+          name: ${{ steps.report-artifact.outputs.name }}
           path: reports/
           if-no-files-found: warn
           retention-days: 30
