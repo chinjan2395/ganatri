@@ -90,6 +90,25 @@ jobs:
             echo "Priority queue empty — Claude will follow the normal phase flow."
           fi
 
+          # Surface the likely unit of work for Slack start notifications.
+          NEXT_TASK=$(awk '/<!-- PRIORITY_TODO:START -->/{f=1; next} /<!-- PRIORITY_TODO:END -->/{f=0} f && /^[[:space:]]*- \[ \]/' \
+                        docs/DEVELOPMENT_PLAN.md | head -1 \
+                        | sed -E 's/^[[:space:]]*- \[ \] //; s/\*\*([^*]+)\*\*.*/\1/')
+          if [ -z "$NEXT_TASK" ]; then
+            NEXT_TASK=$(awk '/^## Notes for Next Run$/{f=1; next} /^## /{if(f) exit} f && /^[0-9]+\./' \
+                          docs/nightly/STATE.md | head -1 \
+                          | sed -E 's/^[0-9]+\. //; s/\*\*([^*]+)\*\*.*/\1/')
+          fi
+          if [ -z "$NEXT_TASK" ]; then
+            NEXT_TASK=$(awk '/^## Current Phase$/{getline; while ($0 ~ /^[[:space:]]*$/) getline; print; exit}' \
+                          docs/nightly/STATE.md)
+          fi
+          {
+            echo "next_task<<EOF"
+            printf '%s\n' "$NEXT_TASK"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Create working branch
         id: branch
         if: steps.gate.outputs.run == 'true'
@@ -101,14 +120,21 @@ jobs:
       - name: Notify Slack — run started
         if: steps.gate.outputs.run == 'true'
         continue-on-error: true
+        env:
+          NEXT_TASK: ${{ steps.gate.outputs.next_task }}
         run: |
           if [ "${{ steps.gate.outputs.priority }}" = "true" ]; then
-            QUEUE="working a *priority TODO* first"
+            MODE="priority TODO"
           else
-            QUEUE="following the normal phase flow"
+            MODE="normal phase flow"
+          fi
+          TASK_LINE=""
+          if [ -n "$NEXT_TASK" ]; then
+            TASK_LINE=$'\n*Task:* '"$NEXT_TASK"
           fi
           bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" \
-            ":hammer_and_wrench: *Ganatri nightly started* — branch \`${{ steps.branch.outputs.name }}\`, ${QUEUE}. <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+            ":hammer_and_wrench: *Ganatri nightly started* — branch \`${{ steps.branch.outputs.name }}\` (${MODE}).${TASK_LINE}
+<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
 
       - name: Run Claude on next phase
         if: steps.gate.outputs.run == 'true'
@@ -217,6 +243,40 @@ jobs:
             --max-turns 30
             --allowedTools Edit,Read,Write,Bash,Agent
 
+      - name: Extract run summary for Slack
+        if: steps.gate.outputs.run == 'true'
+        id: summary
+        run: |
+          LAST_DATE=$(awk '/^## Last Run$/{f=1; next} /^## /{if(f) exit} f && /^- Date:/{sub(/^- Date: /,""); print; exit}' \
+                        docs/nightly/STATE.md)
+          OUTCOME=$(awk '/^## Last Run$/{f=1; next} /^## /{if(f) exit} f && /^- Outcome:/{sub(/^- Outcome: /,""); print; exit}' \
+                      docs/nightly/STATE.md)
+          if [ "$LAST_DATE" != "$(date +%Y-%m-%d)" ]; then
+            OUTCOME=""
+          fi
+          COMMIT=$(git log origin/main..HEAD --format=%s -1 2>/dev/null || true)
+          PHASE=$(awk '/^## Current Phase$/{getline; while ($0 ~ /^[[:space:]]*$/) getline; print; exit}' \
+                    docs/nightly/STATE.md)
+          SUMMARY="${OUTCOME:-$COMMIT}"
+          if [ -z "$SUMMARY" ]; then
+            SUMMARY=""
+          fi
+          # Keep Slack messages readable if Claude wrote a long outcome line.
+          if [ "${#SUMMARY}" -gt 500 ]; then
+            SUMMARY="${SUMMARY:0:497}..."
+          fi
+          {
+            echo "phase<<EOF"
+            printf '%s\n' "$PHASE"
+            echo "EOF"
+            echo "commit<<EOF"
+            printf '%s\n' "$COMMIT"
+            echo "EOF"
+            echo "summary<<EOF"
+            printf '%s\n' "$SUMMARY"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Set report artifact name
         if: steps.gate.outputs.run == 'true'
         id: report-artifact
@@ -234,6 +294,10 @@ jobs:
       - name: Send report zip to Slack
         if: steps.gate.outputs.run == 'true'
         continue-on-error: true
+        env:
+          RUN_SUMMARY: ${{ steps.summary.outputs.summary }}
+          RUN_PHASE: ${{ steps.summary.outputs.phase }}
+          RUN_COMMIT: ${{ steps.summary.outputs.commit }}
         run: |
           if [ -z "$(ls -A reports 2>/dev/null)" ]; then
             echo "No report files produced this run — nothing to send."
@@ -241,10 +305,24 @@ jobs:
           fi
           ZIP="ganatri-development-report-$(date +%Y-%m-%d-%H%M).zip"
           (cd reports && zip -r "../${ZIP}" . >/dev/null)
+          COMMENT=":bar_chart: *Development report* — $(date +%Y-%m-%d\ %H:%M)"
+          if [ -n "$RUN_PHASE" ]; then
+            COMMENT="${COMMENT}
+*Phase:* ${RUN_PHASE}"
+          fi
+          if [ -n "$RUN_SUMMARY" ]; then
+            COMMENT="${COMMENT}
+*This run:* ${RUN_SUMMARY}"
+          elif [ -n "$RUN_COMMIT" ]; then
+            COMMENT="${COMMENT}
+*Commit:* ${RUN_COMMIT}"
+          fi
+          COMMENT="${COMMENT}
+<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
           bash .github/scripts/slack-upload-file.sh \
             "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$ZIP" \
             "Ganatri development report" \
-            ":bar_chart: Development report for run $(date +%Y-%m-%d\ %H:%M)"
+            "$COMMENT"
 
       - name: Push branch
         id: push
@@ -292,12 +370,38 @@ jobs:
       - name: Notify Slack — run finished
         if: steps.gate.outputs.run == 'true'
         continue-on-error: true
+        env:
+          RUN_SUMMARY: ${{ steps.summary.outputs.summary }}
+          RUN_PHASE: ${{ steps.summary.outputs.phase }}
+          RUN_COMMIT: ${{ steps.summary.outputs.commit }}
         run: |
           if [ "${{ steps.push.outputs.pushed }}" = "true" ]; then
-            MSG=":white_check_mark: *Ganatri nightly complete* — PR opened: ${{ steps.pr.outputs.url }}"
+            ICON=":white_check_mark:"
+            HEADLINE="*Ganatri nightly complete* — PR opened"
+            FOOTER="${{ steps.pr.outputs.url }}"
           else
-            MSG=":information_source: *Ganatri nightly complete* — no code changes this run (nothing to PR)."
+            ICON=":information_source:"
+            HEADLINE="*Ganatri nightly complete* — no code changes (nothing to PR)"
+            FOOTER=""
           fi
+          MSG="${ICON} ${HEADLINE}"
+          if [ -n "$RUN_PHASE" ]; then
+            MSG="${MSG}
+*Phase:* ${RUN_PHASE}"
+          fi
+          if [ -n "$RUN_SUMMARY" ]; then
+            MSG="${MSG}
+*Outcome:* ${RUN_SUMMARY}"
+          elif [ -n "$RUN_COMMIT" ]; then
+            MSG="${MSG}
+*Commit:* ${RUN_COMMIT}"
+          fi
+          if [ -n "$FOOTER" ]; then
+            MSG="${MSG}
+${FOOTER}"
+          fi
+          MSG="${MSG}
+<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
           bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$MSG"
 
       - name: Notify Slack — run failed
