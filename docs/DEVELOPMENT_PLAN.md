@@ -1,5 +1,7 @@
 # Ganatri — Phasewise Development Plan
 
+Last updated: 2026-06-21 (Google "G" logo swap: replaced plain white-circle+text span in LobbyScreen with official four-color inline SVG; removed unused `.lobby__google-g` CSS rule. Build green.)
+
 Last updated: 2026-06-21 (Phase 6h — admin_get_stats live ops endpoint (server + web): `AdminServerStats`/`AdminGetStatsAck` types added to `packages/server/src/protocol.ts`; `ADMIN_GET_STATS='admin_get_stats'` added to `EVENTS`; `admin_get_stats` handler added to `handlers.ts` (admin-auth gate, iterates `store.rooms` by phase, counts connected sessions); 3 new tests in `admin.test.ts` (58→61 server tests). Web: `AdminServerStats`+`AdminGetStatsAck` mirrored in `packages/web/src/protocol.ts`; `GET_STATS` added to `ADMIN_EVENTS`; `AdminScreen.tsx` gains `fetchStats()`, 15-second auto-refresh, manual Refresh button, and Live Ops section (4 stat tiles: Connected/Active games/In lobby/Total rooms); `AdminScreen.css` adds stats grid + responsive 2-column breakpoint. Build green. Total: 153 engine + 133 db + 61 server = 347.)
 
 Last updated: 2026-06-21 (Phase 7e admin auth hardening — server: `isValidAdminSecret(secret)` added to `config.ts` (reads `ADMIN_SECRET` from `process.env` at call time; returns true when unset for backward compat); `isAdminEmail` also switched to read-at-call-time for test isolation; `AdminAuthPayload` gains optional `secret?` field in `protocol.ts`; `admin_auth` handler uses combined `isAdminEmail && isValidAdminSecret(payload.secret ?? '')` check; `ADMIN_SECRET=` added to `.env.example`; 4 new tests in `admin.test.ts` (54→58 server tests). Web: `AdminAuthPayload { email; secret? }` in `protocol.ts`; `AdminScreen` adds password input (placeholder "leave blank if not configured"), emits `{ email, secret }`, updates subtitle + `not_authorized` error text; button disabled guard requires only `email.trim()` (not secret, since server accepts empty secret when `ADMIN_SECRET` unset). Build green. Total: 153 engine + 133 db + 58 server = 344.)
@@ -67,7 +69,7 @@ All 339 tests passing (153 engine + 53 server + 133 db).
 `- [ ] **Fix leaderboard pagination off-by-one** — packages/server handlers.ts; offset should be page*limit. Acceptance: new server test covers page 2.`
 
 <!-- PRIORITY_TODO:START -->
-- [ ] **Update "Log in with Google" button logo on homepage** — `packages/web/src/LobbyScreen.tsx` (and any Google icon asset or inline SVG it references). Acceptance: The "Log in with Google" button in the lobby displays the new/correct logo.
+- [x] **Update "Log in with Google" button logo on homepage** — `packages/web/src/LobbyScreen.tsx` (and any Google icon asset or inline SVG it references). Acceptance: The "Log in with Google" button in the lobby displays the new/correct logo. (done 2026-06-21)
 <!-- PRIORITY_TODO:END -->
 
 ---
