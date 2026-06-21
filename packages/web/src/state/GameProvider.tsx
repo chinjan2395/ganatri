@@ -72,6 +72,8 @@ export interface GameContextValue {
   disconnectedPlayers: ReadonlySet<string>;
   /** playerId → display name, sourced from room updates */
   playerNames: Readonly<Record<string, string>>;
+  /** playerId → avatar URL, or null for guests */
+  playerAvatarUrls: Readonly<Record<string, string | null>>;
   error: string | null;
   clearError: () => void;
   createRoom: (name?: string) => Promise<CreateRoomAck>;
@@ -105,6 +107,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
   const [lastEvent, setLastEvent] = useState<GameEvent | null>(null);
   const [disconnectedPlayers, setDisconnectedPlayers] = useState<Set<string>>(new Set());
   const [playerNames, setPlayerNames] = useState<Record<string, string>>({});
+  const [playerAvatarUrls, setPlayerAvatarUrls] = useState<Record<string, string | null>>({});
   const [error, setError] = useState<string | null>(null);
   const eventId = useRef(0);
   const roomPhaseRef = useRef<RoomUpdatePayload['phase'] | null>(null);
@@ -145,6 +148,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       setRoom(payload);
       setDisconnectedPlayers(new Set(payload.disconnectedPlayers));
       if (payload.playerNames) setPlayerNames(payload.playerNames);
+      if (payload.playerAvatarUrls) setPlayerAvatarUrls(payload.playerAvatarUrls);
       if (payload.phase === 'LOBBY') {
         // Cancel any active trick freeze so stale pending updates don't bleed
         // into the next game.
@@ -274,6 +278,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
     setLastEvent(null);
     setDisconnectedPlayers(new Set());
     setPlayerNames({});
+    setPlayerAvatarUrls({});
   }, []);
 
   const makeMove = useCallback(async (move: Move): Promise<boolean> => {
@@ -310,6 +315,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       lastEvent,
       disconnectedPlayers,
       playerNames,
+      playerAvatarUrls,
       error,
       clearError,
       createRoom,
@@ -338,6 +344,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       lastEvent,
       disconnectedPlayers,
       playerNames,
+      playerAvatarUrls,
       error,
       clearError,
       createRoom,

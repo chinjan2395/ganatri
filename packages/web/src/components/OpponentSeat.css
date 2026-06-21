@@ -103,6 +103,14 @@
   pointer-events: none;
 }
 
+.seat__avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  z-index: 1;
+}
+
 .seat__initials {
   font-family: var(--font-display);
   font-weight: 800;

@@ -236,6 +236,8 @@ export interface RoomUpdatePayload {
   disconnectedPlayers: string[];
   /** playerId → display name */
   playerNames: Record<string, string>;
+  /** playerId → avatar URL (from their OAuth profile), or null for guests. */
+  playerAvatarUrls: Record<string, string | null>;
 }
 
 /** Broadcast to the room after each valid move (one emit per event in the events array). */

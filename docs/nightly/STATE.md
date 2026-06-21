@@ -42,14 +42,14 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-21
-- Outcome: ✅ Priority TODO — Google "G" logo swap: replaced plain white-circle+text `<span>` in `LobbyScreen.tsx` with official four-color inline SVG; removed unused `.lobby__google-g` CSS rule from `LobbyScreen.css`. Build green. All 347 tests pass (153 engine + 133 db + 61 server).
-- Branch/PR: nightly/2026-06-21-1949
+- Outcome: ✅ Priority TODO — Google profile avatar in game session: added `playerAvatarUrls: Record<string, string | null>` to `RoomUpdatePayload` (server + web protocol); server `broadcastRoomUpdate` populates from session `account.avatarUrl`; `GameProvider` adds `playerAvatarUrls` state + context field; `OpponentSeat` renders `<img referrerPolicy="no-referrer">` when avatarUrl present, falls back to initials; `GameScreen` passes per-player avatar (own seat uses `account.avatarUrl`, opponents use map). All 347 tests pass (153 engine + 133 db + 61 server). Build green.
+- Branch/PR: nightly/2026-06-21-2224
 
 ## Blockers / Needs Human Input
 (none)
 
 ## Notes for Next Run
-Priority TODO queue is now empty (Google logo item done). Resuming normal Phase 6 flow. Remaining self-contained next units:
+Priority TODO queue is now fully checked (both items done). Resuming normal Phase 6 flow. Remaining self-contained next units:
 
 1. **6h continued: KPI charts** — Games/day, abandonment rate, avg duration from the DB (requires `getPersistence()` in the handler). Endpoint: `admin_get_kpi_stats`; no aggregation job yet — compute inline from DB queries (acceptably slow for admin dashboard). Requires persistence; returns `UNAVAILABLE` when none.
 

@@ -1304,9 +1304,11 @@ function broadcastRoomUpdate(roomCode: string): void {
   if (room === undefined) return;
 
   const playerNames: Record<string, string> = {};
+  const playerAvatarUrls: Record<string, string | null> = {};
   for (const pid of room.players) {
     const s = getSessionByPlayerId(pid);
     playerNames[pid] = s?.name || pid.slice(0, 6);
+    playerAvatarUrls[pid] = s?.account?.avatarUrl ?? null;
   }
 
   transport.broadcast(roomCode, EVENTS.ROOM_UPDATE, {
@@ -1316,6 +1318,7 @@ function broadcastRoomUpdate(roomCode: string): void {
     phase: room.phase === 'PLAYING' ? 'PLAYING' : room.phase === 'DONE' ? 'DONE' : 'LOBBY',
     disconnectedPlayers: [...room.disconnectedAt.keys()],
     playerNames,
+    playerAvatarUrls,
   });
 }
 

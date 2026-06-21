@@ -6,6 +6,8 @@ export interface OpponentSeatProps {
   playerId: PlayerId;
   /** Human-readable display name; falls back to shortened playerId. */
   displayName?: string;
+  /** Google OAuth avatar URL, or null/undefined for guests. */
+  avatarUrl?: string | null;
   isYou: boolean;
   handCount: number;
   captureCount?: number; // Part 1
@@ -29,7 +31,7 @@ function hueFor(id: PlayerId): number {
 }
 
 export const OpponentSeat = memo(function OpponentSeat(props: OpponentSeatProps): React.ReactNode {
-  const { playerId, displayName, isYou, handCount, captureCount, isTurn, isSafe, safeRank, disconnected, compact } =
+  const { playerId, displayName, avatarUrl, isYou, handCount, captureCount, isTurn, isSafe, safeRank, disconnected, compact } =
     props;
   const classes = ['seat'];
   if (isYou) classes.push('seat--you');
@@ -55,7 +57,16 @@ export const OpponentSeat = memo(function OpponentSeat(props: OpponentSeatProps)
       </div>
 
       <div className="seat__avatar" style={avatarStyle}>
-        <span className="seat__initials">{label.slice(0, 2).toUpperCase()}</span>
+        {avatarUrl ? (
+          <img
+            className="seat__avatar-img"
+            src={avatarUrl}
+            alt=""
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <span className="seat__initials">{label.slice(0, 2).toUpperCase()}</span>
+        )}
         {disconnected && <div className="seat__overlay" />}
       </div>
 
