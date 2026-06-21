@@ -71,6 +71,7 @@ All 339 tests passing (153 engine + 53 server + 133 db).
 `- [ ] **Fix leaderboard pagination off-by-one** — packages/server handlers.ts; offset should be page*limit. Acceptance: new server test covers page 2.`
 
 <!-- PRIORITY_TODO:START -->
+- [ ] **Persist session across page reload** — `packages/web/src/net/socket.ts` (store/restore session token in localStorage), `packages/server/src/handlers.ts` (accept existing token on reconnect). Acceptance: after a hard page reload the user's guest or logged-in session is automatically restored and they land back in the lobby (or active game) without re-entering a name or room code.
 - [x] **Update user profile logo in game session too** — `packages/web`. Acceptance: Update user profile logo in game session too. It should show google profile icon if user is logged in via google. (done 2026-06-21)
 - [x] **Update "Log in with Google" button logo on homepage** — `packages/web/src/LobbyScreen.tsx` (and any Google icon asset or inline SVG it references). Acceptance: The "Log in with Google" button in the lobby displays the new/correct logo. (done 2026-06-21)
 <!-- PRIORITY_TODO:END -->
