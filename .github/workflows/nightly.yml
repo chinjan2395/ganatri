@@ -51,7 +51,21 @@ jobs:
 
       - name: Decide whether to run
         id: gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Skip if an unmerged nightly PR is already open — avoids re-doing the same task
+          # while the previous run's work is sitting in review.
+          OPEN_PR=$(gh pr list --base main --state open --json number,headRefName \
+                      --jq '.[] | select(.headRefName | startswith("nightly/")) | "#\(.number) (\(.headRefName))"' \
+                      | head -1)
+          if [ -n "$OPEN_PR" ]; then
+            echo "Skipping — open nightly PR exists: ${OPEN_PR}. Merge or close it first."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "priority=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           # Status is the first non-empty line after the "## Status" heading, minus any HTML comment.
           STATUS=$(awk '/^## Status/{getline; while ($0 ~ /^[[:space:]]*$/) getline; print; exit}' \
                      docs/nightly/STATE.md | sed 's/<!--.*-->//')
