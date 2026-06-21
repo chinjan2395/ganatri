@@ -1,5 +1,7 @@
 # Ganatri — Phasewise Development Plan
 
+Last updated: 2026-06-21 (Phase 7e admin auth hardening — server: `isValidAdminSecret(secret)` added to `config.ts` (reads `ADMIN_SECRET` from `process.env` at call time; returns true when unset for backward compat); `isAdminEmail` also switched to read-at-call-time for test isolation; `AdminAuthPayload` gains optional `secret?` field in `protocol.ts`; `admin_auth` handler uses combined `isAdminEmail && isValidAdminSecret(payload.secret ?? '')` check; `ADMIN_SECRET=` added to `.env.example`; 4 new tests in `admin.test.ts` (54→58 server tests). Web: `AdminAuthPayload { email; secret? }` in `protocol.ts`; `AdminScreen` adds password input (placeholder "leave blank if not configured"), emits `{ email, secret }`, updates subtitle + `not_authorized` error text; button disabled guard requires only `email.trim()` (not secret, since server accepts empty secret when `ADMIN_SECRET` unset). Build green. Total: 153 engine + 133 db + 58 server = 344.)
+
 Last updated: 2026-06-20 (update_display_name web client: `UpdateDisplayNamePayload`/`UpdateDisplayNameAck` added to `packages/web/src/protocol.ts`; `UPDATE_DISPLAY_NAME` event constant added; `updateDisplayName(newDisplayName)` helper added to `net/socket.ts`; `GameContextValue` gains `updateDisplayName: (newName: string) => Promise<UpdateDisplayNameAck>` exposed via `GameProvider` useMemo; `LobbyScreen` gains inline display-name editor (Edit button next to name → text input + Save/Cancel; INVALID_NAME → "Name cannot be empty.", UNAVAILABLE → "Unavailable, try again."; SESSION re-emit auto-updates displayed name; same-name no-ops; Save disabled while in-flight). `LobbyScreen.css` adds `.lobby__name-row`, `.lobby__name-edit-btn`, `.lobby__name-edit`, `.lobby__name-input`, `.lobby__name-edit-actions`, `.lobby__name-save-btn`, `.lobby__name-cancel-btn`, `.lobby__name-edit-error`. Build green.)
 
 Last updated: 2026-06-20 (update_display_name — DB + server + web + review fixes: `updateUserDisplayName(userId, newDisplayName)` added to `GamePersistence` interface, `PgPersistence` (Drizzle `.update(users).set({ displayName })`), and `MemoryPersistence` (Map update in-place); +2 contract test cases run against both impls = 4 test runs (DB: 129→133). Server: `UpdateDisplayNamePayload`/`UpdateDisplayNameAck` + `EVENTS.UPDATE_DISPLAY_NAME='update_display_name'` in `protocol.ts`; `handleUpdateDisplayName` in `handlers.ts` (combined NOT_LOGGED_IN+account-null guard, sanitize→INVALID_NAME, no-persistence→UNAVAILABLE, DB error→UNAVAILABLE; on success mutates `session.account.displayName` + calls `updateSession({name})` + re-emits SESSION + acks `{ok:true,displayName}`); wired in `registerSocketEvents`. +4 integration tests in `account.test.ts` (guest→NOT_LOGGED_IN, persistence-drops-out→UNAVAILABLE, blank name→INVALID_NAME, happy path verifies ack+SESSION re-emit+persistence). Web: inline editor in LobbyScreen (aria-label on input+button, save/cancel/busy/error states); `updateDisplayName` uses `emitAck` helper. Server: 50→54 tests. Total: 153 engine + 133 db + 54 server = 340.)
@@ -129,9 +131,10 @@ All 339 tests passing (153 engine + 53 server + 133 db).
 | Trick-reveal freeze duration alignment (2200ms for TRICK_WON)        | ✅      | GameProvider.tsx line 153; matches flash duration |
 | DB write-through integration tests (full game + abandonment)         | ✅      | `src/persistence.test.ts` (2 tests); injects `MemoryPersistence` via `__setPersistenceForTests` |
 | `update_display_name` socket event — update logged-in user's display name | ✅  | `protocol.ts` + `handlers.ts` + `account.test.ts` (3 tests); NOT_LOGGED_IN/INVALID_NAME/UNAVAILABLE guards; re-emits SESSION on success |
+| Admin secret check (`ADMIN_SECRET` env var)                          | ✅      | `isValidAdminSecret` in `config.ts` (reads env at call time); `AdminAuthPayload.secret?`; combined email+secret guard in handler; 4 tests in `admin.test.ts` |
 
 
-**Test count: 53 / 53 passing.**
+**Test count: 58 / 58 passing.**
 
 ---
 
@@ -446,7 +449,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | Task | Status | Notes |
 | ---- | ------ | ----- |
 | Sanitize / validate player names server-side | ✅ | **Pull forward:** server-side sanitization with XSS check (trim, 20-char limit, HTML char strip) on create/join |
-| Strengthen admin authentication | ⬜ | Email-only check; add a shared secret or signed token so any email can't spoof admin. (Do before Phase 6h admin analytics dashboard) |
+| Strengthen admin authentication | ✅ | `AdminAuthPayload { email; secret? }` added to `packages/web/src/protocol.ts`; `AdminScreen` gains password input, passes `secret` in `admin_auth` emit, updates subtitle + error text + button disabled guard. Build green. |
 | Session token expiry | ⬜ | **Superseded by Phase 6c (DB-backed sessions)** — UUIDs never expire today; the persisted-session work in Phase 6c resolves this |
 
 ### 7f — Testing
@@ -488,7 +491,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | Phase                        | Status                                                                                  |
 | ---------------------------- | --------------------------------------------------------------------------------------- |
 | Phase 1 — Engine             | ✅ Complete (153 tests)                                                                  |
-| Phase 2 — Server             | ✅ Complete (54 tests; TURN_TIMEOUT + sanitization + grace expiry broadcast + DRY refactor + freeze fix + DB write-through + OAuth/history/retention + flat history wire-contract fix + `get_my_stats` + `get_leaderboard` + `myEntry` in leaderboard ack + time-windowed leaderboard + `timeWindow` runtime validation + `update_display_name`) |
+| Phase 2 — Server             | ✅ Complete (58 tests; TURN_TIMEOUT + sanitization + grace expiry broadcast + DRY refactor + freeze fix + DB write-through + OAuth/history/retention + flat history wire-contract fix + `get_my_stats` + `get_leaderboard` + `myEntry` in leaderboard ack + time-windowed leaderboard + `timeWindow` runtime validation + `update_display_name` + admin secret check) |
 | Phase 3 — Web Client         | ✅ Complete (player names wired, all components functional)                              |
 | Phase 4 — Polish             | ✅ Complete (animations, mobile polish; deployment user-handled via Render + Cloudflare) |
 | Phase 5 — Voice Chat         | 🟡 Core + cross-browser fixes + Perfect Negotiation recovery + Cloudflare TURN; smoke test pending |

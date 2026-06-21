@@ -77,14 +77,31 @@ export function isOAuthEnabled(): boolean {
   return Boolean(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET && OAUTH_REDIRECT_URI);
 }
 
-const _adminEmails = new Set(
-  (process.env['ADMIN_EMAILS'] ?? '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean),
-);
-
-/** Returns true if the given email is in the ADMIN_EMAILS set. */
+/**
+ * Returns true if the given email is in the ADMIN_EMAILS set.
+ *
+ * Reads from process.env at call time so changes to the environment variable
+ * (e.g. in tests) are reflected without a module reload.
+ */
 export function isAdminEmail(email: string): boolean {
-  return _adminEmails.has(email.trim().toLowerCase());
+  const adminEmails = new Set(
+    (process.env['ADMIN_EMAILS'] ?? '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean),
+  );
+  return adminEmails.has(email.trim().toLowerCase());
+}
+
+/**
+ * Returns true if ADMIN_SECRET is not configured (no secret required) OR if
+ * the given secret matches the configured value.
+ *
+ * Reads from process.env at call time so test isolation is trivial (set/delete
+ * the env var, call the function — no module reload needed).
+ */
+export function isValidAdminSecret(secret: string): boolean {
+  const required = process.env['ADMIN_SECRET'];
+  if (!required) return true; // no secret required
+  return secret === required;
 }
