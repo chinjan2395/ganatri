@@ -272,6 +272,7 @@ export const ADMIN_EVENTS = {
   AUTH:          'admin_auth',
   GET_CONFIG:    'admin_get_config',
   UPDATE_CONFIG: 'admin_update_config',
+  GET_STATS:     'admin_get_stats',
 } as const;
 
 export interface GameConfig {
@@ -280,3 +281,17 @@ export interface GameConfig {
   gracePeriodMs: number;
   roomExpiryMs: number;
 }
+
+/** Live operational stats returned by admin_get_stats. */
+export interface AdminServerStats {
+  totalRooms: number;
+  lobbyRooms: number;
+  activeGames: number;
+  completedRooms: number;
+  connectedPlayers: number;
+  totalSessions: number;
+}
+
+export type AdminGetStatsAck =
+  | { ok: true; stats: AdminServerStats }
+  | { ok: false; reason: string };

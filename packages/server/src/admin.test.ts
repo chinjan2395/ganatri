@@ -15,7 +15,7 @@ import { MemoryPersistence } from '@ganatri/db';
 import { createApp, type AppInstance } from './createApp.js';
 import { resetStore } from './store.js';
 import { resetLastMoveTime } from './handlers.js';
-import { EVENTS } from './protocol.js';
+import { EVENTS, type AdminGetStatsAck } from './protocol.js';
 import { __setPersistenceForTests } from './persistence.js';
 
 function emitAck<T>(socket: ClientSocket, event: string, ...args: unknown[]): Promise<T> {
@@ -112,6 +112,96 @@ describe('admin_auth strengthened', () => {
         { email: 'admin@test.com', secret: 'wrongsecret' },
       );
       expect(ack).toEqual({ ok: false, reason: 'not_authorized' });
+    } finally {
+      client.disconnect();
+    }
+  });
+});
+
+describe('admin_get_stats', () => {
+  let app: AppInstance;
+  let port: number;
+
+  beforeEach(async () => {
+    resetStore();
+    resetLastMoveTime();
+    const persistence = new MemoryPersistence();
+    __setPersistenceForTests(persistence);
+    app = createApp();
+    port = await app.listen(0);
+  });
+
+  afterEach(async () => {
+    await app.close();
+    __setPersistenceForTests(null);
+    delete process.env['ADMIN_EMAILS'];
+    delete process.env['ADMIN_SECRET'];
+  });
+
+  async function authedClient(): Promise<ClientSocket> {
+    process.env['ADMIN_EMAILS'] = 'admin@test.com';
+    const client = ioClient(`http://localhost:${port}`, { autoConnect: true, reconnection: false });
+    await emitAck<{ ok: boolean }>(client, EVENTS.ADMIN_AUTH, { email: 'admin@test.com' });
+    return client;
+  }
+
+  it('rejects unauthenticated request', async () => {
+    const client = ioClient(`http://localhost:${port}`, { autoConnect: true, reconnection: false });
+    try {
+      const ack = await emitAck<{ ok: boolean; reason?: string }>(
+        client,
+        EVENTS.ADMIN_GET_STATS,
+        {},
+      );
+      expect(ack).toEqual({ ok: false, reason: 'not_authorized' });
+    } finally {
+      client.disconnect();
+    }
+  });
+
+  it('returns zero stats when no rooms exist', async () => {
+    const client = await authedClient();
+    try {
+      const ack = await emitAck<AdminGetStatsAck>(
+        client,
+        EVENTS.ADMIN_GET_STATS,
+        {},
+      );
+      expect(ack.ok).toBe(true);
+      if (ack.ok) {
+        expect(ack.stats.totalRooms).toBe(0);
+        expect(ack.stats.lobbyRooms).toBe(0);
+        expect(ack.stats.activeGames).toBe(0);
+        expect(ack.stats.completedRooms).toBe(0);
+        // connectedPlayers >= 1 (the admin client itself)
+        expect(ack.stats.connectedPlayers).toBeGreaterThanOrEqual(1);
+        expect(ack.stats.totalSessions).toBeGreaterThanOrEqual(1);
+      }
+    } finally {
+      client.disconnect();
+    }
+  });
+
+  it('counts rooms by phase correctly', async () => {
+    const client = await authedClient();
+    try {
+      // Create a room to put it in LOBBY phase
+      const p1 = ioClient(`http://localhost:${port}`, { autoConnect: true, reconnection: false });
+      await emitAck<{ ok: boolean; roomCode?: string }>(p1, EVENTS.CREATE_ROOM, { name: 'TestPlayer' });
+
+      const ack = await emitAck<AdminGetStatsAck>(
+        client,
+        EVENTS.ADMIN_GET_STATS,
+        {},
+      );
+      expect(ack.ok).toBe(true);
+      if (ack.ok) {
+        expect(ack.stats.totalRooms).toBe(1);
+        expect(ack.stats.lobbyRooms).toBe(1);
+        expect(ack.stats.activeGames).toBe(0);
+        expect(ack.stats.completedRooms).toBe(0);
+      }
+      p1.disconnect();
     } finally {
       client.disconnect();
     }

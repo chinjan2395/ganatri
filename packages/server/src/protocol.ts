@@ -362,6 +362,21 @@ export interface AdminGetConfigAck { config: GameConfig; }
 export interface AdminUpdateConfigPayload { config: Partial<GameConfig>; }
 export interface AdminUpdateConfigAck { ok: boolean; reason?: string; }
 
+/** Live operational stats snapshot from the in-memory store. */
+export interface AdminServerStats {
+  totalRooms: number;
+  lobbyRooms: number;
+  activeGames: number;
+  completedRooms: number;
+  connectedPlayers: number;
+  totalSessions: number;
+}
+
+/** Ack for admin_get_stats. Requires admin auth. */
+export type AdminGetStatsAck =
+  | { ok: true; stats: AdminServerStats }
+  | { ok: false; reason: string };
+
 // Re-export for consumers that want the config shape via the protocol module.
 export type { GameConfig };
 
@@ -386,6 +401,7 @@ export const EVENTS = {
   ADMIN_AUTH: 'admin_auth',
   ADMIN_GET_CONFIG: 'admin_get_config',
   ADMIN_UPDATE_CONFIG: 'admin_update_config',
+  ADMIN_GET_STATS: 'admin_get_stats',
 
   // Server → Client
   SESSION: 'session',

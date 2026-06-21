@@ -13,6 +13,7 @@ import type { GameEvent, Move, MoveResult } from '@ganatri/engine';
 import {
   type AdminAuthPayload,
   type AdminUpdateConfigPayload,
+  type AdminGetStatsAck,
   type CreateRoomAck,
   type JoinRoomAck,
   type LeaveRoomAck,
@@ -642,6 +643,34 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
     }
     updateConfig(patch);
     ack({ ok: true });
+  });
+
+  // Admin: get live server stats
+  socket.on(EVENTS.ADMIN_GET_STATS, (_: unknown, ack: (res: AdminGetStatsAck) => void) => {
+    if (typeof ack !== 'function') return;
+    if (!store.adminSockets.has(socket.id)) {
+      ack({ ok: false, reason: 'not_authorized' });
+      return;
+    }
+    let lobbyRooms = 0, activeGames = 0, completedRooms = 0;
+    for (const room of store.rooms.values()) {
+      if (room.phase === 'LOBBY') lobbyRooms++;
+      else if (room.phase === 'PLAYING') activeGames++;
+      else completedRooms++;
+    }
+    const connectedPlayers = Array.from(store.sessions.values())
+      .filter(s => s.socketId !== null).length;
+    ack({
+      ok: true,
+      stats: {
+        totalRooms: store.rooms.size,
+        lobbyRooms,
+        activeGames,
+        completedRooms,
+        connectedPlayers,
+        totalSessions: store.sessions.size,
+      },
+    });
   });
 
   // Voice chat: hand out ICE servers (STUN + minted Cloudflare TURN creds).
