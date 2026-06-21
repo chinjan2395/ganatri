@@ -123,6 +123,7 @@ jobs:
         env:
           NEXT_TASK: ${{ steps.gate.outputs.next_task }}
         run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           if [ "${{ steps.gate.outputs.priority }}" = "true" ]; then
             MODE="priority TODO"
           else
@@ -375,6 +376,7 @@ jobs:
           RUN_PHASE: ${{ steps.summary.outputs.phase }}
           RUN_COMMIT: ${{ steps.summary.outputs.commit }}
         run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           if [ "${{ steps.push.outputs.pushed }}" = "true" ]; then
             ICON=":white_check_mark:"
             HEADLINE="*Ganatri nightly complete* — PR opened"
