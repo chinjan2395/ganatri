@@ -3,7 +3,13 @@ name: Ganatri Nightly Build
 on:
   schedule:
     - cron: '7 */3 * * *'   # every 3 hours, at :07 (off the :00 congestion window so GitHub is less likely to drop the run)
-  workflow_dispatch:      # manual "Run workflow" button for testing
+  workflow_dispatch:
+    inputs:
+      force_run:
+        description: 'Run even if an open nightly/* PR exists (manual override)'
+        required: false
+        default: 'false'
+        type: boolean
 
 # Prevent overlapping runs
 concurrency:
@@ -54,15 +60,24 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          FORCE_RUN="${{ github.event.inputs.force_run || 'false' }}"
+          echo "force_run=${FORCE_RUN}" >> "$GITHUB_OUTPUT"
+
           # Skip if an unmerged nightly PR is already open — avoids re-doing the same task
-          # while the previous run's work is sitting in review.
-          OPEN_PR=$(gh pr list --base main --state open --json number,headRefName \
-                      --jq '.[] | select(.headRefName | startswith("nightly/")) | "#\(.number) (\(.headRefName))"' \
+          # while the previous run's work is sitting in review. Manual force_run bypasses this.
+          OPEN_PR=$(gh pr list --base main --state open --json number,headRefName,title \
+                      --jq '.[] | select(.headRefName | startswith("nightly/")) | "#\(.number) (\(.headRefName)) — \(.title)"' \
                       | head -1)
-          if [ -n "$OPEN_PR" ]; then
-            echo "Skipping — open nightly PR exists: ${OPEN_PR}. Merge or close it first."
+          if [ "$FORCE_RUN" != "true" ] && [ -n "$OPEN_PR" ]; then
+            echo "Skipping — open nightly PR exists: ${OPEN_PR}. Merge or close it first (or re-run with force_run)."
             echo "run=false" >> "$GITHUB_OUTPUT"
             echo "priority=false" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=open_pr" >> "$GITHUB_OUTPUT"
+            {
+              echo "open_pr<<EOF"
+              printf '%s\n' "$OPEN_PR"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -73,6 +88,7 @@ jobs:
           if echo "$STATUS" | grep -q 'BLOCKED'; then
             echo "Skipping Claude run — project is BLOCKED, needs human input."
             echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=blocked" >> "$GITHUB_OUTPUT"
           else
             echo "run=true" >> "$GITHUB_OUTPUT"
           fi
@@ -84,7 +100,10 @@ jobs:
           echo "Priority TODO unchecked items: ${PRIORITY}"
           if [ "${PRIORITY:-0}" -gt 0 ]; then
             echo "priority=true" >> "$GITHUB_OUTPUT"
-            echo "Priority queue is NON-EMPTY — Claude will work a priority item first."
+            TOP_TASK=$(awk '/<!-- PRIORITY_TODO:START -->/{f=1; next} /<!-- PRIORITY_TODO:END -->/{f=0} f && /^[[:space:]]*- \[ \]/{print; exit}' \
+                         docs/DEVELOPMENT_PLAN.md)
+            echo "Top priority item: ${TOP_TASK}"
+            echo "Priority queue is NON-EMPTY — Claude will work the top unchecked item (checked history below it is ignored)."
           else
             echo "priority=false" >> "$GITHUB_OUTPUT"
             echo "Priority queue empty — Claude will follow the normal phase flow."
@@ -108,6 +127,20 @@ jobs:
             printf '%s\n' "$NEXT_TASK"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Notify Slack — gate skipped
+        if: steps.gate.outputs.run != 'true' && steps.gate.outputs.skip_reason != ''
+        continue-on-error: true
+        env:
+          OPEN_PR: ${{ steps.gate.outputs.open_pr }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          if [ "${{ steps.gate.outputs.skip_reason }}" = "open_pr" ]; then
+            MSG=":double_vertical_bar: *Nightly skipped* — an open \`nightly/*\` PR is waiting for review. Merge or close it before the next run picks up new work."$'\n'"*Open PR:* ${OPEN_PR}"$'\n'"Re-run manually with *force_run* checked to override."$'\n'"<${RUN_URL}|View run>"
+          else
+            MSG=":double_vertical_bar: *Nightly skipped* — project status is BLOCKED in \`docs/nightly/STATE.md\`. Needs human input before Claude can run."$'\n'"<${RUN_URL}|View run>"
+          fi
+          bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$MSG"
 
       - name: Create working branch
         id: branch
@@ -379,8 +412,12 @@ jobs:
             FOOTER="${{ steps.pr.outputs.url }}"
           else
             ICON=":information_source:"
-            HEADLINE="*Ganatri nightly complete* — no code changes (nothing to PR)"
-            FOOTER=""
+            HEADLINE="*Ganatri nightly finished* — no code changes (nothing to PR)"
+            if [ "${{ steps.gate.outputs.priority }}" = "true" ]; then
+              FOOTER="Expected a priority TODO to be implemented — check the *Run Claude* step logs (Claude may have exited without committing)."
+            else
+              FOOTER=""
+            fi
           fi
           MSG="${ICON} ${HEADLINE}"
           if [ -n "$RUN_PHASE" ]; then
