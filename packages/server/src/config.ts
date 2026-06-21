@@ -88,3 +88,23 @@ const _adminEmails = new Set(
 export function isAdminEmail(email: string): boolean {
   return _adminEmails.has(email.trim().toLowerCase());
 }
+
+/**
+ * Replace the internal admin-emails set. Only for use in tests — lets tests
+ * inject known emails without relying on env vars loaded at module load time.
+ */
+export function __setAdminEmailsForTests(emails: string[]): void {
+  _adminEmails.clear();
+  for (const e of emails) {
+    _adminEmails.add(e.trim().toLowerCase());
+  }
+}
+
+/**
+ * Returns the ADMIN_SECRET env var at call time (not cached), so tests can set
+ * process.env['ADMIN_SECRET'] before calling this. An empty string means the
+ * secret check is disabled (backward-compat for deployments that haven't set it).
+ */
+export function getAdminSecret(): string {
+  return process.env['ADMIN_SECRET'] ?? '';
+}

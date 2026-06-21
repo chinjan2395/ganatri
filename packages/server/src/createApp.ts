@@ -15,6 +15,7 @@ import {
   WEB_ORIGIN,
   SESSION_TTL_DAYS,
   cookiesSecure,
+  getAdminSecret,
 } from './config.js';
 import { getGoogleAuthUrl, exchangeCode } from './auth/oauth.js';
 import { getPersistence } from './persistence.js';
@@ -258,6 +259,9 @@ export function createApp(): AppInstance {
       return new Promise((resolve, reject) => {
         httpServer.once('error', reject);
         httpServer.listen(port, host, () => {
+          if (getAdminSecret() === '') {
+            console.warn('[admin] ADMIN_SECRET is not set — admin auth requires email only (insecure mode).');
+          }
           const addr = httpServer.address();
           const boundPort = typeof addr === 'object' && addr !== null ? addr.port : port;
           resolve(boundPort);

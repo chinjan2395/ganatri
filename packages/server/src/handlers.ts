@@ -5,6 +5,7 @@
  * socketTransport.ts. State lives in store.ts.
  */
 
+import { timingSafeEqual } from 'node:crypto';
 import type { Server, Socket } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
 import { applyMove, createGame, legalMoves, viewFor } from '@ganatri/engine';
@@ -40,7 +41,7 @@ import type {
   PlayerStatsRow,
   LeaderboardEntry,
 } from '@ganatri/db';
-import { getConfig, isAdminEmail, updateConfig, RETENTION_DAYS } from './config.js';
+import { getConfig, getAdminSecret, isAdminEmail, updateConfig, RETENTION_DAYS } from './config.js';
 import { getIceServers } from './iceConfig.js';
 import {
   type RoomState,
@@ -592,11 +593,20 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
   // Admin: authenticate
   socket.on(EVENTS.ADMIN_AUTH, (payload: AdminAuthPayload, ack: (res: { ok: boolean; reason?: string }) => void) => {
     if (typeof ack !== 'function') return;
-    if (!payload || typeof payload.email !== 'string') {
+    if (!payload || typeof payload.email !== 'string' || typeof payload.secret !== 'string') {
       ack({ ok: false, reason: 'invalid_payload' });
       return;
     }
-    if (isAdminEmail(payload.email)) {
+    const serverSecret = getAdminSecret();
+    let secretOk: boolean;
+    if (serverSecret === '') {
+      secretOk = true; // backward-compat: ADMIN_SECRET not set → skip secret check
+    } else {
+      const a = Buffer.from(payload.secret);
+      const b = Buffer.from(serverSecret);
+      secretOk = a.length === b.length && timingSafeEqual(a, b);
+    }
+    if (isAdminEmail(payload.email) && secretOk) {
       store.adminSockets.add(socket.id);
       ack({ ok: true });
     } else {
