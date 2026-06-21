@@ -38,8 +38,14 @@ async function resolveSession(socket: Socket): Promise<void> {
     const p = getPersistence();
     if (!p) return;
 
+    // Prefer the httpOnly session cookie, fall back to socket.auth.token.
+    // The OAuth callback delivers the token as a URL ?auth_token= param which
+    // the client stores in localStorage and sends here — the cookie path is
+    // only hit if the server explicitly sets ganatri_session via Set-Cookie.
     const cookies = parseCookies(socket.handshake.headers.cookie);
-    const token = cookies[SESSION_COOKIE_NAME];
+    const token =
+      cookies[SESSION_COOKIE_NAME] ??
+      (socket.handshake.auth['token'] as string | undefined);
     if (!token) return;
 
     const user = await p.getUserBySessionTokenHash(hashToken(token));
