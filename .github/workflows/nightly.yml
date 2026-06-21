@@ -123,6 +123,7 @@ jobs:
         env:
           NEXT_TASK: ${{ steps.gate.outputs.next_task }}
         run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           if [ "${{ steps.gate.outputs.priority }}" = "true" ]; then
             MODE="priority TODO"
           else
@@ -132,9 +133,8 @@ jobs:
           if [ -n "$NEXT_TASK" ]; then
             TASK_LINE=$'\n*Task:* '"$NEXT_TASK"
           fi
-          bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" \
-            ":hammer_and_wrench: *Ganatri nightly started* — branch \`${{ steps.branch.outputs.name }}\` (${MODE}).${TASK_LINE}
-<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+          TEXT=":hammer_and_wrench: *Ganatri nightly started* — branch \`${{ steps.branch.outputs.name }}\` (${MODE}).${TASK_LINE}"$'\n'"<${RUN_URL}|View run>"
+          bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$TEXT"
 
       - name: Run Claude on next phase
         if: steps.gate.outputs.run == 'true'
@@ -305,20 +305,17 @@ jobs:
           fi
           ZIP="ganatri-development-report-$(date +%Y-%m-%d-%H%M).zip"
           (cd reports && zip -r "../${ZIP}" . >/dev/null)
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           COMMENT=":bar_chart: *Development report* — $(date +%Y-%m-%d\ %H:%M)"
           if [ -n "$RUN_PHASE" ]; then
-            COMMENT="${COMMENT}
-*Phase:* ${RUN_PHASE}"
+            COMMENT="${COMMENT}"$'\n'"*Phase:* ${RUN_PHASE}"
           fi
           if [ -n "$RUN_SUMMARY" ]; then
-            COMMENT="${COMMENT}
-*This run:* ${RUN_SUMMARY}"
+            COMMENT="${COMMENT}"$'\n'"*This run:* ${RUN_SUMMARY}"
           elif [ -n "$RUN_COMMIT" ]; then
-            COMMENT="${COMMENT}
-*Commit:* ${RUN_COMMIT}"
+            COMMENT="${COMMENT}"$'\n'"*Commit:* ${RUN_COMMIT}"
           fi
-          COMMENT="${COMMENT}
-<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+          COMMENT="${COMMENT}"$'\n'"<${RUN_URL}|View run>"
           bash .github/scripts/slack-upload-file.sh \
             "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$ZIP" \
             "Ganatri development report" \
@@ -375,6 +372,7 @@ jobs:
           RUN_PHASE: ${{ steps.summary.outputs.phase }}
           RUN_COMMIT: ${{ steps.summary.outputs.commit }}
         run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           if [ "${{ steps.push.outputs.pushed }}" = "true" ]; then
             ICON=":white_check_mark:"
             HEADLINE="*Ganatri nightly complete* — PR opened"
@@ -386,22 +384,17 @@ jobs:
           fi
           MSG="${ICON} ${HEADLINE}"
           if [ -n "$RUN_PHASE" ]; then
-            MSG="${MSG}
-*Phase:* ${RUN_PHASE}"
+            MSG="${MSG}"$'\n'"*Phase:* ${RUN_PHASE}"
           fi
           if [ -n "$RUN_SUMMARY" ]; then
-            MSG="${MSG}
-*Outcome:* ${RUN_SUMMARY}"
+            MSG="${MSG}"$'\n'"*Outcome:* ${RUN_SUMMARY}"
           elif [ -n "$RUN_COMMIT" ]; then
-            MSG="${MSG}
-*Commit:* ${RUN_COMMIT}"
+            MSG="${MSG}"$'\n'"*Commit:* ${RUN_COMMIT}"
           fi
           if [ -n "$FOOTER" ]; then
-            MSG="${MSG}
-${FOOTER}"
+            MSG="${MSG}"$'\n'"${FOOTER}"
           fi
-          MSG="${MSG}
-<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+          MSG="${MSG}"$'\n'"<${RUN_URL}|View run>"
           bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$MSG"
 
       - name: Notify Slack — run failed
