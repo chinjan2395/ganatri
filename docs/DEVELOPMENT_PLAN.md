@@ -51,6 +51,25 @@ All 339 tests passing (153 engine + 53 server + 133 db).
 
 ---
 
+## 🔝 Priority TODO (read FIRST every run)
+
+**Nightly protocol — this section overrides phase order:**
+
+- The nightly run reads this section **before** anything else.
+- **If the queue is empty** (only the `_(none)_` placeholder sits between the markers): proceed with the normal phase flow — pick the next item from the current phase per `docs/nightly/STATE.md`.
+- **If the queue has one or more unchecked `- [ ]` items**: the **top unchecked item** is the single unit of work for this run. It takes priority over the current phase. Implement it, then mark it `- [x]` with a completion date.
+- Tackle items **top to bottom, one per run**. Leave finished items checked (with a date) for visibility, or delete them once their PR is merged.
+- Each item should be self-contained and reviewable: include a short acceptance criterion and the package/files it touches.
+
+**How to add a priority item:** insert a `- [ ]` line between the two markers below, e.g.
+`- [ ] **Fix leaderboard pagination off-by-one** — packages/server handlers.ts; offset should be page*limit. Acceptance: new server test covers page 2.`
+
+<!-- PRIORITY_TODO:START -->
+_(none — priority queue is empty; nightly proceeds with the normal phase flow)_
+<!-- PRIORITY_TODO:END -->
+
+---
+
 ## Phase 1 — Rules Engine (`packages/engine`)
 
 **Goal:** Pure TypeScript rules module, fully tested, no network/UI dependencies.
