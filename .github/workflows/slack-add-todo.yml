@@ -79,26 +79,37 @@ jobs:
                Keep it to a single line. Be specific, but do not invent scope the
                submitter did not ask for. If the request is vague, make a
                conservative best guess and keep the acceptance criterion minimal.
-            3. Insert your line as the FIRST item in the queue — immediately after
-               the <!-- PRIORITY_TODO:START --> marker line. If the only content
-               between the markers is the "_(none …)_" placeholder, REPLACE that
-               placeholder line with your line.
+            3. Insert your line as the FIRST unchecked item — immediately after
+               the <!-- PRIORITY_TODO:START --> marker line. Always ADD a new
+               `- [ ]` line at the top of the queue. Do NOT skip because older
+               `- [x]` (completed) items remain between the markers — checked
+               history stays; your new unchecked line goes above it. If the only
+               content is the "_(none …)_" placeholder, REPLACE that placeholder.
             4. Do NOT modify anything else in the file. Do NOT run git. Do NOT
                commit. Only edit docs/DEVELOPMENT_PLAN.md.
           claude_args: >-
             --model claude-sonnet-4-6
             --max-turns 15
-            --allowedTools Edit,Read
+            --allowedTools Edit,Read,Write
+
+      - name: Ensure TODO queued (fallback if Claude made no edit)
+        if: steps.payload.outputs.ok == 'true'
+        env:
+          REQUEST_TEXT: ${{ github.event.client_payload.text }}
+        run: |
+          if git diff --quiet -- docs/DEVELOPMENT_PLAN.md; then
+            echo "Claude made no edit — inserting TODO via fallback script."
+            bash .github/scripts/slack-insert-priority-todo.sh "$REQUEST_TEXT"
+          fi
+          if git diff --quiet -- docs/DEVELOPMENT_PLAN.md; then
+            echo "Could not queue TODO — docs/DEVELOPMENT_PLAN.md unchanged." >&2
+            exit 1
+          fi
 
       - name: Commit queued item to main
         id: commit
         if: steps.payload.outputs.ok == 'true'
         run: |
-          if git diff --quiet -- docs/DEVELOPMENT_PLAN.md; then
-            echo "Plan unchanged (Claude made no edit) — skipping commit."
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
