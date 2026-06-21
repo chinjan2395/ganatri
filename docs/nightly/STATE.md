@@ -2,6 +2,12 @@
 
 > Single source of truth for autonomous nightly runs.
 > Claude reads this FIRST and updates it LAST every run.
+>
+> **Priority override:** Before using the Current Phase below, check the
+> "🔝 Priority TODO" section in `docs/DEVELOPMENT_PLAN.md`. If that queue has any
+> unchecked `- [ ]` items, the top one is this run's work and it overrides the
+> current phase. Only when the priority queue is empty does the normal phase flow
+> (Current Phase → next NOT_STARTED/IN_PROGRESS item) apply.
 
 ## Current Phase
 Phase 6 — Persistence, Accounts, Statistics & Analytics

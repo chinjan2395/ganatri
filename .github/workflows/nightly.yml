@@ -60,6 +60,19 @@ jobs:
             echo "run=true" >> "$GITHUB_OUTPUT"
           fi
 
+          # Surface whether the Priority TODO queue has any unchecked items.
+          # The body between the two markers contains unchecked "- [ ]" lines when non-empty.
+          PRIORITY=$(awk '/<!-- PRIORITY_TODO:START -->/{f=1; next} /<!-- PRIORITY_TODO:END -->/{f=0} f' \
+                       docs/DEVELOPMENT_PLAN.md | grep -c '^[[:space:]]*- \[ \]' || true)
+          echo "Priority TODO unchecked items: ${PRIORITY}"
+          if [ "${PRIORITY:-0}" -gt 0 ]; then
+            echo "priority=true" >> "$GITHUB_OUTPUT"
+            echo "Priority queue is NON-EMPTY — Claude will work a priority item first."
+          else
+            echo "priority=false" >> "$GITHUB_OUTPUT"
+            echo "Priority queue empty — Claude will follow the normal phase flow."
+          fi
+
       - name: Create working branch
         id: branch
         if: steps.gate.outputs.run == 'true'
@@ -78,14 +91,23 @@ jobs:
             No human is available — make safe, conservative decisions.
 
             STEP 1 — Read state and context:
+            - Read docs/DEVELOPMENT_PLAN.md FIRST, and pay special attention to the
+              "🔝 Priority TODO (read FIRST every run)" section near the top (the queue lives
+              between the <!-- PRIORITY_TODO:START --> and <!-- PRIORITY_TODO:END --> markers).
             - Read docs/nightly/STATE.md (current phase, status, blockers, sequencing notes).
-            - Read docs/DEVELOPMENT_PLAN.md to understand what each phase contains.
             - Read CLAUDE.md for project conventions and agent routing guidance.
             - Read docs/GAME_RULES.md before touching any game logic.
 
             STEP 2 — Pick exactly ONE unit of work:
             - If STATE.md says BLOCKED, stop immediately — do not attempt to work around the blocker.
-            - Otherwise implement the next NOT_STARTED or IN_PROGRESS item from the current phase.
+            - PRIORITY QUEUE FIRST: look at the "🔝 Priority TODO" section in docs/DEVELOPMENT_PLAN.md.
+                - If it has one or more unchecked "- [ ]" items, the TOP unchecked item is your unit
+                  of work for this run. It OVERRIDES the current phase. Do it, then mark it "- [x]"
+                  with today's date. Ignore the normal phase flow this run.
+                - If the queue is empty (only the "_(none)_" placeholder between the markers), fall
+                  through to the normal phase flow below.
+            - NORMAL FLOW (only when the priority queue is empty): implement the next NOT_STARTED or
+              IN_PROGRESS item from the current phase in STATE.md.
             - Do NOT start a second phase. One coherent unit of work per run, finished cleanly.
             - If the current phase has pull-forward sub-items (like the Phase 7 urgent fixes), tackle
               them one at a time in the listed order, updating STATE.md after each one.
@@ -109,6 +131,10 @@ jobs:
               "Blockers / Needs Human Input" — include file paths, error messages, what you tried.
             - Always fill in "Last Run" with today's date, outcome, and a one-line summary.
             - Also update docs/DEVELOPMENT_PLAN.md: mark completed tasks ✅, in-progress 🟡.
+            - If this run completed a PRIORITY TODO item, mark that "- [ ]" line as "- [x]" with
+              today's date in the "🔝 Priority TODO" section of docs/DEVELOPMENT_PLAN.md (leave it
+              checked for history; do not delete it). If the queue is now all-checked, that is fine —
+              the next run will fall back to the normal phase flow.
 
             STEP 5 — Commit:
             - Stage all changed files (code + STATE.md + DEVELOPMENT_PLAN.md).
