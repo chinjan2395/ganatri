@@ -239,6 +239,12 @@ jobs:
             --max-turns 60
             --allowedTools Edit,Read,Write,Bash,Agent
 
+      - name: Install Chromium for PDF reports
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y chromium-browser 2>/dev/null || sudo apt-get install -y chromium
+
       - name: Generate development report
         if: steps.gate.outputs.run == 'true'
         uses: anthropics/claude-code-action@v1
@@ -275,6 +281,19 @@ jobs:
             --model claude-sonnet-4-6
             --max-turns 30
             --allowedTools Edit,Read,Write,Bash,Agent
+
+      - name: Ensure development report (fallback if Claude produced nothing)
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          if [ -z "$(ls -A reports 2>/dev/null)" ]; then
+            echo "No reports/ output from Claude — generating fallback report."
+            bash .github/scripts/generate-nightly-report.sh
+          fi
+          if [ -z "$(ls -A reports 2>/dev/null)" ]; then
+            echo "Could not generate development report." >&2
+            exit 1
+          fi
+          ls -la reports/
 
       - name: Extract run summary for Slack
         if: steps.gate.outputs.run == 'true'
@@ -315,13 +334,23 @@ jobs:
         id: report-artifact
         run: echo "name=ganatri-development-report-$(date +%Y-%m-%d-%H%M%S)" >> "$GITHUB_OUTPUT"
 
-      - name: Upload report artifact
+      - name: Check report files exist
         if: steps.gate.outputs.run == 'true'
+        id: report-files
+        run: |
+          if [ -n "$(ls -A reports 2>/dev/null)" ]; then
+            echo "has_files=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_files=false" >> "$GITHUB_OUTPUT"
+            echo "No report files to upload."
+          fi
+
+      - name: Upload report artifact
+        if: steps.gate.outputs.run == 'true' && steps.report-files.outputs.has_files == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.report-artifact.outputs.name }}
           path: reports/
-          if-no-files-found: warn
           retention-days: 30
 
       - name: Send report zip to Slack
