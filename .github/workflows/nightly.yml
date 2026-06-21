@@ -19,6 +19,9 @@ jobs:
   nightly:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -80,6 +83,18 @@ jobs:
           BRANCH="nightly/$(date +%Y-%m-%d-%H%M)"
           git checkout -b "$BRANCH"
           echo "name=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Notify Slack — run started
+        if: steps.gate.outputs.run == 'true'
+        continue-on-error: true
+        run: |
+          if [ "${{ steps.gate.outputs.priority }}" = "true" ]; then
+            QUEUE="working a *priority TODO* first"
+          else
+            QUEUE="following the normal phase flow"
+          fi
+          bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" \
+            ":hammer_and_wrench: *Ganatri nightly started* — branch \`${{ steps.branch.outputs.name }}\`, ${QUEUE}. <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
 
       - name: Run Claude on next phase
         if: steps.gate.outputs.run == 'true'
@@ -197,6 +212,21 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
+      - name: Send report zip to Slack
+        if: steps.gate.outputs.run == 'true'
+        continue-on-error: true
+        run: |
+          if [ -z "$(ls -A reports 2>/dev/null)" ]; then
+            echo "No report files produced this run — nothing to send."
+            exit 0
+          fi
+          ZIP="ganatri-development-report-$(date +%Y-%m-%d-%H%M).zip"
+          (cd reports && zip -r "../${ZIP}" . >/dev/null)
+          bash .github/scripts/slack-upload-file.sh \
+            "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$ZIP" \
+            "Ganatri development report" \
+            ":bar_chart: Development report for run $(date +%Y-%m-%d\ %H:%M)"
+
       - name: Push branch
         id: push
         if: steps.gate.outputs.run == 'true'
@@ -213,13 +243,14 @@ jobs:
           echo "pushed=true" >> "$GITHUB_OUTPUT"
 
       - name: Open Pull Request
+        id: pr
         if: steps.push.outputs.pushed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if git rev-parse --verify origin/main >/dev/null 2>&1 && \
              [ "$(git rev-list --count origin/main..HEAD)" -gt 0 ]; then
-            gh pr create \
+            PR_URL=$(gh pr create \
               --base main \
               --head "${{ steps.branch.outputs.name }}" \
               --title "Nightly build — $(date +%Y-%m-%d\ %H:%M)" \
@@ -232,8 +263,27 @@ jobs:
 
           🤖 Generated with [Claude Code](https://claude.ai/claude-code)
           EOF
-          )" \
-            || echo "PR may already exist; skipping."
+          )" 2>/dev/null) || PR_URL=$(gh pr view "${{ steps.branch.outputs.name }}" --json url -q .url 2>/dev/null || true)
+            echo "url=${PR_URL}" >> "$GITHUB_OUTPUT"
+            echo "Pull request: ${PR_URL:-<none>}"
           else
             echo "No changes this run — no PR created."
           fi
+
+      - name: Notify Slack — run finished
+        if: steps.gate.outputs.run == 'true'
+        continue-on-error: true
+        run: |
+          if [ "${{ steps.push.outputs.pushed }}" = "true" ]; then
+            MSG=":white_check_mark: *Ganatri nightly complete* — PR opened: ${{ steps.pr.outputs.url }}"
+          else
+            MSG=":information_source: *Ganatri nightly complete* — no code changes this run (nothing to PR)."
+          fi
+          bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$MSG"
+
+      - name: Notify Slack — run failed
+        if: failure()
+        continue-on-error: true
+        run: |
+          bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" \
+            ":x: *Ganatri nightly failed* — <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run logs>"
