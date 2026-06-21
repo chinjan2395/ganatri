@@ -36,17 +36,19 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-21
-- Outcome: ✅ Phase 7e — Strengthen admin authentication: `isValidAdminSecret(secret)` in `config.ts` (reads env at call time; returns true when unset for backward compat); `admin_auth` handler uses combined email+secret check; `AdminAuthPayload` gains `secret?` in both protocol files; `AdminScreen` adds password input (optional, blank = no secret needed); 4 new server tests in `admin.test.ts`. Server: 54→58. Total: 153 engine + 133 db + 58 server = 344 passing.
-- Branch/PR: nightly/2026-06-21-1428
+- Outcome: ✅ Phase 6h — admin_get_stats live ops endpoint: `AdminServerStats`/`AdminGetStatsAck` added to both protocol files; `ADMIN_GET_STATS='admin_get_stats'` handler in `handlers.ts` (admin-auth gate, iterates in-memory store, returns totalRooms/lobbyRooms/activeGames/completedRooms/connectedPlayers/totalSessions); 3 server tests (58→61); web `AdminScreen` gains Live Ops section (4 stat tiles + 15s auto-refresh + manual Refresh). Server: 58→61. Total: 153 engine + 133 db + 61 server = 347 passing.
+- Branch/PR: nightly/2026-06-21-1812
 
 ## Blockers / Needs Human Input
 (none)
 
 ## Notes for Next Run
-Phase 7e (admin auth hardening) is DONE. Remaining self-contained next units:
+Phase 6h live ops stats (admin_get_stats) is DONE. Remaining self-contained next units:
 
-1. **6h: Admin analytics dashboard extensions** — Live ops view + KPI charts in AdminScreen. Admin auth is now hardened (prerequisite done). Route UI work to frontend-dev + backend-dev (admin data endpoints: active rooms/games, concurrent players, games/day, abandonment rate). Consider starting with one focused endpoint (e.g. active rooms count) before building the full dashboard.
+1. **6h continued: KPI charts** — Games/day, abandonment rate, avg duration from the DB (requires `getPersistence()` in the handler). Endpoint: `admin_get_kpi_stats`; no aggregation job yet — compute inline from DB queries (acceptably slow for admin dashboard). Requires persistence; returns `UNAVAILABLE` when none.
 
 2. **6c remaining account settings** — Avatar URL edit + OAuth link/unlink (more complex).
+
+3. **6h: User management** — Search users, view stats, ban/suspend. Requires new DB queries.
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.

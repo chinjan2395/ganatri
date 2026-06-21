@@ -1,5 +1,7 @@
 # Ganatri — Phasewise Development Plan
 
+Last updated: 2026-06-21 (Phase 6h — admin_get_stats live ops endpoint (server + web): `AdminServerStats`/`AdminGetStatsAck` types added to `packages/server/src/protocol.ts`; `ADMIN_GET_STATS='admin_get_stats'` added to `EVENTS`; `admin_get_stats` handler added to `handlers.ts` (admin-auth gate, iterates `store.rooms` by phase, counts connected sessions); 3 new tests in `admin.test.ts` (58→61 server tests). Web: `AdminServerStats`+`AdminGetStatsAck` mirrored in `packages/web/src/protocol.ts`; `GET_STATS` added to `ADMIN_EVENTS`; `AdminScreen.tsx` gains `fetchStats()`, 15-second auto-refresh, manual Refresh button, and Live Ops section (4 stat tiles: Connected/Active games/In lobby/Total rooms); `AdminScreen.css` adds stats grid + responsive 2-column breakpoint. Build green. Total: 153 engine + 133 db + 61 server = 347.)
+
 Last updated: 2026-06-21 (Phase 7e admin auth hardening — server: `isValidAdminSecret(secret)` added to `config.ts` (reads `ADMIN_SECRET` from `process.env` at call time; returns true when unset for backward compat); `isAdminEmail` also switched to read-at-call-time for test isolation; `AdminAuthPayload` gains optional `secret?` field in `protocol.ts`; `admin_auth` handler uses combined `isAdminEmail && isValidAdminSecret(payload.secret ?? '')` check; `ADMIN_SECRET=` added to `.env.example`; 4 new tests in `admin.test.ts` (54→58 server tests). Web: `AdminAuthPayload { email; secret? }` in `protocol.ts`; `AdminScreen` adds password input (placeholder "leave blank if not configured"), emits `{ email, secret }`, updates subtitle + `not_authorized` error text; button disabled guard requires only `email.trim()` (not secret, since server accepts empty secret when `ADMIN_SECRET` unset). Build green. Total: 153 engine + 133 db + 58 server = 344.)
 
 Last updated: 2026-06-20 (update_display_name web client: `UpdateDisplayNamePayload`/`UpdateDisplayNameAck` added to `packages/web/src/protocol.ts`; `UPDATE_DISPLAY_NAME` event constant added; `updateDisplayName(newDisplayName)` helper added to `net/socket.ts`; `GameContextValue` gains `updateDisplayName: (newName: string) => Promise<UpdateDisplayNameAck>` exposed via `GameProvider` useMemo; `LobbyScreen` gains inline display-name editor (Edit button next to name → text input + Save/Cancel; INVALID_NAME → "Name cannot be empty.", UNAVAILABLE → "Unavailable, try again."; SESSION re-emit auto-updates displayed name; same-name no-ops; Save disabled while in-flight). `LobbyScreen.css` adds `.lobby__name-row`, `.lobby__name-edit-btn`, `.lobby__name-edit`, `.lobby__name-input`, `.lobby__name-edit-actions`, `.lobby__name-save-btn`, `.lobby__name-cancel-btn`, `.lobby__name-edit-error`. Build green.)
@@ -132,9 +134,10 @@ All 339 tests passing (153 engine + 53 server + 133 db).
 | DB write-through integration tests (full game + abandonment)         | ✅      | `src/persistence.test.ts` (2 tests); injects `MemoryPersistence` via `__setPersistenceForTests` |
 | `update_display_name` socket event — update logged-in user's display name | ✅  | `protocol.ts` + `handlers.ts` + `account.test.ts` (3 tests); NOT_LOGGED_IN/INVALID_NAME/UNAVAILABLE guards; re-emits SESSION on success |
 | Admin secret check (`ADMIN_SECRET` env var)                          | ✅      | `isValidAdminSecret` in `config.ts` (reads env at call time); `AdminAuthPayload.secret?`; combined email+secret guard in handler; 4 tests in `admin.test.ts` |
+| `admin_get_stats` live ops endpoint                                   | ✅      | Returns totalRooms/lobbyRooms/activeGames/completedRooms/connectedPlayers/totalSessions; 3 tests in admin.test.ts |
 
 
-**Test count: 58 / 58 passing.**
+**Test count: 61 / 61 passing.**
 
 ---
 
@@ -363,12 +366,13 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Extend `AdminScreen` with analytics views | ⬜ | Build on existing admin auth (harden first per Phase 7e). |
-| Live operations view | ⬜ | Active rooms/games, current concurrent players, in-flight voice sessions. |
+| Extend `AdminScreen` with analytics views | 🟡 | Build on existing admin auth (harden first per Phase 7e). Live Ops tile section now live. |
+| Live operations view | ✅ | `admin_get_stats` socket event; 4-tile grid (Connected / Active games / In lobby / Total rooms); 15 s auto-refresh + manual Refresh button; responsive 2-column on mobile. |
 | KPI charts | ⬜ | DAU/MAU, games per day, avg duration, abandonment rate, signup conversions. |
 | User management | ⬜ | Search users, view stats, ban/suspend, reset/merge accounts. |
 | Data export | ⬜ | CSV/JSON export of games/stats for offline analysis. |
-| Secure admin data endpoints | ⬜ | All analytics/admin queries behind hardened admin auth + authorization checks. |
+| Secure admin data endpoints | 🟡 | All analytics/admin queries behind hardened admin auth + authorization checks. `admin_get_stats` now requires admin auth; more endpoints forthcoming. |
+| `admin_get_stats` live ops endpoint (server) | ✅ | Returns totalRooms/lobbyRooms/activeGames/completedRooms/connectedPlayers/totalSessions; 3 tests in admin.test.ts |
 
 ### 6i — Privacy, retention & compliance
 
@@ -491,7 +495,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | Phase                        | Status                                                                                  |
 | ---------------------------- | --------------------------------------------------------------------------------------- |
 | Phase 1 — Engine             | ✅ Complete (153 tests)                                                                  |
-| Phase 2 — Server             | ✅ Complete (58 tests; TURN_TIMEOUT + sanitization + grace expiry broadcast + DRY refactor + freeze fix + DB write-through + OAuth/history/retention + flat history wire-contract fix + `get_my_stats` + `get_leaderboard` + `myEntry` in leaderboard ack + time-windowed leaderboard + `timeWindow` runtime validation + `update_display_name` + admin secret check) |
+| Phase 2 — Server             | ✅ Complete (61 tests; TURN_TIMEOUT + sanitization + grace expiry broadcast + DRY refactor + freeze fix + DB write-through + OAuth/history/retention + flat history wire-contract fix + `get_my_stats` + `get_leaderboard` + `myEntry` in leaderboard ack + time-windowed leaderboard + `timeWindow` runtime validation + `update_display_name` + admin secret check + `admin_get_stats` live ops endpoint) |
 | Phase 3 — Web Client         | ✅ Complete (player names wired, all components functional)                              |
 | Phase 4 — Polish             | ✅ Complete (animations, mobile polish; deployment user-handled via Render + Cloudflare) |
 | Phase 5 — Voice Chat         | 🟡 Core + cross-browser fixes + Perfect Negotiation recovery + Cloudflare TURN; smoke test pending |

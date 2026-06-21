@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { ADMIN_EVENTS, GameConfig } from '../protocol';
+import { ADMIN_EVENTS, AdminGetStatsAck, AdminServerStats, GameConfig } from '../protocol';
 import './AdminScreen.css';
 
 const SERVER_URL = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? 'http://localhost:4000';
@@ -29,6 +29,8 @@ export function AdminScreen() {
   const [config, setConfig] = useState<GameConfig | null>(null);
   const [draft, setDraft] = useState<GameConfig | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [stats, setStats] = useState<AdminServerStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
@@ -37,6 +39,22 @@ export function AdminScreen() {
     s.connect();
     return () => { s.disconnect(); };
   }, []);
+
+  const fetchStats = () => {
+    const s = socketRef.current;
+    if (!s) return;
+    setStatsLoading(true);
+    s.emit(ADMIN_EVENTS.GET_STATS, {}, (ack: AdminGetStatsAck) => {
+      setStatsLoading(false);
+      if (ack.ok) setStats(ack.stats);
+    });
+  };
+
+  useEffect(() => {
+    if (screen !== 'authed') return;
+    const id = setInterval(fetchStats, 15000);
+    return () => { clearInterval(id); };
+  }, [screen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAuth = () => {
     const s = socketRef.current;
@@ -53,6 +71,7 @@ export function AdminScreen() {
         setConfig(res.config);
         setDraft({ ...res.config });
         setScreen('authed');
+        fetchStats();
       });
     });
   };
@@ -118,6 +137,37 @@ export function AdminScreen() {
         <p className="admin__subtitle">
           Changes apply to new timers and actions immediately — no restart needed.
         </p>
+
+        <div className="admin__section">
+          <h2 className="admin__section-title">
+            Live Ops
+            <button className="admin__refresh-btn" onClick={fetchStats} disabled={statsLoading}>
+              {statsLoading ? '…' : 'Refresh'}
+            </button>
+          </h2>
+          {stats ? (
+            <div className="admin__stats-grid">
+              <div className="admin__stat">
+                <span className="admin__stat-value">{stats.connectedPlayers}</span>
+                <span className="admin__stat-label">Connected</span>
+              </div>
+              <div className="admin__stat">
+                <span className="admin__stat-value">{stats.activeGames}</span>
+                <span className="admin__stat-label">Active games</span>
+              </div>
+              <div className="admin__stat">
+                <span className="admin__stat-value">{stats.lobbyRooms}</span>
+                <span className="admin__stat-label">In lobby</span>
+              </div>
+              <div className="admin__stat">
+                <span className="admin__stat-value">{stats.totalRooms}</span>
+                <span className="admin__stat-label">Total rooms</span>
+              </div>
+            </div>
+          ) : (
+            <p className="admin__hint">Loading stats…</p>
+          )}
+        </div>
 
         <div className="admin__fields">
           {draft && (Object.keys(LABELS) as (keyof GameConfig)[]).map(key => (
