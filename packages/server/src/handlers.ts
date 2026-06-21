@@ -5,6 +5,7 @@
  * socketTransport.ts. State lives in store.ts.
  */
 
+import { timingSafeEqual } from 'node:crypto';
 import type { Server, Socket } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
 import { applyMove, createGame, legalMoves, viewFor } from '@ganatri/engine';
@@ -40,7 +41,7 @@ import type {
   PlayerStatsRow,
   LeaderboardEntry,
 } from '@ganatri/db';
-import { getConfig, isAdminEmail, updateConfig, RETENTION_DAYS } from './config.js';
+import { getConfig, getAdminSecret, isAdminEmail, updateConfig, RETENTION_DAYS } from './config.js';
 import { getIceServers } from './iceConfig.js';
 import {
   type RoomState,
@@ -596,7 +597,20 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
       ack({ ok: false, reason: 'invalid_payload' });
       return;
     }
-    if (isAdminEmail(payload.email)) {
+    const adminSecret = getAdminSecret();
+    const emailOk = isAdminEmail(payload.email);
+    let authorized: boolean;
+    if (adminSecret !== undefined) {
+      // Secret is configured: require BOTH email and a constant-time matching secret.
+      const clientBuf = Buffer.from(payload.secret ?? '');
+      const serverBuf = Buffer.from(adminSecret);
+      const secretOk = clientBuf.length === serverBuf.length && timingSafeEqual(clientBuf, serverBuf);
+      authorized = emailOk && secretOk;
+    } else {
+      // No secret configured: fall back to email-only (dev/legacy mode).
+      authorized = emailOk;
+    }
+    if (authorized) {
       store.adminSockets.add(socket.id);
       ack({ ok: true });
     } else {

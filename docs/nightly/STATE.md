@@ -35,20 +35,18 @@ small full-stack vertical slices that mirror the history slice.
 Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — skip in nightly runs.
 
 ## Last Run
-- Date: 2026-06-20
-- Outcome: ✅ Phase 6c (account settings) — Edit display name: `updateUserDisplayName` in DB (Pg+Memory, 4 contract tests), `update_display_name` socket event with NOT_LOGGED_IN/INVALID_NAME/UNAVAILABLE guards + SESSION re-emit on success (4 server tests in `account.test.ts`), web UI inline editor in LobbyScreen (aria-labels, save/cancel/error states). DB: 129→133, Server: 50→54, Total: 153 engine + 133 db + 54 server = 340 passing.
-- Branch/PR: nightly/2026-06-20-1725
+- Date: 2026-06-21
+- Outcome: ✅ Phase 7e — Strengthen admin authentication: `getAdminSecret()` added to config.ts (reads env at call-time for testability); `AdminAuthPayload` gains `secret?: string`; `ADMIN_AUTH` handler now requires both email + constant-time `timingSafeEqual` secret check when `ADMIN_SECRET` env is set (falls back to email-only when unset); 5 new server tests in `admin.test.ts`; AdminScreen UI adds a password-type secret input field. Server: 54→59, Total: 153 engine + 133 db + 59 server = 345 passing.
+- Branch/PR: nightly/2026-06-21-0510
 
 ## Blockers / Needs Human Input
 (none)
 
 ## Notes for Next Run
-Display name edit (account settings) is DONE. Remaining self-contained next units within Phase 6:
+Phase 7e (strengthen admin auth) is DONE. Remaining self-contained next units within Phase 6:
 
-1. **7e: Strengthen admin authentication** — Email-only check is weak; add a shared secret or signed token. Small scoped change. Route to backend-dev (`handlers.ts` admin auth + server tests). **Prerequisite for Phase 6h admin analytics dashboard.**
+1. **6h: Admin analytics dashboard extensions** — Live ops view + KPI charts in AdminScreen. Larger scope. Route UI work to frontend-dev + backend-dev (admin data endpoints). Admin auth prerequisite (7e) now done.
 
-2. **6h: Admin analytics dashboard extensions** — Live ops view + KPI charts in AdminScreen. Larger scope. Do 7e first, then route UI work to frontend-dev + backend-dev (admin data endpoints).
-
-3. **6c remaining account settings** — Avatar URL edit + OAuth link/unlink (more complex; skip until display name ships and is validated).
+2. **6c remaining account settings** — Avatar URL edit + OAuth link/unlink (more complex; skip until validated by user).
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.

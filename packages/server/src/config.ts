@@ -88,3 +88,14 @@ const _adminEmails = new Set(
 export function isAdminEmail(email: string): boolean {
   return _adminEmails.has(email.trim().toLowerCase());
 }
+
+/**
+ * Shared secret required for admin authentication (in addition to email).
+ * Reads process.env at call time so tests can set the variable before calling.
+ * When the returned value is undefined or empty, email-only check applies
+ * (dev/legacy backward-compatible mode).
+ */
+export function getAdminSecret(): string | undefined {
+  const val = process.env['ADMIN_SECRET'];
+  return val && val.length > 0 ? val : undefined;
+}
