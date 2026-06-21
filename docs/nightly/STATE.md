@@ -35,20 +35,18 @@ small full-stack vertical slices that mirror the history slice.
 Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — skip in nightly runs.
 
 ## Last Run
-- Date: 2026-06-20
-- Outcome: ✅ Phase 6c (account settings) — Edit display name: `updateUserDisplayName` in DB (Pg+Memory, 4 contract tests), `update_display_name` socket event with NOT_LOGGED_IN/INVALID_NAME/UNAVAILABLE guards + SESSION re-emit on success (4 server tests in `account.test.ts`), web UI inline editor in LobbyScreen (aria-labels, save/cancel/error states). DB: 129→133, Server: 50→54, Total: 153 engine + 133 db + 54 server = 340 passing.
-- Branch/PR: nightly/2026-06-20-1725
+- Date: 2026-06-21
+- Outcome: ✅ Phase 7e — Strengthen admin authentication: added `ADMIN_SECRET` env var + `isAdminSecret()` (timing-safe via `crypto.timingSafeEqual`, reads env at call-time); `AdminAuthPayload` gains `secret: string` in both server+web protocol; ADMIN_AUTH handler requires both email AND secret; `databaseUrl` stripped from `ADMIN_GET_CONFIG` ack; web AdminScreen gains secret password input + generic error message. 6 new server tests in `admin.test.ts`. Server: 54→60, Total: 153 engine + 133 db + 60 server = 346 passing.
+- Branch/PR: nightly/2026-06-21-1651
 
 ## Blockers / Needs Human Input
 (none)
 
 ## Notes for Next Run
-Display name edit (account settings) is DONE. Remaining self-contained next units within Phase 6:
+Phase 7e (strengthen admin auth) is DONE. Remaining self-contained next units within Phase 6:
 
-1. **7e: Strengthen admin authentication** — Email-only check is weak; add a shared secret or signed token. Small scoped change. Route to backend-dev (`handlers.ts` admin auth + server tests). **Prerequisite for Phase 6h admin analytics dashboard.**
+1. **6h: Admin analytics dashboard** — Live ops view + KPI charts in AdminScreen. Now unblocked (admin auth is hardened). Route UI work to frontend-dev + backend-dev (admin data endpoints). Start with the live ops view (active rooms/games/players — server can serve this from in-memory store, no new DB queries needed). Then KPI charts (needs DB: DAU/MAU, games-per-day, avg duration, abandonment rate).
 
-2. **6h: Admin analytics dashboard extensions** — Live ops view + KPI charts in AdminScreen. Larger scope. Do 7e first, then route UI work to frontend-dev + backend-dev (admin data endpoints).
-
-3. **6c remaining account settings** — Avatar URL edit + OAuth link/unlink (more complex; skip until display name ships and is validated).
+2. **6c remaining account settings** — Avatar URL edit + OAuth link/unlink (more complex; skip until 6h is scoped).
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.

@@ -5,6 +5,8 @@
  * API (handlers.ts) can override values at runtime via updateConfig().
  */
 
+import { timingSafeEqual } from 'crypto';
+
 export interface GameConfig {
   turnTimeoutMs: number;
   maxPlayers: number;
@@ -77,7 +79,7 @@ export function isOAuthEnabled(): boolean {
   return Boolean(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET && OAUTH_REDIRECT_URI);
 }
 
-const _adminEmails = new Set(
+let _adminEmails = new Set(
   (process.env['ADMIN_EMAILS'] ?? '')
     .split(',')
     .map((e) => e.trim().toLowerCase())
@@ -87,4 +89,36 @@ const _adminEmails = new Set(
 /** Returns true if the given email is in the ADMIN_EMAILS set. */
 export function isAdminEmail(email: string): boolean {
   return _adminEmails.has(email.trim().toLowerCase());
+}
+
+/**
+ * TEST ONLY — rebuild the _adminEmails set from the current process.env value.
+ * Call this after setting process.env['ADMIN_EMAILS'] in a test to pick up the
+ * new value without reloading the module.
+ */
+export function __resetAdminEmailsForTests(): void {
+  _adminEmails = new Set(
+    (process.env['ADMIN_EMAILS'] ?? '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
+/**
+ * Returns true only if ADMIN_SECRET is configured AND the provided secret
+ * matches. Reads from process.env at call time so tests can set the env var
+ * without module reloading.
+ *
+ * If ADMIN_SECRET is not set (or is an empty string), always returns false —
+ * admin auth is effectively disabled by default.
+ */
+export function isAdminSecret(secret: string): boolean {
+  const configured = (process.env['ADMIN_SECRET'] ?? '').trim();
+  if (configured.length === 0) return false;
+  try {
+    return timingSafeEqual(Buffer.from(secret), Buffer.from(configured));
+  } catch {
+    return false; // different byte-lengths
+  }
 }

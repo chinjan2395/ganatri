@@ -272,6 +272,11 @@ export const ADMIN_EVENTS = {
   UPDATE_CONFIG: 'admin_update_config',
 } as const;
 
+export interface AdminAuthPayload {
+  email: string;
+  secret: string;
+}
+
 export interface GameConfig {
   turnTimeoutMs: number;
   maxPlayers: number;

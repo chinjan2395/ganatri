@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { ADMIN_EVENTS, GameConfig } from '../protocol';
+import { ADMIN_EVENTS, AdminAuthPayload, GameConfig } from '../protocol';
 import './AdminScreen.css';
 
 const SERVER_URL = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? 'http://localhost:4000';
@@ -24,6 +24,7 @@ type Screen = 'idle' | 'loading' | 'authed';
 export function AdminScreen() {
   const [screen, setScreen] = useState<Screen>('idle');
   const [email, setEmail] = useState('');
+  const [secret, setSecret] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [config, setConfig] = useState<GameConfig | null>(null);
   const [draft, setDraft] = useState<GameConfig | null>(null);
@@ -39,12 +40,13 @@ export function AdminScreen() {
 
   const handleAuth = () => {
     const s = socketRef.current;
-    if (!s || !email.trim()) return;
+    if (!s || !email.trim() || !secret.trim()) return;
     setScreen('loading');
     setError(null);
-    s.emit(ADMIN_EVENTS.AUTH, { email }, (ack: { ok: boolean; reason?: string }) => {
+    const payload: AdminAuthPayload = { email, secret };
+    s.emit(ADMIN_EVENTS.AUTH, payload, (ack: { ok: boolean; reason?: string }) => {
       if (!ack.ok) {
-        setError(ack.reason === 'not_authorized' ? 'Email not on the admin list.' : 'Auth failed.');
+        setError(ack.reason === 'not_authorized' ? 'Invalid credentials.' : 'Auth failed.');
         setScreen('idle');
         return;
       }
@@ -88,11 +90,20 @@ export function AdminScreen() {
             disabled={screen === 'loading'}
             autoFocus
           />
+          <input
+            className="admin__input"
+            type="password"
+            placeholder="Admin secret"
+            value={secret}
+            onChange={e => setSecret(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleAuth()}
+            disabled={screen === 'loading'}
+          />
           {error && <p className="admin__error">{error}</p>}
           <button
             className="admin__btn"
             onClick={handleAuth}
-            disabled={screen === 'loading' || !email.trim()}
+            disabled={screen === 'loading' || !email.trim() || !secret.trim()}
           >
             {screen === 'loading' ? 'Verifying…' : 'Continue'}
           </button>
