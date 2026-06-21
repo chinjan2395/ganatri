@@ -1,0 +1,139 @@
+name: Slack — Add Priority TODO
+
+# Triggered from Slack (via Workflow Builder -> "Send a web request" -> GitHub
+# repository_dispatch). Claude formats the free-text request into a well-formed
+# priority-TODO line and inserts it at the TOP of the queue in
+# docs/DEVELOPMENT_PLAN.md, so the next nightly run picks it up first.
+#
+# Trigger it with:
+#   POST https://api.github.com/repos/<owner>/<repo>/dispatches
+#   Authorization: Bearer <PAT with contents:write + actions:write>
+#   Accept: application/vnd.github+json
+#   { "event_type": "slack-add-todo",
+#     "client_payload": { "text": "<your requirement>", "user": "<optional>" } }
+on:
+  repository_dispatch:
+    types: [slack-add-todo]
+
+concurrency:
+  group: slack-add-todo
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+  SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+
+jobs:
+  add-todo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Validate payload
+        id: payload
+        run: |
+          TEXT='${{ github.event.client_payload.text }}'
+          if [ -z "${TEXT// /}" ]; then
+            echo "Empty request text — nothing to queue."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node
+        if: steps.payload.outputs.ok == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Format request into a TODO line (Claude)
+        if: steps.payload.outputs.ok == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            A new requirement / bug / improvement was submitted from Slack:
+
+            """
+            ${{ github.event.client_payload.text }}
+            """
+
+            Your ONLY job is to turn this into a single, well-formed priority-TODO
+            line and insert it into docs/DEVELOPMENT_PLAN.md. Do not implement it.
+
+            1. Read docs/DEVELOPMENT_PLAN.md — especially the "🔝 Priority TODO"
+               section between the <!-- PRIORITY_TODO:START --> and
+               <!-- PRIORITY_TODO:END --> markers — and skim the phase sections so
+               you reference the correct package/files.
+            2. Format the submission as ONE line, in EXACTLY this shape:
+                  - [ ] **<concise title>** — <package/files it likely touches>. Acceptance: <one concrete, testable criterion>.
+               Keep it to a single line. Be specific, but do not invent scope the
+               submitter did not ask for. If the request is vague, make a
+               conservative best guess and keep the acceptance criterion minimal.
+            3. Insert your line as the FIRST item in the queue — immediately after
+               the <!-- PRIORITY_TODO:START --> marker line. If the only content
+               between the markers is the "_(none …)_" placeholder, REPLACE that
+               placeholder line with your line.
+            4. Do NOT modify anything else in the file. Do NOT run git. Do NOT
+               commit. Only edit docs/DEVELOPMENT_PLAN.md.
+          claude_args: >-
+            --model claude-sonnet-4-6
+            --max-turns 15
+            --allowedTools Edit,Read
+
+      - name: Commit queued item to main
+        id: commit
+        if: steps.payload.outputs.ok == 'true'
+        run: |
+          if git diff --quiet -- docs/DEVELOPMENT_PLAN.md; then
+            echo "Plan unchanged (Claude made no edit) — skipping commit."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/DEVELOPMENT_PLAN.md
+          git commit -m "Slack: queue priority TODO from Slack request"
+          git push origin HEAD:main
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Confirm in Slack (with Run now button)
+        if: steps.payload.outputs.ok == 'true' && steps.commit.outputs.changed == 'true'
+        run: |
+          ITEM=$(awk '/<!-- PRIORITY_TODO:START -->/{f=1; next} /<!-- PRIORITY_TODO:END -->/{f=0} f && /^[[:space:]]*- \[ \]/{print; exit}' \
+                   docs/DEVELOPMENT_PLAN.md)
+          # Post a Block Kit message with an interactive button. Clicking it hits
+          # the Cloudflare Worker's interactivity URL (action_id "run_now"), which
+          # dispatches the nightly workflow.
+          PAYLOAD=$(jq -n --arg ch "$SLACK_CHANNEL_ID" --arg item "$ITEM" '{
+            channel: $ch,
+            text: ("Queued as the next priority TODO: " + $item),
+            blocks: [
+              { type: "section",
+                text: { type: "mrkdwn", text: (":white_check_mark: *Queued as the next priority TODO:*\n" + $item) } },
+              { type: "actions",
+                elements: [
+                  { type: "button",
+                    text: { type: "plain_text", text: "▶️ Run now", emoji: true },
+                    style: "primary", action_id: "run_now", value: "run_now" }
+                ] }
+            ]
+          }')
+          RESP=$(curl -sS -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+            -H "Content-Type: application/json; charset=utf-8" \
+            --data "$PAYLOAD" "https://slack.com/api/chat.postMessage")
+          echo "$RESP" | jq -e '.ok' >/dev/null || { echo "Slack post failed: $RESP" >&2; exit 1; }
+
+      - name: Report failure to Slack
+        if: failure()
+        run: |
+          bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" \
+            ":warning: Failed to queue a Slack TODO request. See the run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
