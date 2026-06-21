@@ -40,7 +40,7 @@ import type {
   PlayerStatsRow,
   LeaderboardEntry,
 } from '@ganatri/db';
-import { getConfig, isAdminEmail, updateConfig, RETENTION_DAYS } from './config.js';
+import { getConfig, isAdminEmail, isValidAdminSecret, updateConfig, RETENTION_DAYS } from './config.js';
 import { getIceServers } from './iceConfig.js';
 import {
   type RoomState,
@@ -596,7 +596,7 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
       ack({ ok: false, reason: 'invalid_payload' });
       return;
     }
-    if (isAdminEmail(payload.email)) {
+    if (isAdminEmail(payload.email) && isValidAdminSecret(payload.secret ?? '')) {
       store.adminSockets.add(socket.id);
       ack({ ok: true });
     } else {

@@ -24,6 +24,7 @@ type Screen = 'idle' | 'loading' | 'authed';
 export function AdminScreen() {
   const [screen, setScreen] = useState<Screen>('idle');
   const [email, setEmail] = useState('');
+  const [secret, setSecret] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [config, setConfig] = useState<GameConfig | null>(null);
   const [draft, setDraft] = useState<GameConfig | null>(null);
@@ -42,9 +43,9 @@ export function AdminScreen() {
     if (!s || !email.trim()) return;
     setScreen('loading');
     setError(null);
-    s.emit(ADMIN_EVENTS.AUTH, { email }, (ack: { ok: boolean; reason?: string }) => {
+    s.emit(ADMIN_EVENTS.AUTH, { email, secret }, (ack: { ok: boolean; reason?: string }) => {
       if (!ack.ok) {
-        setError(ack.reason === 'not_authorized' ? 'Email not on the admin list.' : 'Auth failed.');
+        setError(ack.reason === 'not_authorized' ? 'Email or secret is incorrect.' : 'Auth failed.');
         setScreen('idle');
         return;
       }
@@ -77,7 +78,7 @@ export function AdminScreen() {
       <div className="admin">
         <div className="admin__card">
           <h1 className="admin__title">Admin</h1>
-          <p className="admin__subtitle">Enter your email to access game configuration.</p>
+          <p className="admin__subtitle">Enter your admin email and secret to access game configuration.</p>
           <input
             className="admin__input"
             type="email"
@@ -87,6 +88,15 @@ export function AdminScreen() {
             onKeyDown={e => e.key === 'Enter' && handleAuth()}
             disabled={screen === 'loading'}
             autoFocus
+          />
+          <input
+            className="admin__input"
+            type="password"
+            placeholder="Admin secret (leave blank if not configured)"
+            value={secret}
+            onChange={e => setSecret(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleAuth()}
+            disabled={screen === 'loading'}
           />
           {error && <p className="admin__error">{error}</p>}
           <button

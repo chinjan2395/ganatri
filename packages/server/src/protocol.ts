@@ -354,7 +354,7 @@ export interface RequestIceServersAck {
 // Admin payload types
 // ---------------------------------------------------------------------------
 
-export interface AdminAuthPayload { email: string; }
+export interface AdminAuthPayload { email: string; secret?: string; }
 export interface AdminAuthAck { ok: boolean; reason?: string; }
 
 export interface AdminGetConfigAck { config: GameConfig; }

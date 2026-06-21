@@ -266,6 +266,8 @@ export const EVENTS = {
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];
 
 // --- Admin events ---
+export interface AdminAuthPayload { email: string; secret?: string; }
+
 export const ADMIN_EVENTS = {
   AUTH:          'admin_auth',
   GET_CONFIG:    'admin_get_config',
