@@ -42,14 +42,14 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-21
-- Outcome: ✅ Phase 6h — admin_get_stats live ops endpoint: `AdminServerStats`/`AdminGetStatsAck` added to both protocol files; `ADMIN_GET_STATS='admin_get_stats'` handler in `handlers.ts` (admin-auth gate, iterates in-memory store, returns totalRooms/lobbyRooms/activeGames/completedRooms/connectedPlayers/totalSessions); 3 server tests (58→61); web `AdminScreen` gains Live Ops section (4 stat tiles + 15s auto-refresh + manual Refresh). Server: 58→61. Total: 153 engine + 133 db + 61 server = 347 passing.
-- Branch/PR: nightly/2026-06-21-1812
+- Outcome: ✅ Priority TODO — Google "G" logo swap: replaced plain white-circle+text `<span>` in `LobbyScreen.tsx` with official four-color inline SVG; removed unused `.lobby__google-g` CSS rule from `LobbyScreen.css`. Build green. All 347 tests pass (153 engine + 133 db + 61 server).
+- Branch/PR: nightly/2026-06-21-1949
 
 ## Blockers / Needs Human Input
 (none)
 
 ## Notes for Next Run
-Phase 6h live ops stats (admin_get_stats) is DONE. Remaining self-contained next units:
+Priority TODO queue is now empty (Google logo item done). Resuming normal Phase 6 flow. Remaining self-contained next units:
 
 1. **6h continued: KPI charts** — Games/day, abandonment rate, avg duration from the DB (requires `getPersistence()` in the handler). Endpoint: `admin_get_kpi_stats`; no aggregation job yet — compute inline from DB queries (acceptably slow for admin dashboard). Requires persistence; returns `UNAVAILABLE` when none.
 
