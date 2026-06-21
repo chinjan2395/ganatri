@@ -80,7 +80,7 @@ const DEFAULT_HAND_STATE: HandState = {
 };
 
 export function GameScreen(): React.ReactNode {
-  const { view, room, session, account, lastEvent, disconnectedPlayers, playerNames, turnStartedAt, turnTimeoutMs, makeMove, startGame, leaveRoom } = useGame();
+  const { view, room, session, account, lastEvent, disconnectedPlayers, playerNames, playerAvatarUrls, turnStartedAt, turnTimeoutMs, makeMove, startGame, leaveRoom } = useGame();
   const voice = useVoiceChatContext();
   const [flash, setFlash] = useState<Flash | null>(null);
   const [cutAnimData, setCutAnimData] = useState<CutAnimData | null>(null);
@@ -283,6 +283,7 @@ export function GameScreen(): React.ReactNode {
               <OpponentSeat
                 playerId={pid}
                 displayName={nameFor(pid)}
+                avatarUrl={isYou ? account?.avatarUrl : playerAvatarUrls[pid]}
                 isYou={isYou}
                 handCount={handCount}
                 captureCount={captureCount}

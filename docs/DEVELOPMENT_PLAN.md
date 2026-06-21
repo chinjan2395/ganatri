@@ -1,6 +1,8 @@
 # Ganatri — Phasewise Development Plan
 
-Last updated: 2026-06-21 (Google "G" logo swap: replaced plain white-circle+text span in LobbyScreen with official four-color inline SVG; removed unused `.lobby__google-g` CSS rule. Build green.)
+Last updated: 2026-06-21 (Google avatars in game session: `RoomUpdatePayload` in `packages/web/src/protocol.ts` gains `playerAvatarUrls: Record<string, string | null>`; `GameProvider` adds `playerAvatarUrls` state (extracted from `onRoomUpdate`, reset in `leaveRoom`, exposed in useMemo + deps); `GameContextValue` adds `playerAvatarUrls` field; `OpponentSeat` gains `avatarUrl?: string | null` prop — renders `<img>` when truthy, falls back to initials span; `.seat__avatar-img` CSS added (100% width/height, border-radius 50%, object-fit cover); `GameScreen` pulls `playerAvatarUrls` from context and passes `avatarUrl={isYou ? account?.avatarUrl : playerAvatarUrls[pid]}` to each `OpponentSeat`. `referrerPolicy="no-referrer"` on the img. Build green.)
+
+Last updated: 2026-06-21 (playerAvatarUrls in ROOM_UPDATE: `RoomUpdatePayload` in `packages/server/src/protocol.ts` gains `playerAvatarUrls: Record<string, string | null>`; `broadcastRoomUpdate()` in `packages/server/src/handlers.ts` populates the map from `s?.account?.avatarUrl ?? null` for each player. All 61 server tests pass. Build green.)
 
 Last updated: 2026-06-21 (Phase 6h — admin_get_stats live ops endpoint (server + web): `AdminServerStats`/`AdminGetStatsAck` types added to `packages/server/src/protocol.ts`; `ADMIN_GET_STATS='admin_get_stats'` added to `EVENTS`; `admin_get_stats` handler added to `handlers.ts` (admin-auth gate, iterates `store.rooms` by phase, counts connected sessions); 3 new tests in `admin.test.ts` (58→61 server tests). Web: `AdminServerStats`+`AdminGetStatsAck` mirrored in `packages/web/src/protocol.ts`; `GET_STATS` added to `ADMIN_EVENTS`; `AdminScreen.tsx` gains `fetchStats()`, 15-second auto-refresh, manual Refresh button, and Live Ops section (4 stat tiles: Connected/Active games/In lobby/Total rooms); `AdminScreen.css` adds stats grid + responsive 2-column breakpoint. Build green. Total: 153 engine + 133 db + 61 server = 347.)
 
@@ -69,7 +71,7 @@ All 339 tests passing (153 engine + 53 server + 133 db).
 `- [ ] **Fix leaderboard pagination off-by-one** — packages/server handlers.ts; offset should be page*limit. Acceptance: new server test covers page 2.`
 
 <!-- PRIORITY_TODO:START -->
-- [ ] **Update user profile logo in game session too** — `packages/web`. Acceptance: Update user profile logo in game session too. It should show google profile icon if user is logged in via google.
+- [x] **Update user profile logo in game session too** — `packages/web`. Acceptance: Update user profile logo in game session too. It should show google profile icon if user is logged in via google. (done 2026-06-21)
 - [x] **Update "Log in with Google" button logo on homepage** — `packages/web/src/LobbyScreen.tsx` (and any Google icon asset or inline SVG it references). Acceptance: The "Log in with Google" button in the lobby displays the new/correct logo. (done 2026-06-21)
 <!-- PRIORITY_TODO:END -->
 
