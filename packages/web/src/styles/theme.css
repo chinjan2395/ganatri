@@ -57,18 +57,21 @@ body {
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: var(--text);
   -webkit-text-size-adjust: 100%;
-  background-color: var(--bg);
+  background-color: #0a1410;
   background-image:
-    radial-gradient(ellipse at 50% 18%, rgba(43, 92, 60, 0.55), transparent 60%),
-    radial-gradient(ellipse at 50% 120%, rgba(0, 0, 0, 0.85), transparent 55%),
-    repeating-linear-gradient(
-      45deg,
-      rgba(255, 255, 255, 0.012) 0,
-      rgba(255, 255, 255, 0.012) 2px,
-      transparent 2px,
-      transparent 5px
-    ),
-    radial-gradient(circle at 50% 40%, #163b25, var(--bg) 75%);
+    radial-gradient(ellipse at 50% 50%, transparent 0%, rgba(0, 0, 0, 0.5) 100%),
+    repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0, 0, 0, 0.15) 3px, rgba(0, 0, 0, 0.15) 6px),
+    repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(0, 0, 0, 0.15) 3px, rgba(0, 0, 0, 0.15) 6px),
+    repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255, 255, 255, 0.03) 2px, rgba(255, 255, 255, 0.03) 4px),
+    repeating-linear-gradient(-45deg, transparent, transparent 2px, rgba(255, 255, 255, 0.03) 2px, rgba(255, 255, 255, 0.03) 4px),
+    radial-gradient(ellipse at 50% 50%, #1a5030, #0a1410);
+  background-size:
+    100% 100%,
+    6px 6px,
+    6px 6px,
+    4px 4px,
+    4px 4px,
+    100% 100%;
   background-attachment: fixed;
 }
 

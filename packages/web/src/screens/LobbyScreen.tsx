@@ -295,7 +295,7 @@ function QuickActions({ setScreen, onInviteFriends, onHowToPlay, isDesktop }: Qu
 
 interface RecentlyPlayedProps {
   loggedIn: boolean;
-  recentPlayers: CoPlayerView[];
+  recentPlayers: CoPlayerView[] | null;
   invitePlayer: (targetUserId: string) => Promise<import('../protocol').InvitePlayerAck>;
 }
 
@@ -313,6 +313,42 @@ function RecentlyPlayed({ loggedIn, recentPlayers, invitePlayer }: RecentlyPlaye
       const msg = INVITE_ERROR_MESSAGES[ack.error] ?? 'Unavailable, try again';
       setInviteState((prev) => ({ ...prev, [userId]: msg }));
     }
+  }
+
+  if (recentPlayers === null) {
+    return (
+      <div className="recently-played">
+        <div className="rp__header-row">
+          <span className="lobby__section-heading">RECENTLY PLAYED</span>
+        </div>
+        {/* Mobile rows */}
+        <ul className="rp__rows" aria-label="Recently played players">
+          {[0, 1, 2].map((i) => (
+            <li key={i} className="rp__row rp__row--placeholder">
+              <div className="rp__avatar-wrap">
+                <div className="rp__avatar rp__avatar-initials" aria-hidden="true" />
+              </div>
+              <div className="rp__row-info">
+                <div className="rp__placeholder-bar" />
+                <div className="rp__placeholder-bar rp__placeholder-bar--short" />
+              </div>
+            </li>
+          ))}
+        </ul>
+        {/* Desktop cards */}
+        <div className="rp__desktop-cards" aria-label="Recently played players">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="rp__desktop-card rp__desktop-card--placeholder">
+              <div className="rp__avatar-wrap">
+                <div className="rp__avatar rp__avatar-initials" aria-hidden="true" />
+              </div>
+              <div className="rp__placeholder-bar" />
+              <div className="rp__placeholder-bar rp__placeholder-bar--short" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   const mobileVisible = expanded ? recentPlayers.slice(0, 10) : recentPlayers.slice(0, 4);
