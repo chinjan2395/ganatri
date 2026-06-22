@@ -11,7 +11,9 @@ commits_bullets() {
     echo "• ${line}"
     count=$((count + 1))
     [ "$count" -ge "$max" ] && break
-  done < <(git log origin/main..HEAD --format='%s' 2>/dev/null || true)
+  # `read` returns 1 at EOF; inside a function that becomes the function's exit
+  # status and trips `set -e` (bash only exempts the loop at top level, not in functions).
+  done < <(git log origin/main..HEAD --format='%s' 2>/dev/null || true) || true
 }
 
 # Short title from a priority-TODO line or plain text.
