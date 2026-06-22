@@ -576,6 +576,7 @@ function DesktopSidebar({ requestLeaderboard, requestMyStats, loggedIn, setScree
           </ul>
         )}
         <button
+          key={tab.id}
           type="button"
           className="secondary sidebar__link-btn"
           onClick={() => setScreen('leaderboard')}
