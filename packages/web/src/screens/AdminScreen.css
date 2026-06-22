@@ -4,7 +4,6 @@
   align-items: center;
   justify-content: center;
   padding: 24px 16px;
-  background: var(--bg);
 }
 
 .admin__card {

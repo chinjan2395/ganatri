@@ -93,8 +93,8 @@ export interface GameContextValue {
   playerAvatarUrls: Readonly<Record<string, string | null>>;
   /** Guest display name restored from a previous session (null for logged-in users or first-time guests). */
   guestName: string | null;
-  /** Recently played co-players for the logged-in user. */
-  recentPlayers: CoPlayerView[];
+  /** Recently played co-players for the logged-in user (null while loading). */
+  recentPlayers: CoPlayerView[] | null;
   /** A pending invite this player has received, or null. */
   pendingInvite: InviteReceivedPayload | null;
   error: string | null;
@@ -138,7 +138,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
   const [playerNames, setPlayerNames] = useState<Record<string, string>>({});
   const [playerAvatarUrls, setPlayerAvatarUrls] = useState<Record<string, string | null>>({});
   const [guestName, setGuestName] = useState<string | null>(null);
-  const [recentPlayers, setRecentPlayers] = useState<CoPlayerView[]>([]);
+  const [recentPlayers, setRecentPlayers] = useState<CoPlayerView[] | null>(null);
   const [pendingInvite, setPendingInvite] = useState<InviteReceivedPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const eventId = useRef(0);
@@ -281,7 +281,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
     }
     function onPlayerOnlineStatus(payload: PlayerOnlineStatusPayload): void {
       setRecentPlayers((prev) =>
-        prev.map((p) => (p.userId === payload.userId ? { ...p, isOnline: payload.isOnline } : p)),
+        prev ? prev.map((p) => (p.userId === payload.userId ? { ...p, isOnline: payload.isOnline } : p)) : prev,
       );
     }
 
