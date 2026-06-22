@@ -5,9 +5,12 @@ import logo from '../assets/ganatri-logo.png';
 import './LobbyScreen.css';
 
 export function LobbyScreen(): React.ReactNode {
-  const { createRoom, joinRoom, account, loginWithGoogle, logout, setScreen, updateDisplayName } = useGame();
+  const { createRoom, joinRoom, account, loginWithGoogle, logout, setScreen, updateDisplayName, guestName } = useGame();
   const loggedIn = account?.loggedIn ?? false;
-  const [name, setName] = useState(() => (loggedIn ? account?.displayName ?? '' : ''));
+  const [name, setName] = useState(() => {
+    if (loggedIn) return account?.displayName ?? '';
+    return guestName ?? '';
+  });
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -28,6 +31,13 @@ export function LobbyScreen(): React.ReactNode {
       setName((prev) => (prev.trim() ? prev : account.displayName!));
     }
   }, [loggedIn, account?.displayName]);
+
+  // Prefill the name field with the guest name once the SESSION payload arrives.
+  useEffect(() => {
+    if (!loggedIn && guestName) {
+      setName((prev) => (prev.trim() ? prev : guestName));
+    }
+  }, [loggedIn, guestName]);
 
   // Surface OAuth failures redirected back as ?login=error, then clean the URL.
   useEffect(() => {

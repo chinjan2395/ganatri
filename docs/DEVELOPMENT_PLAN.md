@@ -1,5 +1,11 @@
 # Ganatri — Phasewise Development Plan
 
+Last updated: 2026-06-22 (review fixes: `sessionPayload()` return type annotation in `handlers.ts` gains `name?: string`; `GameProvider.onSession` resets `guestName` to null when `payload.loggedIn` is true — prevents stale guest name leaking after logout. All 349 tests pass. Build green.)
+
+Last updated: 2026-06-22 (wire guest name into LobbyScreen: `SessionPayload` in `packages/web/src/protocol.ts` gains `name?: string`; `GameProvider` adds `guestName: string | null` state, set from `onSession` when `!payload.loggedIn && payload.name`; `guestName` added to `GameContextValue` interface, `useMemo` value, and deps array; `LobbyScreen` reads `guestName` from context, updates `name` useState initializer to use `guestName ?? ''` for guests, and adds a `useEffect` to update `name` once the SESSION payload arrives asynchronously. Build green.)
+
+Last updated: 2026-06-22 (session-persistence flow fixes: `SessionPayload` in `packages/server/src/protocol.ts` gains `name?: string` for guest display name; `sessionPayload()` in `handlers.ts` now spreads `session.name` into the payload for guests (so name survives page reload); `handleReconnect()` reordered so `getRoom(roomCode)` is checked BEFORE `socket.join`, and the stale `roomCode` is cleared via `updateSession` when the room no longer exists. 2 new tests in `handlers.test.ts`: "SESSION payload includes guest name when session.name is set" and "handleReconnect clears stale roomCode when room no longer exists". Server test count: 61→63.)
+
 Last updated: 2026-06-21 (Google avatars in game session: `RoomUpdatePayload` in `packages/web/src/protocol.ts` gains `playerAvatarUrls: Record<string, string | null>`; `GameProvider` adds `playerAvatarUrls` state (extracted from `onRoomUpdate`, reset in `leaveRoom`, exposed in useMemo + deps); `GameContextValue` adds `playerAvatarUrls` field; `OpponentSeat` gains `avatarUrl?: string | null` prop — renders `<img>` when truthy, falls back to initials span; `.seat__avatar-img` CSS added (100% width/height, border-radius 50%, object-fit cover); `GameScreen` pulls `playerAvatarUrls` from context and passes `avatarUrl={isYou ? account?.avatarUrl : playerAvatarUrls[pid]}` to each `OpponentSeat`. `referrerPolicy="no-referrer"` on the img. Build green.)
 
 Last updated: 2026-06-21 (playerAvatarUrls in ROOM_UPDATE: `RoomUpdatePayload` in `packages/server/src/protocol.ts` gains `playerAvatarUrls: Record<string, string | null>`; `broadcastRoomUpdate()` in `packages/server/src/handlers.ts` populates the map from `s?.account?.avatarUrl ?? null` for each player. All 61 server tests pass. Build green.)
@@ -45,7 +51,7 @@ Last updated: 2026-06-19 (Phase A — DB layer for accounts/auth/history/retenti
 Last updated: 2026-06-19 (Phase 6d/6e: wired DB write-through into the server — new `server/src/persistence.ts` service + `handlers.ts` calls. Persists `rooms` (on game start), `games`, `game_players`, `game_events` (async, seq-ordered, batched), and incremental `player_stats` on game-end/abandon. Async fire-and-forget — never blocks the engine; `getPersistence()` returns null when `DATABASE_URL` unset. Restart-rehydration via `loadActiveGames` deferred / out of scope; 28 server tests, 2 new.)  
 Last updated: 2026-06-18 (Phase 6a/6b: fixed @ganatri/db foundation — node-postgres Pool + DATABASE_URL, text seed, regenerated migration; built fully-tested GamePersistence layer (Pg + Memory); review fixes: idempotent recordGameFinished via (game_id, seat_index) unique index, deterministic+batched loadActiveGames, isGuest preservation on upsert)  
 Last updated: 2026-06-16 (Voice perf/heat fixes: room-gated mic acquisition, watchdog backoff+cap, AudioContext suspend while muted/idle; Critical fixes: TURN_TIMEOUT event, XSS sanitization, grace expiry broadcast, DRY refactor, freeze duration; 26 server tests)  
-All 339 tests passing (153 engine + 53 server + 133 db).
+All 349 tests passing (153 engine + 63 server + 133 db).
 
 ---
 
@@ -71,7 +77,7 @@ All 339 tests passing (153 engine + 53 server + 133 db).
 `- [ ] **Fix leaderboard pagination off-by-one** — packages/server handlers.ts; offset should be page*limit. Acceptance: new server test covers page 2.`
 
 <!-- PRIORITY_TODO:START -->
-- [ ] **Persist session across page reload** — `packages/web/src/net/socket.ts` (store/restore session token in localStorage), `packages/server/src/handlers.ts` (accept existing token on reconnect). Acceptance: after a hard page reload the user's guest or logged-in session is automatically restored and they land back in the lobby (or active game) without re-entering a name or room code.
+- [x] **Persist session across page reload** — `packages/web/src/net/socket.ts` (store/restore session token in localStorage), `packages/server/src/handlers.ts` (accept existing token on reconnect). Acceptance: after a hard page reload the user's guest or logged-in session is automatically restored and they land back in the lobby (or active game) without re-entering a name or room code. (done 2026-06-22)
 - [x] **Update user profile logo in game session too** — `packages/web`. Acceptance: Update user profile logo in game session too. It should show google profile icon if user is logged in via google. (done 2026-06-21)
 - [x] **Update "Log in with Google" button logo on homepage** — `packages/web/src/LobbyScreen.tsx` (and any Google icon asset or inline SVG it references). Acceptance: The "Log in with Google" button in the lobby displays the new/correct logo. (done 2026-06-21)
 <!-- PRIORITY_TODO:END -->
@@ -160,9 +166,11 @@ All 339 tests passing (153 engine + 53 server + 133 db).
 | `update_display_name` socket event — update logged-in user's display name | ✅  | `protocol.ts` + `handlers.ts` + `account.test.ts` (3 tests); NOT_LOGGED_IN/INVALID_NAME/UNAVAILABLE guards; re-emits SESSION on success |
 | Admin secret check (`ADMIN_SECRET` env var)                          | ✅      | `isValidAdminSecret` in `config.ts` (reads env at call time); `AdminAuthPayload.secret?`; combined email+secret guard in handler; 4 tests in `admin.test.ts` |
 | `admin_get_stats` live ops endpoint                                   | ✅      | Returns totalRooms/lobbyRooms/activeGames/completedRooms/connectedPlayers/totalSessions; 3 tests in admin.test.ts |
+| `name?` in `SessionPayload` (guest display name on reconnect)         | ✅      | `protocol.ts` + `sessionPayload()` in `handlers.ts`; SESSION now includes `name` for guests when set |
+| Clear stale `roomCode` in `handleReconnect` when room is gone         | ✅      | `handlers.ts` `handleReconnect`: reordered `getRoom` before `socket.join`; clears `roomCode` via `updateSession` when room undefined |
 
 
-**Test count: 61 / 61 passing.**
+**Test count: 63 / 63 passing.**
 
 ---
 
@@ -520,7 +528,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | Phase                        | Status                                                                                  |
 | ---------------------------- | --------------------------------------------------------------------------------------- |
 | Phase 1 — Engine             | ✅ Complete (153 tests)                                                                  |
-| Phase 2 — Server             | ✅ Complete (61 tests; TURN_TIMEOUT + sanitization + grace expiry broadcast + DRY refactor + freeze fix + DB write-through + OAuth/history/retention + flat history wire-contract fix + `get_my_stats` + `get_leaderboard` + `myEntry` in leaderboard ack + time-windowed leaderboard + `timeWindow` runtime validation + `update_display_name` + admin secret check + `admin_get_stats` live ops endpoint) |
+| Phase 2 — Server             | ✅ Complete (63 tests; TURN_TIMEOUT + sanitization + grace expiry broadcast + DRY refactor + freeze fix + DB write-through + OAuth/history/retention + flat history wire-contract fix + `get_my_stats` + `get_leaderboard` + `myEntry` in leaderboard ack + time-windowed leaderboard + `timeWindow` runtime validation + `update_display_name` + admin secret check + `admin_get_stats` live ops endpoint + session-persistence flow fixes: `name?` in `SessionPayload`, guest name in SESSION emit, stale roomCode cleared on reconnect) |
 | Phase 3 — Web Client         | ✅ Complete (player names wired, all components functional)                              |
 | Phase 4 — Polish             | ✅ Complete (animations, mobile polish; deployment user-handled via Render + Cloudflare) |
 | Phase 5 — Voice Chat         | 🟡 Core + cross-browser fixes + Perfect Negotiation recovery + Cloudflare TURN; smoke test pending |

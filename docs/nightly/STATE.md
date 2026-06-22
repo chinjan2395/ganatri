@@ -41,15 +41,15 @@ small full-stack vertical slices that mirror the history slice.
 Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — skip in nightly runs.
 
 ## Last Run
-- Date: 2026-06-21
-- Outcome: ✅ Priority TODO — Google profile avatar in game session: added `playerAvatarUrls: Record<string, string | null>` to `RoomUpdatePayload` (server + web protocol); server `broadcastRoomUpdate` populates from session `account.avatarUrl`; `GameProvider` adds `playerAvatarUrls` state + context field; `OpponentSeat` renders `<img referrerPolicy="no-referrer">` when avatarUrl present, falls back to initials; `GameScreen` passes per-player avatar (own seat uses `account.avatarUrl`, opponents use map). All 347 tests pass (153 engine + 133 db + 61 server). Build green.
-- Branch/PR: nightly/2026-06-21-2224
+- Date: 2026-06-22
+- Outcome: ✅ Priority TODO — Persist session across page reload: server `sessionPayload()` now includes `name` for guests; `handleReconnect` clears stale `roomCode` when room no longer exists; web `SessionPayload` mirrored; `GameProvider` adds `guestName` state (set from SESSION, cleared on login, exposed in context); `LobbyScreen` prefills name input from `guestName` for guests. 2 new server tests. All 349 tests pass (153 engine + 133 db + 63 server). Build green.
+- Branch/PR: nightly/2026-06-22-0525
 
 ## Blockers / Needs Human Input
 (none)
 
 ## Notes for Next Run
-Priority TODO queue is now fully checked (both items done). Resuming normal Phase 6 flow. Remaining self-contained next units:
+Priority TODO queue is now fully checked (all items done). Resuming normal Phase 6 flow. Remaining self-contained next units:
 
 1. **6h continued: KPI charts** — Games/day, abandonment rate, avg duration from the DB (requires `getPersistence()` in the handler). Endpoint: `admin_get_kpi_stats`; no aggregation job yet — compute inline from DB queries (acceptably slow for admin dashboard). Requires persistence; returns `UNAVAILABLE` when none.
 
