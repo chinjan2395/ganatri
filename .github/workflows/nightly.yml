@@ -410,5 +410,6 @@ jobs:
         if: failure()
         continue-on-error: true
         run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" \
-            ":x: *Nightly build failed* — something went wrong in the workflow."
+            ":x: *Nightly build failed* — something went wrong in the workflow. <${RUN_URL}|View run logs>"

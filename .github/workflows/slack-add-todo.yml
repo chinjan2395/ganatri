@@ -56,7 +56,9 @@ jobs:
           node-version: '22'
 
       - name: Format request into a TODO line (Claude)
+        id: claude-format
         if: steps.payload.outputs.ok == 'true'
+        continue-on-error: true
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -91,6 +93,14 @@ jobs:
             --model claude-sonnet-4-6
             --max-turns 15
             --allowedTools Edit,Read,Write
+
+      - name: Notify Slack — Claude unavailable
+        if: steps.payload.outputs.ok == 'true' && steps.claude-format.outcome == 'failure'
+        continue-on-error: true
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" \
+            ":warning: Claude hit its usage limit or is unavailable — queuing your request with a fallback formatter. <${RUN_URL}|View run>"
 
       - name: Ensure TODO queued (fallback if Claude made no edit)
         if: steps.payload.outputs.ok == 'true'
@@ -145,6 +155,8 @@ jobs:
 
       - name: Report failure to Slack
         if: failure()
+        continue-on-error: true
         run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" \
-            ":warning: *Could not add your task to the queue.* Please try again or add it manually in GitHub."
+            ":x: *Could not add your task to the queue.* Please try again or add it manually in GitHub. <${RUN_URL}|View run logs>"
