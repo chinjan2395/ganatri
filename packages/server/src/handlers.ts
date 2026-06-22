@@ -29,6 +29,20 @@ import {
   type LeaderboardEntryView,
   type UpdateDisplayNamePayload,
   type UpdateDisplayNameAck,
+  type CoPlayerView,
+  type GetRecentPlayersAck,
+  type InvitePlayerPayload,
+  type InvitePlayerAck,
+  type RespondToInvitePayload,
+  type RespondToInviteAck,
+  type BlockUserPayload,
+  type BlockUserAck,
+  type UnblockUserPayload,
+  type UnblockUserAck,
+  type InviteReceivedPayload,
+  type InviteAcceptedPayload,
+  type InviteRejectedPayload,
+  type InviteCancelledPayload,
   type VoiceOfferPayload,
   type VoiceAnswerPayload,
   type VoiceIcePayload,
@@ -40,6 +54,7 @@ import type {
   GameHistoryEntry as DbGameHistoryEntry,
   PlayerStatsRow,
   LeaderboardEntry,
+  CoPlayerEntry,
 } from '@ganatri/db';
 import { getConfig, isAdminEmail, isValidAdminSecret, updateConfig, RETENTION_DAYS } from './config.js';
 import { getIceServers } from './iceConfig.js';
@@ -504,6 +519,26 @@ export function resetLastMoveTime(): void {
   lastMoveTime.clear();
 }
 
+const INVITE_TIMEOUT_MS = 60_000;
+
+interface InviteState {
+  inviterId: string;
+  inviteeId: string;
+  roomCode: string;
+  timerId: ReturnType<typeof setTimeout>;
+}
+
+/** key: `${inviterId}:${inviteeId}` — at most one pending invite per directed pair */
+const pendingInvites = new Map<string, InviteState>();
+
+/** For tests: cancel all timers and clear invite state between runs. */
+export function __resetPendingInvitesForTests(): void {
+  for (const invite of pendingInvites.values()) {
+    clearTimeout(invite.timerId);
+  }
+  pendingInvites.clear();
+}
+
 function registerSocketEvents(io: Server, socket: Socket, session: SessionState): void {
   socket.on(EVENTS.CREATE_ROOM, (payloadOrAck: unknown, maybeAck?: (res: CreateRoomAck) => void) => {
     // Support both (payload, ack) and legacy (ack) call forms.
@@ -572,6 +607,31 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
   socket.on(EVENTS.REQUEST_HISTORY, (ack: (res: RequestHistoryAck) => void) => {
     if (typeof ack !== 'function') return;
     void handleRequestHistory(session, ack);
+  });
+
+  socket.on(EVENTS.GET_RECENT_PLAYERS, (ack: (res: GetRecentPlayersAck) => void) => {
+    if (typeof ack !== 'function') return;
+    void handleGetRecentPlayers(session, ack);
+  });
+
+  socket.on(EVENTS.INVITE_PLAYER, (payload: unknown, ack: (res: InvitePlayerAck) => void) => {
+    if (typeof ack !== 'function') return;
+    void handleInvitePlayer(socket, session, payload, ack);
+  });
+
+  socket.on(EVENTS.RESPOND_TO_INVITE, (payload: unknown, ack: (res: RespondToInviteAck) => void) => {
+    if (typeof ack !== 'function') return;
+    void handleRespondToInvite(socket, session, payload, ack);
+  });
+
+  socket.on(EVENTS.BLOCK_USER, (payload: unknown, ack: (res: BlockUserAck) => void) => {
+    if (typeof ack !== 'function') return;
+    void handleBlockUser(session, payload, ack);
+  });
+
+  socket.on(EVENTS.UNBLOCK_USER, (payload: unknown, ack: (res: UnblockUserAck) => void) => {
+    if (typeof ack !== 'function') return;
+    void handleUnblockUser(session, payload, ack);
   });
 
   socket.on(EVENTS.GET_MY_STATS, (ack: (res: GetMyStatsAck) => void) => {
@@ -904,8 +964,255 @@ function silentLeaveRoom(socket: Socket, session: SessionState): void {
     // For DONE rooms: no seat changes needed, just detach the socket below.
   }
 
+  // Cancel any pending invites this player sent — their room is gone.
+  if (session.userId !== null) {
+    for (const [key, invite] of pendingInvites.entries()) {
+      if (invite.inviterId === session.userId) {
+        clearTimeout(invite.timerId);
+        pendingInvites.delete(key);
+        transport.send(invite.inviteeId, EVENTS.INVITE_CANCELLED, {
+          inviterUserId: session.userId,
+        } satisfies InviteCancelledPayload);
+      }
+    }
+  }
+
   socket.leave(roomCode);
   updateSession(session.token, { roomCode: null });
+}
+
+// ---------------------------------------------------------------------------
+// invite_player / respond_to_invite / block_user / unblock_user
+// ---------------------------------------------------------------------------
+
+async function handleInvitePlayer(
+  socket: Socket,
+  session: SessionState,
+  payload: unknown,
+  ack: (res: InvitePlayerAck) => void,
+): Promise<void> {
+  if (session.userId === null) {
+    ack({ ok: false, error: 'NOT_LOGGED_IN' });
+    return;
+  }
+
+  const p = getPersistence();
+  if (!p) {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+
+  const targetUserId = (payload as InvitePlayerPayload)?.targetUserId;
+  if (typeof targetUserId !== 'string' || targetUserId === '') return;
+
+  if (targetUserId === session.userId) {
+    ack({ ok: false, error: 'SELF_INVITE' });
+    return;
+  }
+
+  // Find invitee's live session
+  let inviteeSession: SessionState | null = null;
+  for (const s of store.sessions.values()) {
+    if (s.userId === targetUserId && s.socketId !== null) {
+      inviteeSession = s;
+      break;
+    }
+  }
+  if (inviteeSession === null) {
+    ack({ ok: false, error: 'OFFLINE' });
+    return;
+  }
+
+  // Invitee already in an active game
+  if (inviteeSession.roomCode !== null) {
+    const inviteeRoom = getRoom(inviteeSession.roomCode);
+    if (inviteeRoom !== undefined && inviteeRoom.phase === 'PLAYING') {
+      ack({ ok: false, error: 'ALREADY_IN_ROOM' });
+      return;
+    }
+  }
+
+  // Block check (either direction)
+  try {
+    const blockedFwd = await p.isBlocked(session.userId, targetUserId);
+    const blockedRev = await p.isBlocked(targetUserId, session.userId);
+    if (blockedFwd || blockedRev) {
+      ack({ ok: false, error: 'BLOCKED' });
+      return;
+    }
+  } catch {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+
+  // Inviter room: cannot invite from an active game; auto-create if needed
+  if (session.roomCode !== null) {
+    const inviterRoom = getRoom(session.roomCode);
+    if (inviterRoom !== undefined && inviterRoom.phase === 'PLAYING') {
+      ack({ ok: false, error: 'ALREADY_IN_GAME' });
+      return;
+    }
+    if (inviterRoom === undefined || inviterRoom.phase === 'DONE') {
+      silentLeaveRoom(socket, session);
+    }
+    // LOBBY room: keep using it
+  }
+
+  if (session.roomCode === null) {
+    const newCode = generateRoomCode();
+    createRoom(newCode, session.playerId);
+    updateSession(session.token, { roomCode: newCode });
+    socket.join(newCode);
+    broadcastRoomUpdate(newCode);
+  }
+
+  const roomCode = session.roomCode!;
+
+  // Replace any existing pending invite for this pair
+  const inviteKey = `${session.userId}:${targetUserId}`;
+  const existing = pendingInvites.get(inviteKey);
+  if (existing !== undefined) {
+    clearTimeout(existing.timerId);
+    pendingInvites.delete(inviteKey);
+  }
+
+  const timerId = setTimeout(() => {
+    pendingInvites.delete(inviteKey);
+    transport.send(targetUserId, EVENTS.INVITE_CANCELLED, {
+      inviterUserId: session.userId,
+    } satisfies InviteCancelledPayload);
+  }, INVITE_TIMEOUT_MS);
+
+  pendingInvites.set(inviteKey, { inviterId: session.userId, inviteeId: targetUserId, roomCode, timerId });
+
+  transport.send(targetUserId, EVENTS.INVITE_RECEIVED, {
+    inviterUserId: session.userId,
+    displayName: session.account?.displayName ?? session.name,
+    avatarUrl: session.account?.avatarUrl ?? null,
+    roomCode,
+  } satisfies InviteReceivedPayload);
+
+  ack({ ok: true, roomCode });
+}
+
+async function handleRespondToInvite(
+  socket: Socket,
+  session: SessionState,
+  payload: unknown,
+  ack: (res: RespondToInviteAck) => void,
+): Promise<void> {
+  if (session.userId === null) {
+    ack({ ok: false, error: 'NOT_LOGGED_IN' });
+    return;
+  }
+
+  const p = payload as RespondToInvitePayload;
+  const inviterUserId = p?.inviterUserId;
+  const accept = p?.accept;
+  if (typeof inviterUserId !== 'string' || typeof accept !== 'boolean') return;
+
+  const inviteKey = `${inviterUserId}:${session.userId}`;
+  const invite = pendingInvites.get(inviteKey);
+  if (invite === undefined) {
+    ack({ ok: false, error: 'NOT_FOUND' });
+    return;
+  }
+
+  clearTimeout(invite.timerId);
+  pendingInvites.delete(inviteKey);
+
+  if (!accept) {
+    if (p.block === true) {
+      const persistence = getPersistence();
+      if (persistence) {
+        try { await persistence.blockUser(session.userId, inviterUserId); } catch { /* non-fatal */ }
+      }
+    }
+    transport.send(inviterUserId, EVENTS.INVITE_REJECTED, {
+      inviteeUserId: session.userId,
+    } satisfies InviteRejectedPayload);
+    ack({ ok: true });
+    return;
+  }
+
+  // Accept: auto-join the inviter's room
+  const room = getRoom(invite.roomCode);
+  if (room === undefined || room.phase !== 'LOBBY') {
+    ack({ ok: false, error: 'NOT_FOUND' });
+    return;
+  }
+
+  if (session.roomCode !== null) {
+    const existingRoom = getRoom(session.roomCode);
+    if (existingRoom !== undefined && existingRoom.phase === 'PLAYING') {
+      ack({ ok: false, error: 'UNAVAILABLE' });
+      return;
+    }
+    silentLeaveRoom(socket, session);
+  }
+
+  if (!room.players.includes(session.playerId)) {
+    room.players.push(session.playerId);
+  }
+  updateSession(session.token, { roomCode: invite.roomCode });
+  socket.join(invite.roomCode);
+  broadcastRoomUpdate(invite.roomCode);
+
+  transport.send(inviterUserId, EVENTS.INVITE_ACCEPTED, {
+    inviteeUserId: session.userId,
+    displayName: session.account?.displayName ?? session.name,
+    roomCode: invite.roomCode,
+  } satisfies InviteAcceptedPayload);
+
+  ack({ ok: true, roomCode: invite.roomCode });
+}
+
+async function handleBlockUser(
+  session: SessionState,
+  payload: unknown,
+  ack: (res: BlockUserAck) => void,
+): Promise<void> {
+  if (session.userId === null) {
+    ack({ ok: false, error: 'NOT_LOGGED_IN' });
+    return;
+  }
+  const p = getPersistence();
+  if (!p) {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+  const targetUserId = (payload as BlockUserPayload)?.targetUserId;
+  if (typeof targetUserId !== 'string' || targetUserId === '') return;
+  try {
+    await p.blockUser(session.userId, targetUserId);
+    ack({ ok: true });
+  } catch {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+  }
+}
+
+async function handleUnblockUser(
+  session: SessionState,
+  payload: unknown,
+  ack: (res: UnblockUserAck) => void,
+): Promise<void> {
+  if (session.userId === null) {
+    ack({ ok: false, error: 'NOT_LOGGED_IN' });
+    return;
+  }
+  const p = getPersistence();
+  if (!p) {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+  const targetUserId = (payload as UnblockUserPayload)?.targetUserId;
+  if (typeof targetUserId !== 'string' || targetUserId === '') return;
+  try {
+    await p.unblockUser(session.userId, targetUserId);
+    ack({ ok: true });
+  } catch {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1119,6 +1426,50 @@ function flattenHistoryEntry(e: DbGameHistoryEntry): WireGameHistoryEntry {
       wasCut: pl.wasCut,
     })),
   };
+}
+
+// ---------------------------------------------------------------------------
+// get_recent_players
+// ---------------------------------------------------------------------------
+
+async function handleGetRecentPlayers(
+  session: SessionState,
+  ack: (res: GetRecentPlayersAck) => void,
+): Promise<void> {
+  if (session.userId === null) {
+    ack({ ok: false, error: 'NOT_LOGGED_IN' });
+    return;
+  }
+
+  const p = getPersistence();
+  if (!p) {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+
+  try {
+    const entries = await p.getFrequentCoPlayers(session.userId, 20);
+
+    const onlineUserIds = new Set<string>();
+    for (const s of store.sessions.values()) {
+      if (s.userId !== null && s.socketId !== null) {
+        onlineUserIds.add(s.userId);
+      }
+    }
+
+    const players: CoPlayerView[] = entries.map((e: CoPlayerEntry) => ({
+      userId: e.userId,
+      displayName: e.displayName,
+      avatarUrl: e.avatarUrl,
+      gamesPlayedTogether: e.gamesPlayedTogether,
+      isOnline: onlineUserIds.has(e.userId),
+    }));
+
+    ack({ ok: true, players });
+  } catch (err) {
+    console.error(`[recent-players] getFrequentCoPlayers failed for ${session.userId}:`, err);
+    ack({ ok: false, error: 'UNAVAILABLE' });
+  }
 }
 
 // ---------------------------------------------------------------------------

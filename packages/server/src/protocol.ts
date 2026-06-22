@@ -200,6 +200,81 @@ export type GetLeaderboardAck =
   | { ok: true; entries: LeaderboardEntryView[]; myEntry?: LeaderboardEntryView }
   | { ok: false; error: 'UNAVAILABLE' };
 
+export interface CoPlayerView {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  gamesPlayedTogether: number;
+  isOnline: boolean;
+}
+
+export type GetRecentPlayersAck =
+  | { ok: true; players: CoPlayerView[] }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
+
+// ---------------------------------------------------------------------------
+// Social / invitations — Client → Server payloads + acks
+// ---------------------------------------------------------------------------
+
+export interface InvitePlayerPayload {
+  targetUserId: string;
+}
+
+export type InvitePlayerAck =
+  | { ok: true; roomCode: string }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' | 'SELF_INVITE' | 'OFFLINE' | 'BLOCKED' | 'ALREADY_IN_ROOM' | 'ALREADY_IN_GAME' };
+
+export interface RespondToInvitePayload {
+  inviterUserId: string;
+  accept: boolean;
+  block?: boolean;
+}
+
+export type RespondToInviteAck =
+  | { ok: true; roomCode?: string }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'NOT_FOUND' | 'UNAVAILABLE' };
+
+export interface BlockUserPayload {
+  targetUserId: string;
+}
+
+export type BlockUserAck =
+  | { ok: true }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
+
+export interface UnblockUserPayload {
+  targetUserId: string;
+}
+
+export type UnblockUserAck =
+  | { ok: true }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
+
+// ---------------------------------------------------------------------------
+// Social / invitations — Server → Client push payloads
+// ---------------------------------------------------------------------------
+
+export interface InviteReceivedPayload {
+  inviterUserId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  roomCode: string;
+}
+
+export interface InviteAcceptedPayload {
+  inviteeUserId: string;
+  displayName: string;
+  roomCode: string;
+}
+
+export interface InviteRejectedPayload {
+  inviteeUserId: string;
+}
+
+export interface InviteCancelledPayload {
+  inviterUserId: string;
+}
+
 export interface UpdateDisplayNamePayload {
   newDisplayName: string;
 }
@@ -399,7 +474,14 @@ export const EVENTS = {
   REQUEST_HISTORY: 'request_history',
   GET_MY_STATS: 'get_my_stats',
   GET_LEADERBOARD: 'get_leaderboard',
+  GET_RECENT_PLAYERS: 'get_recent_players',
   UPDATE_DISPLAY_NAME: 'update_display_name',
+
+  // Social / invitations (Client → Server)
+  INVITE_PLAYER: 'invite_player',
+  RESPOND_TO_INVITE: 'respond_to_invite',
+  BLOCK_USER: 'block_user',
+  UNBLOCK_USER: 'unblock_user',
 
   // Admin (Client → Server)
   ADMIN_AUTH: 'admin_auth',
@@ -415,6 +497,12 @@ export const EVENTS = {
   PLAYER_DISCONNECTED: 'player_disconnected',
   PLAYER_RECONNECTED: 'player_reconnected',
   TURN_TIMEOUT: 'turn_timeout',
+
+  // Social / invitations (Server → Client push)
+  INVITE_RECEIVED: 'invite_received',
+  INVITE_ACCEPTED: 'invite_accepted',
+  INVITE_REJECTED: 'invite_rejected',
+  INVITE_CANCELLED: 'invite_cancelled',
 
   // Voice chat signaling (Client → Server)
   VOICE_OFFER: 'voice_offer',
