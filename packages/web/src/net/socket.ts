@@ -22,6 +22,11 @@ import {
   type RequestIceServersAck,
   type StartGameAck,
   type UpdateDisplayNameAck,
+  type GetRecentPlayersAck,
+  type InvitePlayerAck,
+  type RespondToInviteAck,
+  type BlockUserAck,
+  type UnblockUserAck,
 } from '../protocol';
 
 const TOKEN_KEY = 'ganatri.token';
@@ -117,4 +122,28 @@ export function requestIceServers(): Promise<RequestIceServersAck> {
 
 export function updateDisplayName(newDisplayName: string): Promise<UpdateDisplayNameAck> {
   return emitAck<UpdateDisplayNameAck>(EVENTS.UPDATE_DISPLAY_NAME, { newDisplayName });
+}
+
+export function requestRecentPlayers(): Promise<GetRecentPlayersAck> {
+  return emitAck<GetRecentPlayersAck>(EVENTS.GET_RECENT_PLAYERS);
+}
+
+export function invitePlayer(targetUserId: string): Promise<InvitePlayerAck> {
+  return emitAck<InvitePlayerAck>(EVENTS.INVITE_PLAYER, { targetUserId });
+}
+
+export function respondToInvite(
+  inviterUserId: string,
+  accept: boolean,
+  block?: boolean,
+): Promise<RespondToInviteAck> {
+  return emitAck<RespondToInviteAck>(EVENTS.RESPOND_TO_INVITE, { inviterUserId, accept, block });
+}
+
+export function blockUser(targetUserId: string): Promise<BlockUserAck> {
+  return emitAck<BlockUserAck>(EVENTS.BLOCK_USER, { targetUserId });
+}
+
+export function unblockUser(targetUserId: string): Promise<UnblockUserAck> {
+  return emitAck<UnblockUserAck>(EVENTS.UNBLOCK_USER, { targetUserId });
 }
