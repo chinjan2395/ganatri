@@ -200,6 +200,18 @@ export type GetLeaderboardAck =
   | { ok: true; entries: LeaderboardEntryView[]; myEntry?: LeaderboardEntryView }
   | { ok: false; error: 'UNAVAILABLE' };
 
+export interface CoPlayerView {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  gamesPlayedTogether: number;
+  isOnline: boolean;
+}
+
+export type GetRecentPlayersAck =
+  | { ok: true; players: CoPlayerView[] }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
+
 export interface UpdateDisplayNamePayload {
   newDisplayName: string;
 }
@@ -399,6 +411,7 @@ export const EVENTS = {
   REQUEST_HISTORY: 'request_history',
   GET_MY_STATS: 'get_my_stats',
   GET_LEADERBOARD: 'get_leaderboard',
+  GET_RECENT_PLAYERS: 'get_recent_players',
   UPDATE_DISPLAY_NAME: 'update_display_name',
 
   // Admin (Client → Server)

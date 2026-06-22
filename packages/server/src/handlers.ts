@@ -29,6 +29,8 @@ import {
   type LeaderboardEntryView,
   type UpdateDisplayNamePayload,
   type UpdateDisplayNameAck,
+  type CoPlayerView,
+  type GetRecentPlayersAck,
   type VoiceOfferPayload,
   type VoiceAnswerPayload,
   type VoiceIcePayload,
@@ -40,6 +42,7 @@ import type {
   GameHistoryEntry as DbGameHistoryEntry,
   PlayerStatsRow,
   LeaderboardEntry,
+  CoPlayerEntry,
 } from '@ganatri/db';
 import { getConfig, isAdminEmail, isValidAdminSecret, updateConfig, RETENTION_DAYS } from './config.js';
 import { getIceServers } from './iceConfig.js';
@@ -572,6 +575,11 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
   socket.on(EVENTS.REQUEST_HISTORY, (ack: (res: RequestHistoryAck) => void) => {
     if (typeof ack !== 'function') return;
     void handleRequestHistory(session, ack);
+  });
+
+  socket.on(EVENTS.GET_RECENT_PLAYERS, (ack: (res: GetRecentPlayersAck) => void) => {
+    if (typeof ack !== 'function') return;
+    void handleGetRecentPlayers(session, ack);
   });
 
   socket.on(EVENTS.GET_MY_STATS, (ack: (res: GetMyStatsAck) => void) => {
@@ -1119,6 +1127,50 @@ function flattenHistoryEntry(e: DbGameHistoryEntry): WireGameHistoryEntry {
       wasCut: pl.wasCut,
     })),
   };
+}
+
+// ---------------------------------------------------------------------------
+// get_recent_players
+// ---------------------------------------------------------------------------
+
+async function handleGetRecentPlayers(
+  session: SessionState,
+  ack: (res: GetRecentPlayersAck) => void,
+): Promise<void> {
+  if (session.userId === null) {
+    ack({ ok: false, error: 'NOT_LOGGED_IN' });
+    return;
+  }
+
+  const p = getPersistence();
+  if (!p) {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+
+  try {
+    const entries = await p.getFrequentCoPlayers(session.userId, 20);
+
+    const onlineUserIds = new Set<string>();
+    for (const s of store.sessions.values()) {
+      if (s.userId !== null && s.socketId !== null) {
+        onlineUserIds.add(s.userId);
+      }
+    }
+
+    const players: CoPlayerView[] = entries.map((e: CoPlayerEntry) => ({
+      userId: e.userId,
+      displayName: e.displayName,
+      avatarUrl: e.avatarUrl,
+      gamesPlayedTogether: e.gamesPlayedTogether,
+      isOnline: onlineUserIds.has(e.userId),
+    }));
+
+    ack({ ok: true, players });
+  } catch (err) {
+    console.error(`[recent-players] getFrequentCoPlayers failed for ${session.userId}:`, err);
+    ack({ ok: false, error: 'UNAVAILABLE' });
+  }
 }
 
 // ---------------------------------------------------------------------------
