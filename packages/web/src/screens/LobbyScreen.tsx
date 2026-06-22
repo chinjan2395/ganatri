@@ -66,6 +66,9 @@ function LobbyHeader({ account, onSettingsClick }: LobbyHeaderProps): React.Reac
         </div>
         <span className="lobby__header-name">{displayName}</span>
       </div>
+      <div className="lobby__header-center">
+        <img src={logo} alt="Ganatri" className="lobby__header-logo" />
+      </div>
       <div className="lobby__header-right">
         {isDesktop && (
           <button
@@ -1142,17 +1145,6 @@ export function LobbyScreen(): React.ReactNode {
   return (
     <div className="lobby__root">
       <LobbyHeader account={account} onSettingsClick={() => setProfileOpen(true)} />
-
-      <div className="lobby__hero">
-        <motion.img
-          src={logo}
-          alt="Ganatri"
-          className="lobby__logo"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        />
-      </div>
 
       <div className="lobby__desktop-layout">
         {/* Main content column */}
