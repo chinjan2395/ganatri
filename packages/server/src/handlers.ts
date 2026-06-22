@@ -995,6 +995,7 @@ async function handleInvitePlayer(
     ack({ ok: false, error: 'NOT_LOGGED_IN' });
     return;
   }
+  const inviterUserId = session.userId;
 
   const p = getPersistence();
   if (!p) {
@@ -1005,7 +1006,7 @@ async function handleInvitePlayer(
   const targetUserId = (payload as InvitePlayerPayload)?.targetUserId;
   if (typeof targetUserId !== 'string' || targetUserId === '') return;
 
-  if (targetUserId === session.userId) {
+  if (targetUserId === inviterUserId) {
     ack({ ok: false, error: 'SELF_INVITE' });
     return;
   }
@@ -1034,8 +1035,8 @@ async function handleInvitePlayer(
 
   // Block check (either direction)
   try {
-    const blockedFwd = await p.isBlocked(session.userId, targetUserId);
-    const blockedRev = await p.isBlocked(targetUserId, session.userId);
+    const blockedFwd = await p.isBlocked(inviterUserId, targetUserId);
+    const blockedRev = await p.isBlocked(targetUserId, inviterUserId);
     if (blockedFwd || blockedRev) {
       ack({ ok: false, error: 'BLOCKED' });
       return;
@@ -1069,7 +1070,7 @@ async function handleInvitePlayer(
   const roomCode = session.roomCode!;
 
   // Replace any existing pending invite for this pair
-  const inviteKey = `${session.userId}:${targetUserId}`;
+  const inviteKey = `${inviterUserId}:${targetUserId}`;
   const existing = pendingInvites.get(inviteKey);
   if (existing !== undefined) {
     clearTimeout(existing.timerId);
@@ -1079,14 +1080,14 @@ async function handleInvitePlayer(
   const timerId = setTimeout(() => {
     pendingInvites.delete(inviteKey);
     transport.send(targetUserId, EVENTS.INVITE_CANCELLED, {
-      inviterUserId: session.userId,
+      inviterUserId,
     } satisfies InviteCancelledPayload);
   }, INVITE_TIMEOUT_MS);
 
-  pendingInvites.set(inviteKey, { inviterId: session.userId, inviteeId: targetUserId, roomCode, timerId });
+  pendingInvites.set(inviteKey, { inviterId: inviterUserId, inviteeId: targetUserId, roomCode, timerId });
 
   transport.send(targetUserId, EVENTS.INVITE_RECEIVED, {
-    inviterUserId: session.userId,
+    inviterUserId,
     displayName: session.account?.displayName ?? session.name,
     avatarUrl: session.account?.avatarUrl ?? null,
     roomCode,
