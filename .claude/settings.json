@@ -1,0 +1,6 @@
+{
+  "enabledPlugins": {
+    "slack@claude-plugins-official": true,
+    "cloudflare@claude-plugins-official": true
+  }
+}
