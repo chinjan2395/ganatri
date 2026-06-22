@@ -17,10 +17,12 @@ import {
   oauthAccounts,
   playerStats,
   rooms,
+  userBlocks,
   users,
 } from '../schema';
 import type {
   AppendEventInput,
+  CoPlayerEntry,
   CreateAuthSessionInput,
   FinalPlayerResult,
   GameEventRow,
@@ -790,6 +792,69 @@ export class PgPersistence implements GamePersistence {
       .where(eq(gamePlayers.gameId, gameId))
       .orderBy(asc(gamePlayers.seatIndex));
     return { game, players };
+  }
+
+  // Phase 8: co-player queries and blocks -----------------------------------
+
+  async getFrequentCoPlayers(userId: string, limit = 20): Promise<CoPlayerEntry[]> {
+    const result = await this.db.execute(sql`
+      SELECT
+        gp2.user_id        AS "userId",
+        u.display_name     AS "displayName",
+        u.avatar_url       AS "avatarUrl",
+        COUNT(*)::int      AS "gamesPlayedTogether"
+      FROM game_players gp1
+      JOIN game_players gp2
+        ON  gp2.game_id  = gp1.game_id
+        AND gp2.user_id != gp1.user_id
+        AND gp2.user_id IS NOT NULL
+      JOIN users u ON u.id = gp2.user_id
+      WHERE gp1.user_id = ${userId}
+        AND u.is_guest = false
+      GROUP BY gp2.user_id, u.display_name, u.avatar_url
+      ORDER BY "gamesPlayedTogether" DESC, gp2.user_id ASC
+      LIMIT ${limit}
+    `);
+    return (
+      result.rows as Array<{
+        userId: string;
+        displayName: string;
+        avatarUrl: string | null;
+        gamesPlayedTogether: number;
+      }>
+    ).map((row) => ({
+      userId: row.userId,
+      displayName: row.displayName,
+      avatarUrl: row.avatarUrl,
+      gamesPlayedTogether: row.gamesPlayedTogether,
+    }));
+  }
+
+  async blockUser(blockerId: string, blockedId: string): Promise<void> {
+    await this.db.insert(userBlocks).values({ blockerId, blockedId }).onConflictDoNothing();
+  }
+
+  async unblockUser(blockerId: string, blockedId: string): Promise<void> {
+    await this.db
+      .delete(userBlocks)
+      .where(and(eq(userBlocks.blockerId, blockerId), eq(userBlocks.blockedId, blockedId)));
+  }
+
+  async getBlockedUserIds(userId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ blockedId: userBlocks.blockedId })
+      .from(userBlocks)
+      .where(eq(userBlocks.blockerId, userId));
+    return rows.map((r) => r.blockedId);
+  }
+
+  async isBlocked(blockerId: string, blockedId: string): Promise<boolean> {
+    const rows = await this.db
+      .select({ blockerId: userBlocks.blockerId })
+      .from(userBlocks)
+      .where(and(eq(userBlocks.blockerId, blockerId), eq(userBlocks.blockedId, blockedId)))
+      .limit(1);
+    return rows.length > 0;
   }
 }
 
