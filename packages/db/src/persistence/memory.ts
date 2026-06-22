@@ -12,6 +12,7 @@ import { PgPersistence, toHistoryEntry, toLeaderboardEntry } from './pg';
 import type {
   AppendEventInput,
   AuthSessionRow,
+  BlockedUserEntry,
   CoPlayerEntry,
   CreateAuthSessionInput,
   GameEventRow,
@@ -778,6 +779,25 @@ export class MemoryPersistence implements GamePersistence {
   async getBlockedUserIds(userId: string): Promise<string[]> {
     const prefix = `${userId}:`;
     return [...this.blocks].filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length));
+  }
+
+  async getBlockedUsers(userId: string): Promise<BlockedUserEntry[]> {
+    const prefix = `${userId}:`;
+    const blockedIds = [...this.blocks]
+      .filter((k) => k.startsWith(prefix))
+      .map((k) => k.slice(prefix.length));
+    const result: BlockedUserEntry[] = [];
+    for (const blockedId of blockedIds) {
+      const u = this.users.get(blockedId);
+      if (u) {
+        result.push({
+          userId: blockedId,
+          displayName: u.displayName ?? blockedId,
+          avatarUrl: u.avatarUrl ?? null,
+        });
+      }
+    }
+    return result;
   }
 
   async isBlocked(blockerId: string, blockedId: string): Promise<boolean> {

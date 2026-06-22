@@ -179,6 +179,16 @@ export type UnblockUserAck =
   | { ok: true }
   | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
 
+export interface BlockedUserView {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
+
+export type GetBlockedUsersAck =
+  | { ok: true; users: BlockedUserView[] }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
+
 // --- Social / invitations — Server → Client push payloads ---
 
 export interface InviteReceivedPayload {
@@ -315,6 +325,7 @@ export const EVENTS = {
   GET_MY_STATS: 'get_my_stats',
   GET_LEADERBOARD: 'get_leaderboard',
   GET_RECENT_PLAYERS: 'get_recent_players',
+  GET_BLOCKED_USERS: 'get_blocked_users',
   UPDATE_DISPLAY_NAME: 'update_display_name',
 
   // Social / invitations (Client → Server)

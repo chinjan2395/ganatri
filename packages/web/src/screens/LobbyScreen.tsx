@@ -1,11 +1,135 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useGame } from '../state/GameProvider';
+import type { CoPlayerView, BlockedUserView, GetBlockedUsersAck } from '../protocol';
 import logo from '../assets/ganatri-logo.png';
 import './LobbyScreen.css';
 
+// Error messages for invite failure codes
+const INVITE_ERROR_MESSAGES: Record<string, string> = {
+  OFFLINE: 'Player went offline',
+  BLOCKED: 'You are blocked',
+  ALREADY_IN_ROOM: 'Player is already in a room',
+  ALREADY_IN_GAME: 'Game already in progress',
+  UNAVAILABLE: 'Unavailable, try again',
+};
+
+interface RecentlyPlayedProps {
+  loggedIn: boolean;
+  recentPlayers: CoPlayerView[];
+  invitePlayer: (targetUserId: string) => Promise<import('../protocol').InvitePlayerAck>;
+}
+
+function RecentlyPlayed({ loggedIn, recentPlayers, invitePlayer }: RecentlyPlayedProps): React.ReactNode {
+  const [expanded, setExpanded] = useState(false);
+  // Per-card invite state: userId -> 'idle' | 'loading' | error string
+  const [inviteState, setInviteState] = useState<Record<string, string>>({});
+
+  async function handleInvite(userId: string): Promise<void> {
+    setInviteState((prev) => ({ ...prev, [userId]: 'loading' }));
+    const ack = await invitePlayer(userId);
+    if (ack.ok) {
+      // ROOM_UPDATE push will navigate to RoomScreen automatically via App.tsx
+      setInviteState((prev) => ({ ...prev, [userId]: 'idle' }));
+    } else {
+      const msg = INVITE_ERROR_MESSAGES[ack.error] ?? 'Unavailable, try again';
+      setInviteState((prev) => ({ ...prev, [userId]: msg }));
+    }
+  }
+
+  const visiblePlayers = expanded ? recentPlayers.slice(0, 10) : recentPlayers.slice(0, 5);
+  const hasMore = recentPlayers.length > 5;
+
+  if (!loggedIn) {
+    return (
+      <div className="recently-played">
+        <h3 className="rp__heading">Recently Played</h3>
+        <div className="rp__cards">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="rp__card rp__card--placeholder">
+              <div className="rp__locked-overlay">
+                <span className="rp__lock-icon">&#128274;</span>
+                <span className="rp__lock-text">Log in to see players</span>
+              </div>
+              <div className="rp__avatar-wrap">
+                <div className="rp__avatar rp__avatar-initials" aria-hidden="true" />
+              </div>
+              <div className="rp__name rp__placeholder-bar" />
+              <div className="rp__games-count rp__placeholder-bar rp__placeholder-bar--short" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (recentPlayers.length === 0) {
+    return (
+      <div className="recently-played">
+        <h3 className="rp__heading">Recently Played</h3>
+        <p className="rp__empty">No games played yet. Create or join a room to get started!</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="recently-played">
+      <h3 className="rp__heading">Recently Played</h3>
+      <div className="rp__cards">
+        {visiblePlayers.map((player) => {
+          const state = inviteState[player.userId] ?? 'idle';
+          const isLoading = state === 'loading';
+          const errorMsg = state !== 'idle' && state !== 'loading' ? state : null;
+
+          return (
+            <div key={player.userId} className="rp__card">
+              <div className="rp__avatar-wrap">
+                {player.avatarUrl ? (
+                  <img
+                    className="rp__avatar"
+                    src={player.avatarUrl}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="rp__avatar rp__avatar-initials" aria-hidden="true">
+                    {player.displayName.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                {player.isOnline && <span className="rp__online-dot" aria-label="Online" />}
+              </div>
+              <div className="rp__name">{player.displayName}</div>
+              <div className="rp__games-count">{player.gamesPlayedTogether} games together</div>
+              {player.isOnline && (
+                <button
+                  type="button"
+                  className={`rp__invite-btn${isLoading ? ' rp__invite-btn--loading' : ''}`}
+                  disabled={isLoading}
+                  onClick={() => void handleInvite(player.userId)}
+                >
+                  {isLoading ? '' : 'Invite'}
+                </button>
+              )}
+              {errorMsg && <div className="rp__invite-error">{errorMsg}</div>}
+            </div>
+          );
+        })}
+      </div>
+      {hasMore && (
+        <button
+          type="button"
+          className="rp__see-all-btn"
+          onClick={() => setExpanded((e) => !e)}
+        >
+          {expanded ? 'Show less' : `See all (${recentPlayers.length})`}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function LobbyScreen(): React.ReactNode {
-  const { createRoom, joinRoom, account, loginWithGoogle, logout, setScreen, updateDisplayName, guestName } = useGame();
+  const { createRoom, joinRoom, account, loginWithGoogle, logout, setScreen, updateDisplayName, guestName, recentPlayers, invitePlayer, getBlockedUsers, unblockUser } = useGame();
   const loggedIn = account?.loggedIn ?? false;
   const [name, setName] = useState(() => {
     if (loggedIn) return account?.displayName ?? '';
@@ -24,6 +148,12 @@ export function LobbyScreen(): React.ReactNode {
   const [editNameBusy, setEditNameBusy] = useState(false);
   const [editNameError, setEditNameError] = useState<string | null>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
+
+  // Blocked users panel state
+  const [blockedOpen, setBlockedOpen] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState<BlockedUserView[] | null>(null);
+  const [blockedLoading, setBlockedLoading] = useState(false);
+  const [blockedError, setBlockedError] = useState<string | null>(null);
 
   // Prefill the name field with the account display name once login resolves.
   useEffect(() => {
@@ -83,6 +213,29 @@ export function LobbyScreen(): React.ReactNode {
       } else {
         setEditNameError('Unavailable, try again.');
       }
+    }
+  }
+
+  async function handleBlockedToggle(): Promise<void> {
+    const next = !blockedOpen;
+    setBlockedOpen(next);
+    if (next && blockedUsers === null) {
+      setBlockedLoading(true);
+      setBlockedError(null);
+      const ack: GetBlockedUsersAck = await getBlockedUsers();
+      setBlockedLoading(false);
+      if (ack.ok) {
+        setBlockedUsers(ack.users);
+      } else {
+        setBlockedError('Unavailable');
+      }
+    }
+  }
+
+  async function handleUnblock(userId: string): Promise<void> {
+    const ack = await unblockUser(userId);
+    if (ack.ok) {
+      setBlockedUsers((prev) => prev?.filter((u) => u.userId !== userId) ?? prev);
     }
   }
 
@@ -307,6 +460,46 @@ export function LobbyScreen(): React.ReactNode {
                   Log out
                 </button>
               </div>
+
+              <div className="lobby__blocked-section">
+                <button
+                  type="button"
+                  className="lobby__blocked-toggle"
+                  onClick={() => void handleBlockedToggle()}
+                >
+                  Blocked Users {blockedOpen ? '▴' : '▾'}
+                </button>
+                {blockedOpen && (
+                  <div className="lobby__blocked-panel">
+                    {blockedLoading && (
+                      <p className="lobby__blocked-empty">Loading...</p>
+                    )}
+                    {blockedError && (
+                      <p className="lobby__blocked-error">{blockedError}</p>
+                    )}
+                    {!blockedLoading && !blockedError && blockedUsers !== null && (
+                      blockedUsers.length === 0 ? (
+                        <p className="lobby__blocked-empty">No blocked users.</p>
+                      ) : (
+                        <ul className="lobby__blocked-list">
+                          {blockedUsers.map((u) => (
+                            <li key={u.userId} className="lobby__blocked-row">
+                              <span className="lobby__blocked-name">{u.displayName}</span>
+                              <button
+                                type="button"
+                                className="lobby__unblock-btn"
+                                onClick={() => void handleUnblock(u.userId)}
+                              >
+                                Unblock
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
             </>
           ) : (
             <button
@@ -324,6 +517,12 @@ export function LobbyScreen(): React.ReactNode {
             </button>
           )}
         </div>
+
+        <RecentlyPlayed
+          loggedIn={loggedIn}
+          recentPlayers={recentPlayers}
+          invitePlayer={invitePlayer}
+        />
       </motion.div>
     </div>
   );

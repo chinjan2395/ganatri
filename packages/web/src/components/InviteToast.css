@@ -1,0 +1,216 @@
+/* =========================================================
+   InviteToast — floating invite notification overlay
+   ========================================================= */
+
+.invite-toast {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  pointer-events: none; /* card itself re-enables pointer events */
+}
+
+.invite-toast__card {
+  pointer-events: all;
+  background: #1e1e2e;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+  padding: 20px 24px;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ---- Avatar row ---- */
+
+.invite-toast__avatar-wrap {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+.invite-toast__avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.invite-toast__avatar-initials {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #3a3a5c;
+  color: #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.invite-toast__info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.invite-toast__name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #f0f0f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.invite-toast__subtitle {
+  font-size: 0.8rem;
+  color: #9090a8;
+}
+
+.invite-toast__countdown {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #f5c542;
+  white-space: nowrap;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ---- Action buttons ---- */
+
+.invite-toast__actions {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.invite-toast__accept-btn,
+.invite-toast__decline-btn,
+.invite-toast__block-btn {
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 16px;
+  min-height: 36px;
+  transition: opacity 0.15s, transform 0.1s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.invite-toast__accept-btn {
+  background: #2ecc71;
+  color: #fff;
+  flex: 1;
+  min-width: 80px;
+}
+
+.invite-toast__accept-btn:hover:not(:disabled) {
+  background: #27ae60;
+}
+
+.invite-toast__decline-btn {
+  background: #3a3a5c;
+  color: #e0e0e0;
+  flex: 1;
+  min-width: 80px;
+}
+
+.invite-toast__decline-btn:hover:not(:disabled) {
+  background: #4a4a6c;
+}
+
+.invite-toast__block-btn {
+  background: transparent;
+  color: #e74c3c;
+  border: 1px solid rgba(231, 76, 60, 0.45);
+  font-size: 0.78rem;
+  padding: 6px 10px;
+  min-height: 32px;
+  flex: 0 0 auto;
+}
+
+.invite-toast__block-btn:hover:not(:disabled) {
+  background: rgba(231, 76, 60, 0.12);
+}
+
+.invite-toast__accept-btn:disabled,
+.invite-toast__decline-btn:disabled,
+.invite-toast__block-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---- Inline accept spinner ---- */
+
+.invite-toast__spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: invite-toast-spin 0.6s linear infinite;
+}
+
+@keyframes invite-toast-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---- Error & blocked messages ---- */
+
+.invite-toast__error {
+  font-size: 0.8rem;
+  color: #e74c3c;
+  margin: 0;
+}
+
+.invite-toast__blocked-msg {
+  font-size: 0.85rem;
+  color: #9090a8;
+  margin: 0;
+  text-align: center;
+  padding: 4px 0;
+}
+
+/* ---- Mobile tweaks ---- */
+
+@media (max-width: 400px) {
+  .invite-toast__card {
+    padding: 16px;
+    min-width: unset;
+  }
+
+  .invite-toast__actions {
+    flex-direction: column;
+  }
+
+  .invite-toast__accept-btn,
+  .invite-toast__decline-btn {
+    width: 100%;
+  }
+
+  .invite-toast__block-btn {
+    align-self: flex-start;
+  }
+}

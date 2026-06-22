@@ -111,3 +111,344 @@
   font-size: 12px;
   font-weight: 600;
 }
+
+/* ── Blocked Users panel ─────────────────────────────────────────────── */
+
+.lobby__blocked-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.lobby__blocked-toggle {
+  font-size: 12px;
+  padding: 4px 10px;
+  height: auto;
+  min-height: unset;
+  background: transparent;
+  border: 1px solid rgba(231, 195, 74, 0.3);
+  color: var(--accent, #e7c34a);
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+  width: 100%;
+}
+
+.lobby__blocked-toggle:hover {
+  background: rgba(231, 195, 74, 0.08);
+}
+
+.lobby__blocked-panel {
+  margin-top: 8px;
+  border: 1px solid rgba(231, 195, 74, 0.15);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.lobby__blocked-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lobby__blocked-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lobby__blocked-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lobby__unblock-btn {
+  font-size: 11px;
+  padding: 3px 10px;
+  height: auto;
+  min-height: unset;
+  background: transparent;
+  border: 1px solid rgba(231, 195, 74, 0.4);
+  color: var(--accent, #e7c34a);
+  border-radius: 5px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.lobby__unblock-btn:hover {
+  background: rgba(231, 195, 74, 0.1);
+}
+
+.lobby__blocked-empty {
+  font-size: 12px;
+  color: var(--muted, rgba(255, 255, 255, 0.45));
+  margin: 0;
+  text-align: center;
+}
+
+.lobby__blocked-error {
+  font-size: 12px;
+  color: var(--danger, #ff5f5f);
+  font-weight: 600;
+  margin: 0;
+  text-align: center;
+}
+
+/* ── Recently Played ──────────────────────────────────────────────────── */
+
+.recently-played {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(231, 195, 74, 0.18);
+  width: 100%;
+}
+
+.rp__heading {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0.8;
+}
+
+.rp__empty {
+  font-size: 13px;
+  color: var(--muted, rgba(255, 255, 255, 0.45));
+  text-align: center;
+  margin: 0;
+  padding: 8px 0;
+}
+
+/* Card grid — 2 columns on mobile, up to 5 per row on desktop */
+.rp__cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+@media (min-width: 480px) {
+  .rp__cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 700px) {
+  .rp__cards {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+.rp__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(231, 195, 74, 0.15);
+  border-radius: 10px;
+  text-align: center;
+  overflow: hidden;
+}
+
+.rp__card--placeholder {
+  opacity: 0.55;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* Avatar */
+.rp__avatar-wrap {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.rp__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(231, 195, 74, 0.35);
+  display: block;
+}
+
+.rp__avatar-initials {
+  background: var(--panel-2, #1e1a2e);
+  color: var(--accent, #e7c34a);
+  font-weight: 700;
+  font-size: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rp__online-dot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #3ddc84;
+  border: 2px solid var(--panel-bg, #12101c);
+}
+
+/* Text */
+.rp__name {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.rp__games-count {
+  font-size: 10px;
+  color: var(--muted, rgba(255, 255, 255, 0.45));
+  white-space: nowrap;
+}
+
+/* Invite button */
+.rp__invite-btn {
+  font-size: 11px;
+  padding: 4px 10px;
+  height: auto;
+  min-height: unset;
+  border-radius: 6px;
+  background: var(--accent, #e7c34a);
+  color: #12101c;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  width: 100%;
+}
+
+.rp__invite-btn:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.rp__invite-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.rp__invite-btn--loading {
+  position: relative;
+  color: transparent;
+}
+
+.rp__invite-btn--loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(18, 16, 28, 0.35);
+  border-top-color: #12101c;
+  border-radius: 50%;
+  animation: rp-spin 0.7s linear infinite;
+}
+
+@keyframes rp-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Inline error text */
+.rp__invite-error {
+  font-size: 10px;
+  color: var(--danger, #ff5f5f);
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* Placeholder skeleton bars */
+.rp__placeholder-bar {
+  height: 10px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  width: 80%;
+  animation: rp-pulse 1.4s ease-in-out infinite;
+}
+
+.rp__placeholder-bar--short {
+  width: 55%;
+}
+
+/* Lock overlay for logged-out placeholders */
+.rp__locked-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(18, 16, 28, 0.72);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 10px;
+  z-index: 1;
+}
+
+.rp__lock-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.rp__lock-text {
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+  padding: 0 4px;
+  line-height: 1.3;
+}
+
+/* "See all" toggle */
+.rp__see-all-btn {
+  margin-top: 8px;
+  font-size: 12px;
+  padding: 4px 12px;
+  height: auto;
+  min-height: unset;
+  background: transparent;
+  border: 1px solid rgba(231, 195, 74, 0.3);
+  color: var(--accent, #e7c34a);
+  border-radius: 6px;
+  cursor: pointer;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  transition: background 0.15s;
+}
+
+.rp__see-all-btn:hover {
+  background: rgba(231, 195, 74, 0.08);
+}
+
+/* Skeleton pulse animation */
+@keyframes rp-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}

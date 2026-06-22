@@ -924,4 +924,24 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
       expect(await repo.isBlocked(b, a)).toBe(false);
     });
   });
+
+  describe('getBlockedUsers', () => {
+    it('getBlockedUsers returns blocked user details', async () => {
+      const blocker = await freshRegistered('Blocker', 'blocker-bu1');
+      const blocked = await freshRegistered('BlockedPerson', 'blocked-bu1');
+      // Retrieve the blocked user's row to check avatarUrl
+      await repo.blockUser(blocker, blocked);
+      const result = await repo.getBlockedUsers(blocker);
+      expect(result).toHaveLength(1);
+      expect(result[0]!.userId).toBe(blocked);
+      expect(result[0]!.displayName).toBe('BlockedPerson');
+      expect(result[0]!.avatarUrl).toBeNull();
+    });
+
+    it('getBlockedUsers returns empty array when no blocks', async () => {
+      const user = await freshRegistered('NobodyBlocked', 'nobody-bu2');
+      const result = await repo.getBlockedUsers(user);
+      expect(result).toEqual([]);
+    });
+  });
 });
