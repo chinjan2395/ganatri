@@ -344,9 +344,8 @@ export function GameScreen(): React.ReactNode {
         </AnimatePresence>
       </div>
 
-      {/* ── Hand section: hint + hand ── */}
+      {/* ── Hand section ── */}
       <div className="game__hand-section">
-        {handState.hint && <div className="game__hint">{handState.hint}</div>}
 
         <div className={`game__hand-area${view.phase === 'PART_2' ? ' game__hand-area--reorder' : ''}`}>
           <Hand

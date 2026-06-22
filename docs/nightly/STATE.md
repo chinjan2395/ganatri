@@ -42,8 +42,8 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-22
-- Outcome: ✅ Priority TODO — Persist session across page reload: server `sessionPayload()` now includes `name` for guests; `handleReconnect` clears stale `roomCode` when room no longer exists; web `SessionPayload` mirrored; `GameProvider` adds `guestName` state (set from SESSION, cleared on login, exposed in context); `LobbyScreen` prefills name input from `guestName` for guests. 2 new server tests. All 349 tests pass (153 engine + 133 db + 63 server). Build green.
-- Branch/PR: nightly/2026-06-22-0525
+- Outcome: ✅ Priority TODO — Remove hint text and disable text selection in hand card area: deleted `game__hint` div render from GameScreen.tsx, removed `.game__hint` CSS rule + landscape override from GameScreen.css, added `user-select: none` / `-webkit-user-select: none` to `.game__hand-area`. All 387 tests pass (153 engine + 80 server + 154 db). Build green.
+- Branch/PR: nightly/2026-06-22-2143
 
 ## Blockers / Needs Human Input
 (none)
