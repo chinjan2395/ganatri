@@ -140,6 +140,7 @@ export interface SessionPayload {
   displayName?: string;
   email?: string;
   avatarUrl?: string;
+  name?: string; // guest display name restored on reconnect
 }
 export interface RoomUpdatePayload {
   roomCode: string;

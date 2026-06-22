@@ -115,6 +115,81 @@ describe('Ganatri server', () => {
     }
   });
 
+  it('SESSION payload includes guest name when session.name is set', async () => {
+    // Connect and create a room with a name — this sets session.name server-side.
+    const client = connectClient(port);
+    await waitFor(client, EVENTS.SESSION);
+
+    try {
+      await emitAck<{ ok: boolean; roomCode: string }>(client, EVENTS.CREATE_ROOM, { name: 'Alice' });
+      // Leave the room so the SESSION re-emit on reconnect is clean.
+      await emitAck(client, EVENTS.LEAVE_ROOM);
+      client.disconnect();
+
+      // Brief pause to ensure disconnect is processed.
+      await new Promise((r) => setTimeout(r, 100));
+
+      // Capture the token from the first session.
+      const { store } = await import('./store.js');
+      const sessions = [...store.sessions.values()];
+      const session = sessions.find((s) => s.name === 'Alice');
+      expect(session).toBeDefined();
+      const token = session!.token;
+
+      // Reconnect with the stored token — server emits SESSION with the name.
+      const client2 = connectClient(port, token);
+      const restoredSession = await waitFor<{ token: string; playerId: string; loggedIn: boolean; name?: string }>(
+        client2,
+        EVENTS.SESSION,
+      );
+
+      expect(restoredSession.loggedIn).toBe(false);
+      expect(restoredSession.name).toBe('Alice');
+
+      client2.disconnect();
+    } finally {
+      client.disconnect();
+    }
+  });
+
+  it('handleReconnect clears stale roomCode when room no longer exists', async () => {
+    // Connect, create a room, then simulate the room being deleted while the
+    // client is disconnected (e.g., DONE-room expiry interval ran).
+    const client = connectClient(port);
+    await waitFor(client, EVENTS.SESSION);
+
+    await emitAck<{ ok: boolean; roomCode: string }>(client, EVENTS.CREATE_ROOM, { name: 'Bob' });
+    client.disconnect();
+
+    // Brief pause to ensure disconnect is processed.
+    await new Promise((r) => setTimeout(r, 100));
+
+    // Find the session and manually delete the room to simulate expiry.
+    const { store } = await import('./store.js');
+    const sessions = [...store.sessions.values()];
+    const session = sessions.find((s) => s.name === 'Bob');
+    expect(session).toBeDefined();
+    const token = session!.token;
+    const staleRoomCode = session!.roomCode;
+    expect(staleRoomCode).not.toBeNull();
+
+    // Delete the room (simulates the DONE-room cleanup interval).
+    store.rooms.delete(staleRoomCode!);
+
+    // Reconnect — handleReconnect should clear the stale roomCode.
+    const client2 = connectClient(port, token);
+    await waitFor(client2, EVENTS.SESSION);
+
+    try {
+      // After reconnect, session.roomCode must be null (stale code cleared).
+      const refreshedSession = store.sessions.get(token);
+      expect(refreshedSession).toBeDefined();
+      expect(refreshedSession!.roomCode).toBeNull();
+    } finally {
+      client2.disconnect();
+    }
+  });
+
   // -------------------------------------------------------------------------
   // Room lifecycle
   // -------------------------------------------------------------------------

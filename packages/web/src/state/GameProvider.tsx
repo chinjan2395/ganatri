@@ -74,6 +74,8 @@ export interface GameContextValue {
   playerNames: Readonly<Record<string, string>>;
   /** playerId → avatar URL, or null for guests */
   playerAvatarUrls: Readonly<Record<string, string | null>>;
+  /** Guest display name restored from a previous session (null for logged-in users or first-time guests). */
+  guestName: string | null;
   error: string | null;
   clearError: () => void;
   createRoom: (name?: string) => Promise<CreateRoomAck>;
@@ -108,6 +110,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
   const [disconnectedPlayers, setDisconnectedPlayers] = useState<Set<string>>(new Set());
   const [playerNames, setPlayerNames] = useState<Record<string, string>>({});
   const [playerAvatarUrls, setPlayerAvatarUrls] = useState<Record<string, string | null>>({});
+  const [guestName, setGuestName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const eventId = useRef(0);
   const roomPhaseRef = useRef<RoomUpdatePayload['phase'] | null>(null);
@@ -137,6 +140,12 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
         email: payload.email,
         avatarUrl: payload.avatarUrl,
       });
+      // Restore guest name from a previous session (logged-in users use account.displayName)
+      if (!payload.loggedIn && payload.name) {
+        setGuestName(payload.name);
+      } else if (payload.loggedIn) {
+        setGuestName(null);
+      }
       // Restore mid-game view on (re)connect.
       void requestState().then((ack) => {
         if (ack.view) setView(ack.view);
@@ -316,6 +325,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       disconnectedPlayers,
       playerNames,
       playerAvatarUrls,
+      guestName,
       error,
       clearError,
       createRoom,
@@ -345,6 +355,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       disconnectedPlayers,
       playerNames,
       playerAvatarUrls,
+      guestName,
       error,
       clearError,
       createRoom,

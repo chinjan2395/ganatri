@@ -371,6 +371,7 @@ function sessionPayload(session: SessionState): {
   displayName?: string;
   email?: string;
   avatarUrl?: string;
+  name?: string;
 } {
   if (session.userId !== null && session.account !== null) {
     return {
@@ -382,7 +383,12 @@ function sessionPayload(session: SessionState): {
       ...(session.account.avatarUrl !== null ? { avatarUrl: session.account.avatarUrl } : {}),
     };
   }
-  return { token: session.token, playerId: session.playerId, loggedIn: false };
+  return {
+    token: session.token,
+    playerId: session.playerId,
+    loggedIn: false,
+    ...(session.name ? { name: session.name } : {}),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -394,10 +400,10 @@ function handleReconnect(socket: Socket, session: SessionState): void {
 
   // Re-join the socket.io room so they receive broadcasts again.
   if (roomCode !== null) {
-    socket.join(roomCode);
-
     const room = getRoom(roomCode);
     if (room !== undefined) {
+      socket.join(roomCode);
+
       // Cancel grace-period timer if it was running.
       const timer = room.gracePeriodTimers.get(playerId);
       if (timer !== undefined) {
@@ -421,6 +427,9 @@ function handleReconnect(socket: Socket, session: SessionState): void {
           turnTimeoutMs: getConfig().turnTimeoutMs,
         });
       }
+    } else {
+      // Room expired/deleted — clear the stale roomCode from the session.
+      updateSession(session.token, { roomCode: null });
     }
   }
 

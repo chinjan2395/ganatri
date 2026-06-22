@@ -224,6 +224,8 @@ export interface SessionPayload {
   email?: string;
   /** Account avatar URL (only when loggedIn). */
   avatarUrl?: string;
+  /** Guest display name set from a previous create_room / join_room (only when !loggedIn). */
+  name?: string;
 }
 
 /** Broadcast to the room whenever players join/leave or the game starts. */
