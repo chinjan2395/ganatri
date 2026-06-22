@@ -134,11 +134,11 @@ jobs:
         env:
           OPEN_PR: ${{ steps.gate.outputs.open_pr }}
         run: |
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           if [ "${{ steps.gate.outputs.skip_reason }}" = "open_pr" ]; then
-            MSG=":double_vertical_bar: *Nightly skipped* — an open \`nightly/*\` PR is waiting for review. Merge or close it before the next run picks up new work."$'\n'"*Open PR:* ${OPEN_PR}"$'\n'"Re-run manually with *force_run* checked to override."$'\n'"<${RUN_URL}|View run>"
+            PR_LINE=$(bash .github/scripts/slack-nightly-msgs.sh clean-pr "$OPEN_PR")
+            MSG=":double_vertical_bar: *Nightly paused* — ${PR_LINE} is still waiting for review. Merge it (or close it) and the next build can start."
           else
-            MSG=":double_vertical_bar: *Nightly skipped* — project status is BLOCKED in \`docs/nightly/STATE.md\`. Needs human input before Claude can run."$'\n'"<${RUN_URL}|View run>"
+            MSG=":double_vertical_bar: *Nightly paused* — the project is blocked and needs your input before the bot can continue."
           fi
           bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$MSG"
 
@@ -156,17 +156,12 @@ jobs:
         env:
           NEXT_TASK: ${{ steps.gate.outputs.next_task }}
         run: |
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          if [ "${{ steps.gate.outputs.priority }}" = "true" ]; then
-            MODE="priority TODO"
+          TASK=$(bash .github/scripts/slack-nightly-msgs.sh clean-task "$NEXT_TASK")
+          if [ -n "$TASK" ]; then
+            TEXT=":hammer_and_wrench: *Nightly build started*"$'\n'"Working on: *${TASK}*"
           else
-            MODE="normal phase flow"
+            TEXT=":hammer_and_wrench: *Nightly build started*"
           fi
-          TASK_LINE=""
-          if [ -n "$NEXT_TASK" ]; then
-            TASK_LINE=$'\n*Task:* '"$NEXT_TASK"
-          fi
-          TEXT=":hammer_and_wrench: *Ganatri nightly started* — branch \`${{ steps.branch.outputs.name }}\` (${MODE}).${TASK_LINE}"$'\n'"<${RUN_URL}|View run>"
           bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$TEXT"
 
       - name: Run Claude on next phase
@@ -299,33 +294,10 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         id: summary
         run: |
-          LAST_DATE=$(awk '/^## Last Run$/{f=1; next} /^## /{if(f) exit} f && /^- Date:/{sub(/^- Date: /,""); print; exit}' \
-                        docs/nightly/STATE.md)
-          OUTCOME=$(awk '/^## Last Run$/{f=1; next} /^## /{if(f) exit} f && /^- Outcome:/{sub(/^- Outcome: /,""); print; exit}' \
-                      docs/nightly/STATE.md)
-          if [ "$LAST_DATE" != "$(date +%Y-%m-%d)" ]; then
-            OUTCOME=""
-          fi
-          COMMIT=$(git log origin/main..HEAD --format=%s -1 2>/dev/null || true)
-          PHASE=$(awk '/^## Current Phase$/{getline; while ($0 ~ /^[[:space:]]*$/) getline; print; exit}' \
-                    docs/nightly/STATE.md)
-          SUMMARY="${OUTCOME:-$COMMIT}"
-          if [ -z "$SUMMARY" ]; then
-            SUMMARY=""
-          fi
-          # Keep Slack messages readable if Claude wrote a long outcome line.
-          if [ "${#SUMMARY}" -gt 500 ]; then
-            SUMMARY="${SUMMARY:0:497}..."
-          fi
+          COMMITS=$(bash .github/scripts/slack-nightly-msgs.sh commits 5)
           {
-            echo "phase<<EOF"
-            printf '%s\n' "$PHASE"
-            echo "EOF"
-            echo "commit<<EOF"
-            printf '%s\n' "$COMMIT"
-            echo "EOF"
-            echo "summary<<EOF"
-            printf '%s\n' "$SUMMARY"
+            echo "commits<<EOF"
+            printf '%s\n' "$COMMITS"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -357,9 +329,7 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         continue-on-error: true
         env:
-          RUN_SUMMARY: ${{ steps.summary.outputs.summary }}
-          RUN_PHASE: ${{ steps.summary.outputs.phase }}
-          RUN_COMMIT: ${{ steps.summary.outputs.commit }}
+          RUN_COMMITS: ${{ steps.summary.outputs.commits }}
         run: |
           if [ -z "$(ls -A reports 2>/dev/null)" ]; then
             echo "No report files produced this run — nothing to send."
@@ -367,17 +337,10 @@ jobs:
           fi
           ZIP="ganatri-development-report-$(date +%Y-%m-%d-%H%M).zip"
           (cd reports && zip -r "../${ZIP}" . >/dev/null)
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          COMMENT=":bar_chart: *Development report* — $(date +%Y-%m-%d\ %H:%M)"
-          if [ -n "$RUN_PHASE" ]; then
-            COMMENT="${COMMENT}"$'\n'"*Phase:* ${RUN_PHASE}"
+          COMMENT=":bar_chart: *Development report*"
+          if [ -n "$RUN_COMMITS" ]; then
+            COMMENT="${COMMENT}"$'\n'"${RUN_COMMITS}"
           fi
-          if [ -n "$RUN_SUMMARY" ]; then
-            COMMENT="${COMMENT}"$'\n'"*This run:* ${RUN_SUMMARY}"
-          elif [ -n "$RUN_COMMIT" ]; then
-            COMMENT="${COMMENT}"$'\n'"*Commit:* ${RUN_COMMIT}"
-          fi
-          COMMENT="${COMMENT}"$'\n'"<${RUN_URL}|View run>"
           bash .github/scripts/slack-upload-file.sh \
             "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$ZIP" \
             "Ganatri development report" \
@@ -430,37 +393,17 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         continue-on-error: true
         env:
-          RUN_SUMMARY: ${{ steps.summary.outputs.summary }}
-          RUN_PHASE: ${{ steps.summary.outputs.phase }}
-          RUN_COMMIT: ${{ steps.summary.outputs.commit }}
+          RUN_COMMITS: ${{ steps.summary.outputs.commits }}
         run: |
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           if [ "${{ steps.push.outputs.pushed }}" = "true" ]; then
-            ICON=":white_check_mark:"
-            HEADLINE="*Ganatri nightly complete* — PR opened"
-            FOOTER="${{ steps.pr.outputs.url }}"
-          else
-            ICON=":information_source:"
-            HEADLINE="*Ganatri nightly finished* — no code changes (nothing to PR)"
-            if [ "${{ steps.gate.outputs.priority }}" = "true" ]; then
-              FOOTER="Expected a priority TODO to be implemented — check the *Run Claude* step logs (Claude may have exited without committing)."
-            else
-              FOOTER=""
+            MSG=":white_check_mark: *Nightly build done* — ready for review"
+            if [ -n "$RUN_COMMITS" ]; then
+              MSG="${MSG}"$'\n'"${RUN_COMMITS}"
             fi
+            MSG="${MSG}"$'\n'"${{ steps.pr.outputs.url }}"
+          else
+            MSG=":information_source: *Nightly build finished* — no changes to review this time."
           fi
-          MSG="${ICON} ${HEADLINE}"
-          if [ -n "$RUN_PHASE" ]; then
-            MSG="${MSG}"$'\n'"*Phase:* ${RUN_PHASE}"
-          fi
-          if [ -n "$RUN_SUMMARY" ]; then
-            MSG="${MSG}"$'\n'"*Outcome:* ${RUN_SUMMARY}"
-          elif [ -n "$RUN_COMMIT" ]; then
-            MSG="${MSG}"$'\n'"*Commit:* ${RUN_COMMIT}"
-          fi
-          if [ -n "$FOOTER" ]; then
-            MSG="${MSG}"$'\n'"${FOOTER}"
-          fi
-          MSG="${MSG}"$'\n'"<${RUN_URL}|View run>"
           bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$MSG"
 
       - name: Notify Slack — run failed
@@ -468,4 +411,4 @@ jobs:
         continue-on-error: true
         run: |
           bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" \
-            ":x: *Ganatri nightly failed* — <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run logs>"
+            ":x: *Nightly build failed* — something went wrong in the workflow."
