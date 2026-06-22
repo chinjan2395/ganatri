@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useGame } from '../state/GameProvider';
 import { useVoiceChatContext, useVoiceSpeaking } from '../state/VoiceChatProvider';
 import logo from '../assets/ganatri-logo.png';
+import type { CoPlayerView } from '../protocol';
 import './RoomScreen.css';
 
 const SUITS = ['♠', '♥', '♦', '♣'] as const;
@@ -14,6 +15,74 @@ const SUIT_COLORS = [
 ] as const;
 
 import type { AccountInfo } from '../state/GameProvider';
+
+function getInitials(name: string): string {
+  return name.trim().split(/\s+/).map((w) => w[0] ?? '').slice(0, 2).join('').toUpperCase();
+}
+
+interface InvitePanelProps {
+  onlineFriends: CoPlayerView[];
+  roomPlayerIds: string[];
+  invitePlayer: (userId: string) => Promise<{ ok: boolean; error?: string }>;
+}
+
+function InvitePanel({ onlineFriends, roomPlayerIds, invitePlayer }: InvitePanelProps) {
+  const [states, setStates] = useState<Record<string, 'idle' | 'loading' | 'sent' | string>>({});
+
+  const invitable = onlineFriends.filter((p) => !roomPlayerIds.includes(p.userId));
+  if (invitable.length === 0) return null;
+
+  async function handleInvite(userId: string): Promise<void> {
+    setStates((prev) => ({ ...prev, [userId]: 'loading' }));
+    const ack = await invitePlayer(userId);
+    if (ack.ok) {
+      setStates((prev) => ({ ...prev, [userId]: 'sent' }));
+    } else {
+      const msg =
+        ack.error === 'OFFLINE' ? 'Went offline' :
+        ack.error === 'ALREADY_IN_ROOM' ? 'In a room' :
+        ack.error === 'ALREADY_IN_GAME' ? 'In a game' :
+        ack.error === 'BLOCKED' ? 'Unavailable' :
+        'Try again';
+      setStates((prev) => ({ ...prev, [userId]: msg }));
+    }
+  }
+
+  return (
+    <div className="room__invite-panel">
+      <p className="room__invite-heading">Invite online friends</p>
+      <div className="room__invite-list">
+        {invitable.map((p) => {
+          const st = states[p.userId] ?? 'idle';
+          const loading = st === 'loading';
+          const sent = st === 'sent';
+          const isError = st !== 'idle' && st !== 'loading' && st !== 'sent';
+          return (
+            <div key={p.userId} className="room__invite-row">
+              {p.avatarUrl ? (
+                <img className="room__invite-avatar" src={p.avatarUrl} alt={p.displayName} referrerPolicy="no-referrer" />
+              ) : (
+                <div className="room__invite-initials" aria-hidden="true">{getInitials(p.displayName)}</div>
+              )}
+              <span className="room__invite-name">{p.displayName}</span>
+              {isError ? (
+                <span className="room__invite-error">{st}</span>
+              ) : (
+                <button
+                  className={`room__invite-btn${sent ? ' room__invite-btn--sent' : ''}`}
+                  disabled={loading || sent}
+                  onClick={() => void handleInvite(p.userId)}
+                >
+                  {loading ? <span className="room__invite-spinner" aria-hidden="true" /> : sent ? 'Invited' : 'Invite'}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 interface SeatSlotProps {
   pid: string | null;
@@ -75,7 +144,7 @@ function SeatSlot({ pid, seatIndex, playerId, hostId, playerNames, account }: Se
 }
 
 export function RoomScreen(): React.ReactNode {
-  const { room, session, account, playerNames, startGame, leaveRoom } = useGame();
+  const { room, session, account, playerNames, startGame, leaveRoom, recentPlayers, invitePlayer } = useGame();
   const voice = useVoiceChatContext();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -218,6 +287,14 @@ export function RoomScreen(): React.ReactNode {
             <span className="room__voice-hint muted">Hold to talk</span>
           )}
         </div>
+      )}
+
+      {account?.loggedIn && room.players.length < 4 && (
+        <InvitePanel
+          onlineFriends={recentPlayers.filter((p) => p.isOnline)}
+          roomPlayerIds={room.players}
+          invitePlayer={invitePlayer}
+        />
       )}
 
       {isHost ? (
