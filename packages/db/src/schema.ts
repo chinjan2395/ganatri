@@ -14,6 +14,7 @@
 
 import {
   pgTable,
+  primaryKey,
   uuid,
   varchar,
   text,
@@ -294,4 +295,27 @@ export const playerStats = pgTable(
       userIdIdx: uniqueIndex('player_stats_user_id_idx').on(table.userId),
     };
   }
+);
+
+// ---------------------------------------------------------------------------
+// User Blocks (social: block/unblock players)
+// ---------------------------------------------------------------------------
+
+export const userBlocks = pgTable(
+  'user_blocks',
+  {
+    blockerId: uuid('blocker_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    blockedId: uuid('blocked_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.blockerId, table.blockedId] }),
+    blockedIdIdx: index('user_blocks_blocked_id_idx').on(table.blockedId),
+  })
 );

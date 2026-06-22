@@ -21,6 +21,7 @@ export {
   gamePlayers,
   gameEvents,
   playerStats,
+  userBlocks,
   roomStatusEnum,
   gameEventTypeEnum,
 } from './schema';
@@ -32,6 +33,7 @@ export type { GameStore, SessionData, RoomData } from './store';
 export type {
   GamePersistence,
   UserRow,
+  UserBlockRow,
   NewUser,
   OAuthAccountRow,
   AuthSessionRow,
@@ -52,6 +54,7 @@ export type {
   GameHistoryPlayer,
   LeaderboardEntry,
   RankedLeaderboardEntry,
+  CoPlayerEntry,
 } from './persistence/types';
 export { PgPersistence, PostgresStore } from './persistence/pg';
 export { MemoryPersistence } from './persistence/memory';

@@ -22,6 +22,13 @@
       "when": 1781907294813,
       "tag": "0002_add_sum_finish_positions",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1782134400000,
+      "tag": "0003_user_blocks",
+      "breakpoints": true
     }
   ]
 }

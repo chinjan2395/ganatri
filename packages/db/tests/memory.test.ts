@@ -817,4 +817,111 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
     const active = await repo.loadActiveGames();
     expect(active.map((a) => a.game.id)).toEqual([g.id]);
   });
+
+  // Phase 8: co-player queries and blocks -----------------------------------
+
+  async function freshRegistered(name: string, emailSuffix: string): Promise<string> {
+    const u = await repo.upsertOAuthUser({
+      provider: 'google',
+      providerUserId: `ph8-${emailSuffix}`,
+      email: `${emailSuffix}@ph8.test`,
+      displayName: name,
+    });
+    return u.id;
+  }
+
+  async function seedSharedGame(playerIds: string[], seed: string): Promise<void> {
+    const code = `B${seed.replace(/[^A-Z0-9]/gi, '').slice(0, 5).toUpperCase()}`;
+    const room = await repo.recordRoomCreated({ roomCode: code, hostUserId: playerIds[0]! });
+    const game = await repo.recordGameStarted({
+      roomId: room.id,
+      seed,
+      seatingOrder: playerIds,
+    });
+    await repo.recordGameFinished({
+      gameId: game.id,
+      winnerId: playerIds[0]!,
+      players: playerIds.map((uid, idx) => ({
+        userId: uid,
+        seatIndex: idx,
+        displayName: `P${idx}`,
+        finalRank: idx + 1,
+        wasCut: false,
+        captureCount: 0,
+        result: (idx === 0 ? 'WIN' : 'LOSS') as 'WIN' | 'LOSS',
+      })),
+    });
+  }
+
+  describe('getFrequentCoPlayers', () => {
+    it('returns co-players ordered by shared-game count DESC', async () => {
+      const me = await freshRegistered('Me', 'me-coplay1');
+      const p1 = await freshRegistered('P1', 'p1-coplay1');
+      const p2 = await freshRegistered('P2', 'p2-coplay1');
+      await seedSharedGame([me, p1, p2], 'cp-g1');
+      await seedSharedGame([me, p1], 'cp-g2');
+
+      const result = await repo.getFrequentCoPlayers(me);
+      expect(result[0]!.userId).toBe(p1);
+      expect(result[0]!.gamesPlayedTogether).toBe(2);
+      expect(result[1]!.userId).toBe(p2);
+      expect(result[1]!.gamesPlayedTogether).toBe(1);
+    });
+
+    it('excludes the requesting user from results', async () => {
+      const me = await freshRegistered('Me2', 'me-coplay2');
+      const p1 = await freshRegistered('P1b', 'p1-coplay2');
+      await seedSharedGame([me, p1], 'cp-g3');
+
+      const result = await repo.getFrequentCoPlayers(me);
+      expect(result.some((e) => e.userId === me)).toBe(false);
+    });
+
+    it('excludes guest co-players from results', async () => {
+      const me = await freshRegistered('Me3', 'me-coplay3');
+      const guest = await freshUser('GuestCo');
+      await seedSharedGame([me, guest], 'cp-g4');
+
+      const result = await repo.getFrequentCoPlayers(me);
+      expect(result.some((e) => e.userId === guest)).toBe(false);
+    });
+
+    it('returns empty array when user has no shared games', async () => {
+      const me = await freshRegistered('Me4', 'me-coplay4');
+      expect(await repo.getFrequentCoPlayers(me)).toEqual([]);
+    });
+  });
+
+  describe('blockUser / unblockUser / isBlocked', () => {
+    it('blockUser makes isBlocked return true', async () => {
+      const a = await freshUser('BlockA');
+      const b = await freshUser('BlockB');
+      await repo.blockUser(a, b);
+      expect(await repo.isBlocked(a, b)).toBe(true);
+    });
+
+    it('unblockUser makes isBlocked return false', async () => {
+      const a = await freshUser('BlockC');
+      const b = await freshUser('BlockD');
+      await repo.blockUser(a, b);
+      await repo.unblockUser(a, b);
+      expect(await repo.isBlocked(a, b)).toBe(false);
+    });
+
+    it('blockUser is idempotent — double block does not throw', async () => {
+      const a = await freshUser('BlockE');
+      const b = await freshUser('BlockF');
+      await repo.blockUser(a, b);
+      await expect(repo.blockUser(a, b)).resolves.toBeUndefined();
+      expect(await repo.isBlocked(a, b)).toBe(true);
+    });
+
+    it('isBlocked is one-directional: A blocks B does not imply B blocks A', async () => {
+      const a = await freshUser('BlockG');
+      const b = await freshUser('BlockH');
+      await repo.blockUser(a, b);
+      expect(await repo.isBlocked(a, b)).toBe(true);
+      expect(await repo.isBlocked(b, a)).toBe(false);
+    });
+  });
 });

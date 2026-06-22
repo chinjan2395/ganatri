@@ -20,6 +20,7 @@ import type {
   gamePlayers,
   gameEvents,
   playerStats,
+  userBlocks,
 } from '../schema';
 
 // ---------------------------------------------------------------------------
@@ -35,6 +36,7 @@ export type GameRow = typeof games.$inferSelect;
 export type GamePlayerRow = typeof gamePlayers.$inferSelect;
 export type GameEventRow = typeof gameEvents.$inferSelect;
 export type PlayerStatsRow = typeof playerStats.$inferSelect;
+export type UserBlockRow = typeof userBlocks.$inferSelect;
 
 export type RoomStatus = RoomRow['status'];
 
@@ -325,4 +327,35 @@ export interface GamePersistence {
   loadGameEvents(gameId: string): Promise<GameEventRow[]>;
 
   loadGameWithPlayers(gameId: string): Promise<GameWithPlayers | null>;
+
+  // Phase 8: co-player queries and blocks -----------------------------------
+
+  /**
+   * Players this user has shared at least one completed game with, ordered by
+   * shared-game count DESC. Excludes guests and the requesting user themselves.
+   */
+  getFrequentCoPlayers(userId: string, limit?: number): Promise<CoPlayerEntry[]>;
+
+  /** Persist a block. Idempotent — double-block is a no-op. */
+  blockUser(blockerId: string, blockedId: string): Promise<void>;
+
+  /** Remove a block. No-op if the block does not exist. */
+  unblockUser(blockerId: string, blockedId: string): Promise<void>;
+
+  /** All userIds that `userId` has blocked. */
+  getBlockedUserIds(userId: string): Promise<string[]>;
+
+  /** True if blockerId has blocked blockedId (one-directional). */
+  isBlocked(blockerId: string, blockedId: string): Promise<boolean>;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 8 output types
+// ---------------------------------------------------------------------------
+
+export interface CoPlayerEntry {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  gamesPlayedTogether: number;
 }

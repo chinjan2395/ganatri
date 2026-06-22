@@ -12,6 +12,7 @@ import { PgPersistence, toHistoryEntry, toLeaderboardEntry } from './pg';
 import type {
   AppendEventInput,
   AuthSessionRow,
+  CoPlayerEntry,
   CreateAuthSessionInput,
   GameEventRow,
   GameHistoryEntry,
@@ -50,6 +51,8 @@ export class MemoryPersistence implements GamePersistence {
   private readonly authSessions = new Map<string, AuthSessionRow>();
   /** Enforces (gameId, seq) uniqueness. */
   private readonly eventSeq = new Set<string>();
+  /** key: `${blockerId}:${blockedId}` */
+  private readonly blocks = new Set<string>();
 
   // Users -------------------------------------------------------------------
 
@@ -726,6 +729,59 @@ export class MemoryPersistence implements GamePersistence {
     return [...this.gamePlayers.values()]
       .filter((p) => p.gameId === gameId)
       .sort((a, b) => a.seatIndex - b.seatIndex);
+  }
+
+  // Phase 8: co-player queries and blocks -----------------------------------
+
+  async getFrequentCoPlayers(userId: string, limit = 20): Promise<CoPlayerEntry[]> {
+    const myGameIds = new Set(
+      [...this.gamePlayers.values()]
+        .filter((p) => p.userId === userId)
+        .map((p) => p.gameId)
+    );
+    if (myGameIds.size === 0) return [];
+
+    const counts = new Map<string, number>();
+    for (const gp of this.gamePlayers.values()) {
+      if (!gp.userId || gp.userId === userId) continue;
+      if (!myGameIds.has(gp.gameId)) continue;
+      const user = this.users.get(gp.userId);
+      if (!user || user.isGuest) continue;
+      counts.set(gp.userId, (counts.get(gp.userId) ?? 0) + 1);
+    }
+
+    return [...counts.entries()]
+      .sort(([aId, aCount], [bId, bCount]) => {
+        if (bCount !== aCount) return bCount - aCount;
+        return aId < bId ? -1 : aId > bId ? 1 : 0;
+      })
+      .slice(0, limit)
+      .map(([coUserId, count]) => {
+        const user = this.users.get(coUserId)!;
+        return {
+          userId: coUserId,
+          displayName: user.displayName,
+          avatarUrl: user.avatarUrl ?? null,
+          gamesPlayedTogether: count,
+        };
+      });
+  }
+
+  async blockUser(blockerId: string, blockedId: string): Promise<void> {
+    this.blocks.add(`${blockerId}:${blockedId}`);
+  }
+
+  async unblockUser(blockerId: string, blockedId: string): Promise<void> {
+    this.blocks.delete(`${blockerId}:${blockedId}`);
+  }
+
+  async getBlockedUserIds(userId: string): Promise<string[]> {
+    const prefix = `${userId}:`;
+    return [...this.blocks].filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length));
+  }
+
+  async isBlocked(blockerId: string, blockedId: string): Promise<boolean> {
+    return this.blocks.has(`${blockerId}:${blockedId}`);
   }
 }
 

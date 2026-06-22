@@ -1,6 +1,6 @@
 # Ganatri — Phasewise Development Plan
 
-Last updated: 2026-06-22 (Phase 8 roadmap added: Social home-page redesign — Recently Played Players + Player Invitations. 8 sub-tasks queued in Priority TODO. review fixes: `sessionPayload()` return type annotation in `handlers.ts` gains `name?: string`; `GameProvider.onSession` resets `guestName` to null when `payload.loggedIn` is true — prevents stale guest name leaking after logout. All 349 tests pass. Build green.)
+Last updated: 2026-06-22 (Phase 8a complete: `user_blocks` schema + migration `0003_user_blocks.sql`; `getFrequentCoPlayers`/`blockUser`/`unblockUser`/`getBlockedUserIds`/`isBlocked` in `GamePersistence` interface + both `PgPersistence` and `MemoryPersistence`; `CoPlayerEntry`/`UserBlockRow` types exported; 17 new tests (8 contract × 2 impls + 1 drift-guard); 133→150 db tests, all pass. Phase 8 roadmap added: Social home-page redesign — Recently Played Players + Player Invitations. 8 sub-tasks queued in Priority TODO. review fixes: `sessionPayload()` return type annotation in `handlers.ts` gains `name?: string`; `GameProvider.onSession` resets `guestName` to null when `payload.loggedIn` is true — prevents stale guest name leaking after logout. All 349 tests pass. Build green.)
 
 Last updated: 2026-06-22 (wire guest name into LobbyScreen: `SessionPayload` in `packages/web/src/protocol.ts` gains `name?: string`; `GameProvider` adds `guestName: string | null` state, set from `onSession` when `!payload.loggedIn && payload.name`; `guestName` added to `GameContextValue` interface, `useMemo` value, and deps array; `LobbyScreen` reads `guestName` from context, updates `name` useState initializer to use `guestName ?? ''` for guests, and adds a `useEffect` to update `name` once the SESSION payload arrives asynchronously. Build green.)
 
@@ -79,7 +79,7 @@ All 349 tests passing (153 engine + 63 server + 133 db).
 `- [ ] **Fix leaderboard pagination off-by-one** — packages/server handlers.ts; offset should be page*limit. Acceptance: new server test covers page 2.`
 
 <!-- PRIORITY_TODO:START -->
-- [ ] **Phase 8a: DB layer — co-player query + user_blocks schema** — `packages/db` (schema.ts, new migration `0003_user_blocks.sql`, persistence/types.ts, persistence/pg.ts, persistence/memory.ts, tests/). Add `user_blocks` table (blockerId+blockedId composite PK, FK→users, index on blockedId). Add to `GamePersistence`: `getFrequentCoPlayers(userId, limit?)`, `blockUser`, `unblockUser`, `getBlockedUserIds`, `isBlocked`. Implement in both Pg+Memory impls. Acceptance: drift-guard updated; ~10 new contract tests; all 133 existing db tests pass.
+- [x] **Phase 8a: DB layer — co-player query + user_blocks schema** — `packages/db` (schema.ts, new migration `0003_user_blocks.sql`, persistence/types.ts, persistence/pg.ts, persistence/memory.ts, tests/). Add `user_blocks` table (blockerId+blockedId composite PK, FK→users, index on blockedId). Add to `GamePersistence`: `getFrequentCoPlayers(userId, limit?)`, `blockUser`, `unblockUser`, `getBlockedUserIds`, `isBlocked`. Implement in both Pg+Memory impls. Acceptance: drift-guard updated; ~10 new contract tests; all 133 existing db tests pass. (done 2026-06-22)
 - [ ] **Phase 8b: Server — get_recent_players event** — `packages/server` (protocol.ts, handlers.ts, test file). Add `GET_RECENT_PLAYERS` event + `CoPlayerView`/`GetRecentPlayersAck` types. Handler: NOT_LOGGED_IN guard, call `getFrequentCoPlayers`, enrich each entry with `isOnline` (check `store.playerIndex` → live socketId). Acceptance: 3 new server tests (guest→NOT_LOGGED_IN, no-persistence→UNAVAILABLE, happy path with isOnline); 63→66 server tests.
 - [ ] **Phase 8c: Server — invitation system** — `packages/server` (protocol.ts, handlers.ts, store.ts, new invites.ts). In-memory `pendingInvites` map. Events: `INVITE_PLAYER`, `RESPOND_TO_INVITE`, `BLOCK_USER`, `UNBLOCK_USER` (C→S) + `INVITE_RECEIVED`, `INVITE_ACCEPTED`, `INVITE_REJECTED`, `INVITE_CANCELLED` (S→C push). `handleInvitePlayer`: auth-guard, auto-create room if inviter has none, isBlocked check, OFFLINE/UNAVAILABLE/ALREADY_IN_ROOM guards, 60s expiry timer, emit INVITE_RECEIVED. `handleRespondToInvite`: accept→auto-join room+emit INVITE_ACCEPTED, reject→emit INVITE_REJECTED, block→persist blockUser. Cancel invites when inviter leaves room. Acceptance: ~8 new tests; 66→~74 server tests.
 - [ ] **Phase 8d: Web — protocol mirror + socket helpers** — `packages/web/src/protocol.ts`, `packages/web/src/net/socket.ts`. Mirror all new event constants + payload types. Add helpers: `requestRecentPlayers()`, `invitePlayer(targetUserId)`, `respondToInvite(roomCode, accept, block?)`, `blockUser(userId)`, `unblockUser(userId)`. Acceptance: build green.
@@ -536,11 +536,11 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| `user_blocks` table (blockerId+blockedId composite PK, FK→users, index on blockedId) | ⬜ | `packages/db/src/schema.ts` + migration `0003_user_blocks.sql` |
-| Drift-guard test update for new table | ⬜ | `packages/db/tests/schema.test.ts` |
-| `getFrequentCoPlayers(userId, limit?)` in `GamePersistence` + both impls | ⬜ | Query `game_players` self-join; exclude self+guests; order by shared-game count DESC |
-| `blockUser / unblockUser / getBlockedUserIds / isBlocked` in `GamePersistence` + both impls | ⬜ | Upsert / delete on `user_blocks`; `isBlocked` checks one direction only |
-| Contract tests: co-player ordering, self-exclusion, guest-exclusion, zero-games, block idempotency, isBlocked both directions | ⬜ | ~10 new tests run against Pg+Memory impls; existing 133 db tests must still pass |
+| `user_blocks` table (blockerId+blockedId composite PK, FK→users, index on blockedId) | ✅ | `packages/db/src/schema.ts` + migration `0003_user_blocks.sql` |
+| Drift-guard test update for new table | ✅ | `packages/db/tests/schema.test.ts` |
+| `getFrequentCoPlayers(userId, limit?)` in `GamePersistence` + both impls | ✅ | Query `game_players` self-join; exclude self+guests; order by shared-game count DESC |
+| `blockUser / unblockUser / getBlockedUserIds / isBlocked` in `GamePersistence` + both impls | ✅ | Upsert / delete on `user_blocks`; `isBlocked` checks one direction only |
+| Contract tests: co-player ordering, self-exclusion, guest-exclusion, zero-games, block idempotency, isBlocked both directions | ✅ | 17 new tests (8 contract × 2 impls + 1 drift-guard); 133→150 db tests, all pass |
 
 ### 8b — Server: `get_recent_players`
 

@@ -33,10 +33,10 @@ describe('schema migration', () => {
     const res = await t.pglite.query<{ count: string }>(
       `select count(*)::text as count from information_schema.tables where table_schema = 'public'`
     );
-    expect(Number(res.rows[0]!.count)).toBe(8);
+    expect(Number(res.rows[0]!.count)).toBe(9);
   });
 
-  it('creates all 8 tables', async () => {
+  it('creates all 9 tables', async () => {
     const res = await t.pglite.query<{ table_name: string }>(
       `select table_name from information_schema.tables where table_schema = 'public' order by table_name`
     );
@@ -49,6 +49,7 @@ describe('schema migration', () => {
       'oauth_accounts',
       'player_stats',
       'rooms',
+      'user_blocks',
       'users',
     ]);
   });
@@ -78,9 +79,32 @@ describe('schema migration', () => {
       'auth_sessions_user_id_idx',
       'game_events_ts_idx',
       'games_abandoned_ended_at_idx',
+      // Phase 8: social blocks.
+      'user_blocks_blocked_id_idx',
     ]) {
       expect(idx).toContain(expected);
     }
+  });
+
+  it('user_blocks table has expected columns with correct types', async () => {
+    const res = await t.pglite.query<{
+      column_name: string;
+      data_type: string;
+      is_nullable: string;
+    }>(
+      `SELECT column_name, data_type, is_nullable
+       FROM information_schema.columns
+       WHERE table_name = 'user_blocks'
+       ORDER BY ordinal_position`
+    );
+    const cols = res.rows;
+    expect(cols.map((c) => c.column_name)).toEqual(['blocker_id', 'blocked_id', 'created_at']);
+    const blocker = cols.find((c) => c.column_name === 'blocker_id')!;
+    expect(blocker.data_type).toBe('uuid');
+    expect(blocker.is_nullable).toBe('NO');
+    const blocked = cols.find((c) => c.column_name === 'blocked_id')!;
+    expect(blocked.data_type).toBe('uuid');
+    expect(blocked.is_nullable).toBe('NO');
   });
 
   it('stores games.seed as text (not integer)', async () => {
