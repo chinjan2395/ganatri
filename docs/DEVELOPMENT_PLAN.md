@@ -555,6 +555,9 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | `GET_RECENT_PLAYERS` event + `CoPlayerView` / `GetRecentPlayersAck` types | ✅ | `packages/server/src/protocol.ts` |
 | `handleGetRecentPlayers`: NOT_LOGGED_IN guard, DB fetch, `isOnline` enrichment | ✅ | scans `store.sessions` for `userId != null && socketId != null` |
 | 4 server tests (guest, unavailable, online co-player, offline co-player) | ✅ | 63→67 server tests (4 new, all pass) |
+| `GET_RECENT_PLAYERS` event + `CoPlayerView` / `GetRecentPlayersAck` types | ⬜ | `packages/server/src/protocol.ts` |
+| `handleGetRecentPlayers`: NOT_LOGGED_IN guard, DB fetch, `isOnline` enrichment | ⬜ | `isOnline` = `store.playerIndex` has entry with live `socketId` |
+| 3 server tests (guest→NOT_LOGGED_IN, no-persistence→UNAVAILABLE, happy path) | ⬜ | 63→66 server tests |
 
 ### 8c — Server: invitation system
 
