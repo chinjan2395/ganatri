@@ -44,6 +44,7 @@ import {
   type InviteAcceptedPayload,
   type InviteRejectedPayload,
   type InviteCancelledPayload,
+  type PlayerOnlineStatusPayload,
   type VoiceOfferPayload,
   type VoiceAnswerPayload,
   type VoiceIcePayload,
@@ -342,9 +343,25 @@ function handleConnection(io: Server, socket: Socket): void {
   // Register all event listeners for this socket.
   registerSocketEvents(io, socket, session);
 
+  // Broadcast presence to all other clients when a logged-in user connects.
+  if (session.userId !== null) {
+    socket.broadcast.emit(EVENTS.PLAYER_ONLINE_STATUS, {
+      userId: session.userId,
+      isOnline: true,
+    } satisfies PlayerOnlineStatusPayload);
+  }
+
   socket.on('disconnect', () => {
     store.adminSockets.delete(socket.id);
+    const userId = session.userId;
     handleDisconnect(socket, session);
+    // Broadcast offline only if this socket was the active one (handleDisconnect nulls socketId).
+    if (userId !== null && session.socketId === null) {
+      socket.broadcast.emit(EVENTS.PLAYER_ONLINE_STATUS, {
+        userId,
+        isOnline: false,
+      } satisfies PlayerOnlineStatusPayload);
+    }
   });
 }
 

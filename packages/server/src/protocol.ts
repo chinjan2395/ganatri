@@ -355,6 +355,12 @@ export interface PlayerReconnectedPayload {
   playerId: string;
 }
 
+/** Broadcast globally when a logged-in user comes online or goes offline. */
+export interface PlayerOnlineStatusPayload {
+  userId: string;
+  isOnline: boolean;
+}
+
 /** Broadcast when a player's turn times out and a move is auto-played. */
 export interface TurnTimeoutPayload {
   playerId: string;
@@ -514,6 +520,9 @@ export const EVENTS = {
   INVITE_ACCEPTED: 'invite_accepted',
   INVITE_REJECTED: 'invite_rejected',
   INVITE_CANCELLED: 'invite_cancelled',
+
+  // Presence (Server → Client push)
+  PLAYER_ONLINE_STATUS: 'player_online_status',
 
   // Voice chat signaling (Client → Server)
   VOICE_OFFER: 'voice_offer',

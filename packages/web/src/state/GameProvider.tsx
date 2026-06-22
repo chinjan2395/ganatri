@@ -51,6 +51,7 @@ import {
   type InviteReceivedPayload,
   type InviteAcceptedPayload,
   type InviteCancelledPayload,
+  type PlayerOnlineStatusPayload,
   type InvitePlayerAck,
   type RespondToInviteAck,
   type BlockUserAck,
@@ -278,6 +279,11 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
     function onInviteAccepted(_payload: InviteAcceptedPayload): void {
       setPendingInvite(null);
     }
+    function onPlayerOnlineStatus(payload: PlayerOnlineStatusPayload): void {
+      setRecentPlayers((prev) =>
+        prev.map((p) => (p.userId === payload.userId ? { ...p, isOnline: payload.isOnline } : p)),
+      );
+    }
 
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
@@ -290,6 +296,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
     socket.on(EVENTS.INVITE_RECEIVED, onInviteReceived);
     socket.on(EVENTS.INVITE_CANCELLED, onInviteCancelled);
     socket.on(EVENTS.INVITE_ACCEPTED, onInviteAccepted);
+    socket.on(EVENTS.PLAYER_ONLINE_STATUS, onPlayerOnlineStatus);
 
     return () => {
       socket.off('connect', onConnect);
@@ -303,6 +310,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       socket.off(EVENTS.INVITE_RECEIVED, onInviteReceived);
       socket.off(EVENTS.INVITE_CANCELLED, onInviteCancelled);
       socket.off(EVENTS.INVITE_ACCEPTED, onInviteAccepted);
+      socket.off(EVENTS.PLAYER_ONLINE_STATUS, onPlayerOnlineStatus);
       if (trickFreezeTimerRef.current !== null) {
         clearTimeout(trickFreezeTimerRef.current);
         trickFreezeTimerRef.current = null;
@@ -331,7 +339,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
   const respondToInvite = useCallback(
     async (inviterUserId: string, accept: boolean, block?: boolean): Promise<RespondToInviteAck> => {
       const ack = await netRespondToInvite(inviterUserId, accept, block);
-      if (ack.ok && accept) setPendingInvite(null);
+      if (ack.ok) setPendingInvite(null);
       return ack;
     },
     [],

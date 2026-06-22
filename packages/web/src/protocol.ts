@@ -249,6 +249,10 @@ export interface PlayerDisconnectedPayload {
 export interface PlayerReconnectedPayload {
   playerId: string;
 }
+export interface PlayerOnlineStatusPayload {
+  userId: string;
+  isOnline: boolean;
+}
 export interface TurnTimeoutPayload {
   playerId: string;
   move?: { type: string; card: string };
@@ -339,6 +343,9 @@ export const EVENTS = {
   INVITE_ACCEPTED: 'invite_accepted',
   INVITE_REJECTED: 'invite_rejected',
   INVITE_CANCELLED: 'invite_cancelled',
+
+  // Presence (Server → Client push)
+  PLAYER_ONLINE_STATUS: 'player_online_status',
 
   SESSION: 'session',
   ROOM_UPDATE: 'room_update',
