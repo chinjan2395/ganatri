@@ -123,15 +123,13 @@ jobs:
         run: |
           ITEM=$(awk '/<!-- PRIORITY_TODO:START -->/{f=1; next} /<!-- PRIORITY_TODO:END -->/{f=0} f && /^[[:space:]]*- \[ \]/{print; exit}' \
                    docs/DEVELOPMENT_PLAN.md)
-          # Post a Block Kit message with an interactive button. Clicking it hits
-          # the Cloudflare Worker's interactivity URL (action_id "run_now"), which
-          # dispatches the nightly workflow.
-          PAYLOAD=$(jq -n --arg ch "$SLACK_CHANNEL_ID" --arg item "$ITEM" '{
+          TITLE=$(bash .github/scripts/slack-nightly-msgs.sh clean-task "$ITEM")
+          PAYLOAD=$(jq -n --arg ch "$SLACK_CHANNEL_ID" --arg title "$TITLE" '{
             channel: $ch,
-            text: ("Queued as the next priority TODO: " + $item),
+            text: ("Queued for the next nightly build: " + $title),
             blocks: [
               { type: "section",
-                text: { type: "mrkdwn", text: (":white_check_mark: *Queued as the next priority TODO:*\n" + $item) } },
+                text: { type: "mrkdwn", text: (":white_check_mark: *Added to the build queue*\n" + $title) } },
               { type: "actions",
                 elements: [
                   { type: "button",
@@ -149,4 +147,4 @@ jobs:
         if: failure()
         run: |
           bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" \
-            ":warning: Failed to queue a Slack TODO request. See the run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            ":warning: *Could not add your task to the queue.* Please try again or add it manually in GitHub."
