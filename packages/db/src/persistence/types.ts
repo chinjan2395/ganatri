@@ -345,6 +345,9 @@ export interface GamePersistence {
   /** All userIds that `userId` has blocked. */
   getBlockedUserIds(userId: string): Promise<string[]>;
 
+  /** Full user details for every user that `userId` has blocked. */
+  getBlockedUsers(userId: string): Promise<BlockedUserEntry[]>;
+
   /** True if blockerId has blocked blockedId (one-directional). */
   isBlocked(blockerId: string, blockedId: string): Promise<boolean>;
 }
@@ -358,4 +361,10 @@ export interface CoPlayerEntry {
   displayName: string;
   avatarUrl: string | null;
   gamesPlayedTogether: number;
+}
+
+export interface BlockedUserEntry {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
 }

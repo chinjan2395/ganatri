@@ -1,5 +1,17 @@
 # Ganatri — Phasewise Development Plan
 
+Last updated: 2026-06-22 (Phase 8 COMPLETE: All sub-phases 8a–8h shipped. Final counts: 153 engine + 80 server + 154 db = 387 tests. Social features: recently played co-player panel with invite flow, incoming invite toast overlay, block/unblock system with management UI, all backed by user_blocks DB table and real-time socket events.)
+
+Last updated: 2026-06-22 (Phase 8h server-side complete: `BlockedUserEntry` type added to `packages/db/src/persistence/types.ts`; `getBlockedUsers(userId)` method added to `GamePersistence` interface, `PgPersistence` (Drizzle innerJoin `userBlocks`+`users`), and `MemoryPersistence` (iterates `blocks` Set, looks up user Map); `BlockedUserEntry` exported from `packages/db/src/index.ts`; 2 new contract tests in `memory.test.ts` (`getBlockedUsers returns blocked user details`, `getBlockedUsers returns empty array when no blocks`) — run against both Pg+Memory = 4 test runs; 150→154 db tests. Server: `BlockedUserView`/`GetBlockedUsersAck` types added to `packages/server/src/protocol.ts`; `GET_BLOCKED_USERS: 'get_blocked_users'` added to `EVENTS`; `handleGetBlockedUsers` added to `handlers.ts` (NOT_LOGGED_IN/UNAVAILABLE guards, calls `persistence.getBlockedUsers`, acks `{ok:true,users}`); wired in `registerSocketEvents`; 3 new integration tests in `blocked-users.test.ts` (guest→NOT_LOGGED_IN, no-persistence→UNAVAILABLE, happy path returns blocked list); 77→80 server tests. Build green. Total: 153 engine + 80 server + 154 db = 387.)
+
+Last updated: 2026-06-22 (Phase 8h web-side complete: `BlockedUserView` + `GetBlockedUsersAck` types added to `packages/web/src/protocol.ts`; `GET_BLOCKED_USERS: 'get_blocked_users'` added to `EVENTS` constant; `getBlockedUsers()` helper added to `packages/web/src/net/socket.ts`; `GameProvider` gains `getBlockedUsers` useCallback + exposed in `GameContextValue` interface, useMemo value, and deps array; `LobbyScreen` pulls `getBlockedUsers` + `unblockUser` from `useGame()`; "Blocked Users" expandable panel added to the logged-in account section — toggle button with chevron flip, lazy-fetch on first open (loading/error/empty/"No blocked users." states), populated list shows displayName + Unblock button per row (clicking removes row on success); CSS classes added to `LobbyScreen.css`: `.lobby__blocked-section`, `.lobby__blocked-toggle`, `.lobby__blocked-panel`, `.lobby__blocked-list`, `.lobby__blocked-row`, `.lobby__blocked-name`, `.lobby__unblock-btn`, `.lobby__blocked-empty`, `.lobby__blocked-error`. Build green. Server-side GET_BLOCKED_USERS handler still pending.)
+
+Last updated: 2026-06-22 (Phase 8g complete: `InviteToast` component built and mounted in App.tsx. New `packages/web/src/components/InviteToast.tsx`: renders when `pendingInvite !== null` from GameContext; shows inviter avatar (img or initials fallback), display name, "wants to play with you!" subtitle, 60s countdown timer (resets on new invite via `inviterUserId` key), Accept/Decline/Block buttons. Accept shows spinner while in-flight; on success App routes to RoomScreen automatically via ROOM_UPDATE. Block calls `respondToInvite(id, false, true)` and shows "User blocked" confirmation text. Error messages inline: UNAVAILABLE→"Unavailable, try again", NOT_FOUND→"Invite expired". CSS in `InviteToast.css`: `position:fixed top:80px left:50% translateX(-50%) z-index:1000`; dark card panel; responsive mobile layout (stacks buttons vertically on ≤400px). `<InviteToast />` mounted inside `VoiceChatProvider` / `app-shell` in App.tsx, outside screen routing, so it floats above all screens. Build green.)
+
+Last updated: 2026-06-22 (Phase 8f complete: "Recently Played" section added to LobbyScreen. New `RecentlyPlayed` sub-component renders three states — logged-out (3 greyed placeholder cards with lock overlay + pulse skeleton bars), logged-in empty ("No games played yet" message), logged-in populated (player cards with avatar/initials, green online dot, display name, games-together count, Invite button for online players). Invite button spins in-flight, shows inline error messages (OFFLINE/BLOCKED/ALREADY_IN_ROOM/ALREADY_IN_GAME/UNAVAILABLE) below the card. "See all" toggle expands up to 10 when more than 5 exist. CSS added: `.recently-played`, `.rp__heading`, `.rp__cards` (responsive grid: 2col mobile → 3col 480px → 5col 700px), `.rp__card`, `.rp__card--placeholder`, `.rp__avatar-wrap`, `.rp__avatar`, `.rp__avatar-initials`, `.rp__online-dot`, `.rp__name`, `.rp__games-count`, `.rp__invite-btn`, `.rp__invite-btn--loading`, `.rp__invite-error`, `.rp__placeholder-bar`, `.rp__locked-overlay`, `.rp__see-all-btn`, `@keyframes rp-pulse`, `@keyframes rp-spin`. Build green.)
+
+Last updated: 2026-06-22 (Phase 8e complete: GameProvider social wiring — `recentPlayers: CoPlayerView[]` + `pendingInvite: InviteReceivedPayload | null` state added; `INVITE_RECEIVED`/`INVITE_CANCELLED`/`INVITE_ACCEPTED` push listeners registered; auto-fetch effect fires when `account.loggedIn` transitions to true; `invitePlayer`, `respondToInvite`, `blockUser`, `unblockUser`, `refreshRecentPlayers` useCallback actions added and exposed in `GameContextValue` + useMemo. Build green.)
+
 Last updated: 2026-06-22 (Phase 8d complete: web protocol mirror + socket helpers. `packages/web/src/protocol.ts` gains `GET_RECENT_PLAYERS` + 4 social C→S events + 4 S→C push events in EVENTS; `CoPlayerView`, `GetRecentPlayersAck`, `InvitePlayerPayload/Ack`, `RespondToInvitePayload/Ack`, `BlockUserPayload/Ack`, `UnblockUserPayload/Ack`, `InviteReceivedPayload`, `InviteAcceptedPayload`, `InviteRejectedPayload`, `InviteCancelledPayload` types added. `packages/web/src/net/socket.ts` gains `requestRecentPlayers`, `invitePlayer`, `respondToInvite`, `blockUser`, `unblockUser` helpers. Build green.)
 
 Last updated: 2026-06-22 (Phase 8c complete: invitation system. `pendingInvites Map<string,InviteState>` + `INVITE_TIMEOUT_MS=60s` + `__resetPendingInvitesForTests()` added to `handlers.ts`. `EVENTS`: 4 C→S (`INVITE_PLAYER`,`RESPOND_TO_INVITE`,`BLOCK_USER`,`UNBLOCK_USER`) + 4 S→C push (`INVITE_RECEIVED`,`INVITE_ACCEPTED`,`INVITE_REJECTED`,`INVITE_CANCELLED`) added to `protocol.ts` with full payload+ack types. `handleInvitePlayer`: NOT_LOGGED_IN, UNAVAILABLE, SELF_INVITE, OFFLINE, ALREADY_IN_ROOM, BLOCKED, ALREADY_IN_GAME guards; auto-create LOBBY room; 60s expiry timer emits INVITE_CANCELLED; sends INVITE_RECEIVED push. `handleRespondToInvite`: NOT_LOGGED_IN+NOT_FOUND guards; accept→auto-join room+INVITE_ACCEPTED push; reject→INVITE_REJECTED push; block=true→`blockUser` persist. `handleBlockUser`/`handleUnblockUser`: auth+persistence guards, call DB. `silentLeaveRoom` cancels all pending invites sent by departing player. 10 new integration tests in `invites.test.ts`: 67→77 server tests, all pass. Total: 153 engine + 77 server + 150 db = 380.)
@@ -57,7 +69,7 @@ Last updated: 2026-06-19 (Phase A — DB layer for accounts/auth/history/retenti
 Last updated: 2026-06-19 (Phase 6d/6e: wired DB write-through into the server — new `server/src/persistence.ts` service + `handlers.ts` calls. Persists `rooms` (on game start), `games`, `game_players`, `game_events` (async, seq-ordered, batched), and incremental `player_stats` on game-end/abandon. Async fire-and-forget — never blocks the engine; `getPersistence()` returns null when `DATABASE_URL` unset. Restart-rehydration via `loadActiveGames` deferred / out of scope; 28 server tests, 2 new.)  
 Last updated: 2026-06-18 (Phase 6a/6b: fixed @ganatri/db foundation — node-postgres Pool + DATABASE_URL, text seed, regenerated migration; built fully-tested GamePersistence layer (Pg + Memory); review fixes: idempotent recordGameFinished via (game_id, seat_index) unique index, deterministic+batched loadActiveGames, isGuest preservation on upsert)  
 Last updated: 2026-06-16 (Voice perf/heat fixes: room-gated mic acquisition, watchdog backoff+cap, AudioContext suspend while muted/idle; Critical fixes: TURN_TIMEOUT event, XSS sanitization, grace expiry broadcast, DRY refactor, freeze duration; 26 server tests)  
-All 380 tests passing (153 engine + 77 server + 150 db).
+All 387 tests passing (153 engine + 80 server + 154 db).
 
 ---
 
@@ -89,10 +101,10 @@ All 380 tests passing (153 engine + 77 server + 150 db).
 - [x] **Phase 8b: Server — get_recent_players event** — `packages/server` (protocol.ts, handlers.ts, test file). Add `GET_RECENT_PLAYERS` event + `CoPlayerView`/`GetRecentPlayersAck` types. Handler: NOT_LOGGED_IN guard, call `getFrequentCoPlayers`, enrich each entry with `isOnline` (check `store.playerIndex` → live socketId). Acceptance: 3 new server tests (guest→NOT_LOGGED_IN, no-persistence→UNAVAILABLE, happy path with isOnline); 63→66 server tests.
 - [x] **Phase 8c: Server — invitation system** — `packages/server` (protocol.ts, handlers.ts, store.ts, new invites.ts). In-memory `pendingInvites` map. Events: `INVITE_PLAYER`, `RESPOND_TO_INVITE`, `BLOCK_USER`, `UNBLOCK_USER` (C→S) + `INVITE_RECEIVED`, `INVITE_ACCEPTED`, `INVITE_REJECTED`, `INVITE_CANCELLED` (S→C push). `handleInvitePlayer`: auth-guard, auto-create room if inviter has none, isBlocked check, OFFLINE/UNAVAILABLE/ALREADY_IN_ROOM guards, 60s expiry timer, emit INVITE_RECEIVED. `handleRespondToInvite`: accept→auto-join room+emit INVITE_ACCEPTED, reject→emit INVITE_REJECTED, block→persist blockUser. Cancel invites when inviter leaves room. Acceptance: ~8 new tests; 66→~74 server tests.
 - [x] **Phase 8d: Web — protocol mirror + socket helpers** — `packages/web/src/protocol.ts`, `packages/web/src/net/socket.ts`. Mirror all new event constants + payload types. Add helpers: `requestRecentPlayers()`, `invitePlayer(targetUserId)`, `respondToInvite(roomCode, accept, block?)`, `blockUser(userId)`, `unblockUser(userId)`. Acceptance: build green.
-- [ ] **Phase 8e: Web — GameProvider wiring** — `packages/web/src/state/GameProvider.tsx`. New state: `recentPlayers: CoPlayerView[]`, `pendingInvite: InviteReceivedPayload | null`. Listen for INVITE_RECEIVED/INVITE_CANCELLED. Expose all new actions in GameContextValue. Auto-fetch recentPlayers when account transitions to logged-in. Acceptance: build green.
-- [ ] **Phase 8f: LobbyScreen redesign — Recently Played section** — `packages/web/src/screens/LobbyScreen.tsx` + `.css`. Add "Recently Played" section below create/join. Logged-out: greyed-out placeholder cards with lock overlay. Logged-in loading: skeleton pulse. Logged-in empty: "No games played yet" message. Logged-in populated: player cards with avatar, name, games-together count, green online dot, Invite button (online only; auto-creates room; transitions to RoomScreen on ack). CSS: `.recently-played`, `.rp__card`, `.rp__avatar`, `.rp__online-dot`, `.rp__invite-btn`, `.rp__disabled-overlay`. Acceptance: build green; responsive on mobile.
-- [ ] **Phase 8g: Invite notification overlay** — new `packages/web/src/components/InviteToast.tsx` + `.css`, mount in `App.tsx`. Shows when `pendingInvite != null` from context, over any screen. Displays inviter avatar+name, Accept/Reject/Block buttons, 60s countdown ring auto-dismiss. Accept→respondToInvite(true)→join room→RoomScreen. Reject→respondToInvite(false). Block→respondToInvite(false, true)+brief "User blocked" confirmation. Acceptance: build green; overlay works from all screens.
-- [ ] **Phase 8h: Block/Unblock management UI + get_blocked_users server event** — Server: `GET_BLOCKED_USERS` event+handler (auth-gated, returns `{ ok: true, users: BlockedUserView[] }`). Web: socket helper `getBlockedUsers()`. LobbyScreen account section: "Blocked Users" expandable panel listing blocked users with Unblock button per row; empty state "No blocked users." Acceptance: build green; block persists across page reload.
+- [x] **Phase 8e: Web — GameProvider wiring** (done 2026-06-22) — `packages/web/src/state/GameProvider.tsx`. New state: `recentPlayers: CoPlayerView[]`, `pendingInvite: InviteReceivedPayload | null`. Listen for INVITE_RECEIVED/INVITE_CANCELLED. Expose all new actions in GameContextValue. Auto-fetch recentPlayers when account transitions to logged-in. Acceptance: build green.
+- [x] **Phase 8f: LobbyScreen redesign — Recently Played section** — `packages/web/src/screens/LobbyScreen.tsx` + `.css`. Add "Recently Played" section below create/join. Logged-out: greyed-out placeholder cards with lock overlay. Logged-in loading: skeleton pulse. Logged-in empty: "No games played yet" message. Logged-in populated: player cards with avatar, name, games-together count, green online dot, Invite button (online only; auto-creates room; transitions to RoomScreen on ack). CSS: `.recently-played`, `.rp__card`, `.rp__avatar`, `.rp__online-dot`, `.rp__invite-btn`, `.rp__disabled-overlay`. Acceptance: build green; responsive on mobile. (done 2026-06-22)
+- [x] **Phase 8g: Invite notification overlay** — new `packages/web/src/components/InviteToast.tsx` + `.css`, mount in `App.tsx`. Shows when `pendingInvite != null` from context, over any screen. Displays inviter avatar+name, Accept/Reject/Block buttons, 60s countdown ring auto-dismiss. Accept→respondToInvite(true)→join room→RoomScreen. Reject→respondToInvite(false). Block→respondToInvite(false, true)+brief "User blocked" confirmation. Acceptance: build green; overlay works from all screens. (done 2026-06-22)
+- [x] **Phase 8h: Block/Unblock management UI + get_blocked_users server event** (done 2026-06-22) — Server: `GET_BLOCKED_USERS` event+handler (auth-gated, returns `{ ok: true, users: BlockedUserView[] }`). Web: socket helper `getBlockedUsers()`. LobbyScreen account section: "Blocked Users" expandable panel listing blocked users with Unblock button per row; empty state "No blocked users." Acceptance: build green; block persists across page reload.
 - [x] **Persist session across page reload** — `packages/web/src/net/socket.ts` (store/restore session token in localStorage), `packages/server/src/handlers.ts` (accept existing token on reconnect). Acceptance: after a hard page reload the user's guest or logged-in session is automatically restored and they land back in the lobby (or active game) without re-entering a name or room code. (done 2026-06-22)
 - [x] **Update user profile logo in game session too** — `packages/web`. Acceptance: Update user profile logo in game session too. It should show google profile icon if user is logged in via google. (done 2026-06-21)
 - [x] **Update "Log in with Google" button logo on homepage** — `packages/web/src/LobbyScreen.tsx` (and any Google icon asset or inline SVG it references). Acceptance: The "Log in with Google" button in the lobby displays the new/correct logo. (done 2026-06-21)
@@ -184,9 +196,10 @@ All 380 tests passing (153 engine + 77 server + 150 db).
 | `admin_get_stats` live ops endpoint                                   | ✅      | Returns totalRooms/lobbyRooms/activeGames/completedRooms/connectedPlayers/totalSessions; 3 tests in admin.test.ts |
 | `name?` in `SessionPayload` (guest display name on reconnect)         | ✅      | `protocol.ts` + `sessionPayload()` in `handlers.ts`; SESSION now includes `name` for guests when set |
 | Clear stale `roomCode` in `handleReconnect` when room is gone         | ✅      | `handlers.ts` `handleReconnect`: reordered `getRoom` before `socket.join`; clears `roomCode` via `updateSession` when room undefined |
+| `get_blocked_users` socket event + handler                            | ✅      | `BlockedUserView`/`GetBlockedUsersAck` in `protocol.ts`; `GET_BLOCKED_USERS` in `EVENTS`; `handleGetBlockedUsers` in `handlers.ts` (NOT_LOGGED_IN/UNAVAILABLE guards); 3 tests in `blocked-users.test.ts` |
 
 
-**Test count: 63 / 63 passing.**
+**Test count: 80 / 80 passing.**
 
 ---
 
@@ -583,39 +596,39 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| `recentPlayers: CoPlayerView[]` + `pendingInvite: InviteReceivedPayload | null` state | ⬜ | `GameProvider.tsx` |
-| Listen for `INVITE_RECEIVED` / `INVITE_CANCELLED` push events | ⬜ | `GameProvider.tsx` |
-| Expose all new actions + state in `GameContextValue` | ⬜ | `GameProvider.tsx` |
-| Auto-fetch `recentPlayers` when `account` transitions to logged-in | ⬜ | `GameProvider.tsx` |
+| `recentPlayers: CoPlayerView[]` + `pendingInvite: InviteReceivedPayload | null` state | ✅ | `GameProvider.tsx` |
+| Listen for `INVITE_RECEIVED` / `INVITE_CANCELLED` push events | ✅ | `GameProvider.tsx` |
+| Expose all new actions + state in `GameContextValue` | ✅ | `GameProvider.tsx` |
+| Auto-fetch `recentPlayers` when `account` transitions to logged-in | ✅ | `GameProvider.tsx` |
 
 ### 8f — LobbyScreen redesign: Recently Played section
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| "Recently Played" section below create/join area | ⬜ | `LobbyScreen.tsx` + `LobbyScreen.css` |
-| Logged-out: greyed-out placeholder cards with lock overlay | ⬜ | Non-interactive; prompts login |
-| Logged-in: loading skeletons, empty state, populated grid (max 5, "See more" → 10) | ⬜ | Pulse animation on skeletons |
-| Player cards: avatar, name, games-together count, green online dot | ⬜ | `CoPlayerView` data |
-| Invite button: online-only, spins in-flight, auto-creates room, transitions to RoomScreen | ⬜ | Error states: BLOCKED / OFFLINE / UNAVAILABLE inline |
-| CSS: `.recently-played`, `.rp__card`, `.rp__avatar`, `.rp__online-dot`, `.rp__invite-btn`, `.rp__disabled-overlay`, skeleton keyframes | ⬜ | Mobile responsive |
+| "Recently Played" section below create/join area | ✅ | `LobbyScreen.tsx` + `LobbyScreen.css` |
+| Logged-out: greyed-out placeholder cards with lock overlay | ✅ | 3 placeholder cards with pulse animation and lock icon overlay |
+| Logged-in: loading skeletons, empty state, populated grid (max 5, "See more" → 10) | ✅ | Pulse animation on skeleton bars; empty state message; "See all" toggle |
+| Player cards: avatar, name, games-together count, green online dot | ✅ | `CoPlayerView` data; initials fallback when no avatarUrl |
+| Invite button: online-only, spins in-flight, auto-creates room, transitions to RoomScreen | ✅ | ROOM_UPDATE push navigates automatically; inline error messages per error code |
+| CSS: `.recently-played`, `.rp__card`, `.rp__avatar`, `.rp__online-dot`, `.rp__invite-btn`, `.rp__disabled-overlay`, skeleton keyframes | ✅ | Responsive grid: 2col mobile → 3col 480px → 5col 700px |
 
 ### 8g — Invite notification overlay
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| `InviteToast` component: avatar+name, Accept/Reject/Block buttons, 60s countdown ring | ⬜ | `packages/web/src/components/InviteToast.tsx` + `.css` |
-| Accept → `respondToInvite(true)` → join room → RoomScreen | ⬜ | |
-| Reject → `respondToInvite(false)` → dismiss | ⬜ | |
-| Block → `respondToInvite(false, true)` → dismiss + brief "User blocked" confirmation | ⬜ | |
-| Mount `<InviteToast />` at App root (outside screen routing) | ⬜ | `packages/web/src/App.tsx` |
+| `InviteToast` component: avatar+name, Accept/Reject/Block buttons, 60s countdown ring | ✅ | `packages/web/src/components/InviteToast.tsx` + `.css` |
+| Accept → `respondToInvite(true)` → join room → RoomScreen | ✅ | |
+| Reject → `respondToInvite(false)` → dismiss | ✅ | |
+| Block → `respondToInvite(false, true)` → dismiss + brief "User blocked" confirmation | ✅ | |
+| Mount `<InviteToast />` at App root (outside screen routing) | ✅ | `packages/web/src/App.tsx` |
 
 ### 8h — Block/Unblock management UI
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| `GET_BLOCKED_USERS` server event + handler (auth-gated, returns `BlockedUserView[]`) | ⬜ | `packages/server/src/protocol.ts` + `handlers.ts` |
-| `getBlockedUsers()` socket helper in web | ⬜ | `packages/web/src/net/socket.ts` |
-| "Blocked Users" expandable panel in LobbyScreen account section | ⬜ | Lists blocked users with Unblock button; empty state |
+| `GET_BLOCKED_USERS` server event + handler (auth-gated, returns `BlockedUserView[]`) | ✅ | `packages/server/src/protocol.ts` + `handlers.ts`; 3 new tests in `blocked-users.test.ts` |
+| `getBlockedUsers()` socket helper in web | ✅ | `packages/web/src/net/socket.ts`; `BlockedUserView`+`GetBlockedUsersAck` types in `protocol.ts`; `GET_BLOCKED_USERS` in `EVENTS`; wired into `GameProvider` |
+| "Blocked Users" expandable panel in LobbyScreen account section | ✅ | Lazy-fetch on first open; loading/error/empty/list states; Unblock button removes row on success; CSS classes added |
 
 ---
 
@@ -638,7 +651,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | Phase                        | Status                                                                                  |
 | ---------------------------- | --------------------------------------------------------------------------------------- |
 | Phase 1 — Engine             | ✅ Complete (153 tests)                                                                  |
-| Phase 2 — Server             | ✅ Complete (63 tests; TURN_TIMEOUT + sanitization + grace expiry broadcast + DRY refactor + freeze fix + DB write-through + OAuth/history/retention + flat history wire-contract fix + `get_my_stats` + `get_leaderboard` + `myEntry` in leaderboard ack + time-windowed leaderboard + `timeWindow` runtime validation + `update_display_name` + admin secret check + `admin_get_stats` live ops endpoint + session-persistence flow fixes: `name?` in `SessionPayload`, guest name in SESSION emit, stale roomCode cleared on reconnect) |
+| Phase 2 — Server             | ✅ Complete (80 tests; TURN_TIMEOUT + sanitization + grace expiry broadcast + DRY refactor + freeze fix + DB write-through + OAuth/history/retention + flat history wire-contract fix + `get_my_stats` + `get_leaderboard` + `myEntry` in leaderboard ack + time-windowed leaderboard + `timeWindow` runtime validation + `update_display_name` + admin secret check + `admin_get_stats` live ops endpoint + session-persistence flow fixes: `name?` in `SessionPayload`, guest name in SESSION emit, stale roomCode cleared on reconnect + `get_recent_players` + invitation system + `get_blocked_users`) |
 | Phase 3 — Web Client         | ✅ Complete (player names wired, all components functional)                              |
 | Phase 4 — Polish             | ✅ Complete (animations, mobile polish; deployment user-handled via Render + Cloudflare) |
 | Phase 5 — Voice Chat         | 🟡 Core + cross-browser fixes + Perfect Negotiation recovery + Cloudflare TURN; smoke test pending |
@@ -649,6 +662,6 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | Phase 6f/6g — Global leaderboard | ✅ `get_leaderboard` slice (db + server): `GamePersistence.getLeaderboard(limit=20, offset=0)` (Pg + Memory) with shared `toLeaderboardEntry` mapper, excludes guests + zero-games, ordered `gamesWon DESC, winRate DESC, gamesPlayed DESC, userId ASC`, paginated (winRate derived in JS, 0-guarded); PUBLIC `handleGetLeaderboard` + `LeaderboardEntryView`/`GetLeaderboardAck` (1-based `rank`, only failure `UNAVAILABLE`). `myEntry?: LeaderboardEntryView` added to ack (logged-in user outside top 20 gets their rank); `getMyLeaderboardRank` in db (Pg CTE+ROW_NUMBER + Memory sort+findIndex). **Time-windowed leaderboard complete** (`timeWindow?: 'week' | 'month'` added to both interface methods + both impls; `GetLeaderboardRequest` on server; +10 db contract tests + 2 server tests; total now 118 db + 50 server). **Windowed leaderboard bug fix** (Pg CTE now correctly filters `AND g.is_abandoned = false`; dead `HAVING COUNT(*) > 0` removed; `timeWindow` runtime-validated in `handleGetLeaderboard`; +2 contract tests for abandoned exclusion; total now 120 db). **Schema drift-guard column test added** (`player_stats.sum_finish_positions` existence/type/nullable/default asserted in `schema.test.ts`; 120→121 db tests). Web `LeaderboardScreen` tab UI already shipped. Friends boards still TODO. |
 | Phase C — Web OAuth UI/history screen | ✅ Optional Google login + game-history/score-card screen in `packages/web`. Socket `withCredentials:true`; `requestHistory`/`loginWithGoogle`/`logout` helpers; protocol mirror for `REQUEST_HISTORY`/`GameHistoryEntry` + `SessionPayload` account fields; `GameProvider.account` + `screen` nav; `LobbyScreen` login/account UI (guest flow untouched, `?login=error` handled); new `HistoryScreen` w/ expandable framer-motion score cards. Build green; no web tests/lint present. |
 | Phase 7 — Improvements       | ⬜ Backlog identified; not yet started (27 tasks across 7 sub-phases 7a–7g). **Deprioritized below Phase 8.** |
-| Phase 8 — Social (Co-players & Invitations) | ⬜ Roadmap complete; 8 sub-tasks queued in Priority TODO. Not started. |
+| Phase 8 — Social (Co-players & Invitations) | ✅ Complete (all 8a–8h shipped; 387 total tests) |
 
 

@@ -24,6 +24,12 @@ import {
   socket,
   startGame as netStartGame,
   updateDisplayName as netUpdateDisplayName,
+  requestRecentPlayers as netRequestRecentPlayers,
+  invitePlayer as netInvitePlayer,
+  respondToInvite as netRespondToInvite,
+  blockUser as netBlockUser,
+  unblockUser as netUnblockUser,
+  getBlockedUsers as netGetBlockedUsers,
 } from '../net/socket';
 import {
   EVENTS,
@@ -40,6 +46,16 @@ import {
   type SessionPayload,
   type StartGameAck,
   type StateUpdatePayload,
+  type CoPlayerView,
+  type GetRecentPlayersAck,
+  type InviteReceivedPayload,
+  type InviteAcceptedPayload,
+  type InviteCancelledPayload,
+  type InvitePlayerAck,
+  type RespondToInviteAck,
+  type BlockUserAck,
+  type UnblockUserAck,
+  type GetBlockedUsersAck,
 } from '../protocol';
 
 export interface SessionInfo {
@@ -76,6 +92,10 @@ export interface GameContextValue {
   playerAvatarUrls: Readonly<Record<string, string | null>>;
   /** Guest display name restored from a previous session (null for logged-in users or first-time guests). */
   guestName: string | null;
+  /** Recently played co-players for the logged-in user. */
+  recentPlayers: CoPlayerView[];
+  /** A pending invite this player has received, or null. */
+  pendingInvite: InviteReceivedPayload | null;
   error: string | null;
   clearError: () => void;
   createRoom: (name?: string) => Promise<CreateRoomAck>;
@@ -92,6 +112,12 @@ export interface GameContextValue {
   updateDisplayName: (newName: string) => Promise<UpdateDisplayNameAck>;
   loginWithGoogle: () => void;
   logout: () => void;
+  invitePlayer: (targetUserId: string) => Promise<InvitePlayerAck>;
+  respondToInvite: (inviterUserId: string, accept: boolean, block?: boolean) => Promise<RespondToInviteAck>;
+  blockUser: (targetUserId: string) => Promise<BlockUserAck>;
+  unblockUser: (targetUserId: string) => Promise<UnblockUserAck>;
+  getBlockedUsers: () => Promise<GetBlockedUsersAck>;
+  refreshRecentPlayers: () => Promise<void>;
 }
 
 export const GameContext = createContext<GameContextValue | null>(null);
@@ -111,6 +137,8 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
   const [playerNames, setPlayerNames] = useState<Record<string, string>>({});
   const [playerAvatarUrls, setPlayerAvatarUrls] = useState<Record<string, string | null>>({});
   const [guestName, setGuestName] = useState<string | null>(null);
+  const [recentPlayers, setRecentPlayers] = useState<CoPlayerView[]>([]);
+  const [pendingInvite, setPendingInvite] = useState<InviteReceivedPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const eventId = useRef(0);
   const roomPhaseRef = useRef<RoomUpdatePayload['phase'] | null>(null);
@@ -239,6 +267,17 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
         return next;
       });
     }
+    function onInviteReceived(payload: InviteReceivedPayload): void {
+      setPendingInvite(payload);
+    }
+    function onInviteCancelled(payload: InviteCancelledPayload): void {
+      setPendingInvite((prev) =>
+        prev?.inviterUserId === payload.inviterUserId ? null : prev,
+      );
+    }
+    function onInviteAccepted(_payload: InviteAcceptedPayload): void {
+      setPendingInvite(null);
+    }
 
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
@@ -248,6 +287,9 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
     socket.on(EVENTS.STATE_UPDATE, onStateUpdate);
     socket.on(EVENTS.PLAYER_DISCONNECTED, onPlayerDisconnected);
     socket.on(EVENTS.PLAYER_RECONNECTED, onPlayerReconnected);
+    socket.on(EVENTS.INVITE_RECEIVED, onInviteReceived);
+    socket.on(EVENTS.INVITE_CANCELLED, onInviteCancelled);
+    socket.on(EVENTS.INVITE_ACCEPTED, onInviteAccepted);
 
     return () => {
       socket.off('connect', onConnect);
@@ -258,12 +300,23 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       socket.off(EVENTS.STATE_UPDATE, onStateUpdate);
       socket.off(EVENTS.PLAYER_DISCONNECTED, onPlayerDisconnected);
       socket.off(EVENTS.PLAYER_RECONNECTED, onPlayerReconnected);
+      socket.off(EVENTS.INVITE_RECEIVED, onInviteReceived);
+      socket.off(EVENTS.INVITE_CANCELLED, onInviteCancelled);
+      socket.off(EVENTS.INVITE_ACCEPTED, onInviteAccepted);
       if (trickFreezeTimerRef.current !== null) {
         clearTimeout(trickFreezeTimerRef.current);
         trickFreezeTimerRef.current = null;
       }
     };
   }, []);
+
+  // Auto-fetch recent players when the user transitions to logged-in.
+  useEffect(() => {
+    if (!account?.loggedIn) return;
+    void netRequestRecentPlayers().then((ack) => {
+      if (ack.ok) setRecentPlayers(ack.players);
+    });
+  }, [account?.loggedIn]);
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -273,6 +326,23 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
   const updateDisplayName = useCallback((newName: string) => netUpdateDisplayName(newName), []);
   const loginWithGoogle = useCallback(() => netLoginWithGoogle(), []);
   const logout = useCallback(() => netLogout(), []);
+
+  const invitePlayer = useCallback((targetUserId: string) => netInvitePlayer(targetUserId), []);
+  const respondToInvite = useCallback(
+    async (inviterUserId: string, accept: boolean, block?: boolean): Promise<RespondToInviteAck> => {
+      const ack = await netRespondToInvite(inviterUserId, accept, block);
+      if (ack.ok && accept) setPendingInvite(null);
+      return ack;
+    },
+    [],
+  );
+  const blockUser = useCallback((targetUserId: string) => netBlockUser(targetUserId), []);
+  const unblockUser = useCallback((targetUserId: string) => netUnblockUser(targetUserId), []);
+  const getBlockedUsers = useCallback(() => netGetBlockedUsers(), []);
+  const refreshRecentPlayers = useCallback(async () => {
+    const ack = await netRequestRecentPlayers();
+    if (ack.ok) setRecentPlayers(ack.players);
+  }, []);
 
   const createRoom = useCallback((name?: string) => netCreateRoom(name), []);
   const joinRoom = useCallback((roomCode: string, name?: string) => netJoinRoom(roomCode, name), []);
@@ -326,6 +396,8 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       playerNames,
       playerAvatarUrls,
       guestName,
+      recentPlayers,
+      pendingInvite,
       error,
       clearError,
       createRoom,
@@ -341,6 +413,12 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       updateDisplayName,
       loginWithGoogle,
       logout,
+      invitePlayer,
+      respondToInvite,
+      blockUser,
+      unblockUser,
+      getBlockedUsers,
+      refreshRecentPlayers,
     }),
     [
       connected,
@@ -356,6 +434,8 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       playerNames,
       playerAvatarUrls,
       guestName,
+      recentPlayers,
+      pendingInvite,
       error,
       clearError,
       createRoom,
@@ -370,6 +450,12 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       updateDisplayName,
       loginWithGoogle,
       logout,
+      invitePlayer,
+      respondToInvite,
+      blockUser,
+      unblockUser,
+      getBlockedUsers,
+      refreshRecentPlayers,
     ],
   );
 

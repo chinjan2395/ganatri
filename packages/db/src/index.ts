@@ -55,6 +55,7 @@ export type {
   LeaderboardEntry,
   RankedLeaderboardEntry,
   CoPlayerEntry,
+  BlockedUserEntry,
 } from './persistence/types';
 export { PgPersistence, PostgresStore } from './persistence/pg';
 export { MemoryPersistence } from './persistence/memory';

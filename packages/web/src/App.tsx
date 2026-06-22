@@ -9,6 +9,7 @@ import { StatsScreen } from './screens/StatsScreen';
 import { LeaderboardScreen } from './screens/LeaderboardScreen';
 import { Toast } from './components/Toast';
 import { ConnectionBanner } from './components/ConnectionBanner';
+import { InviteToast } from './components/InviteToast';
 
 export function App(): React.ReactNode {
   if (window.location.pathname === '/admin') {
@@ -56,6 +57,7 @@ export function App(): React.ReactNode {
         <ConnectionBanner />
         {screen}
         <Toast message={error} onDismiss={clearError} />
+        <InviteToast />
       </div>
     </VoiceChatProvider>
   );

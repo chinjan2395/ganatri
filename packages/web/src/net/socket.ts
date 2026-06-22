@@ -27,6 +27,7 @@ import {
   type RespondToInviteAck,
   type BlockUserAck,
   type UnblockUserAck,
+  type GetBlockedUsersAck,
 } from '../protocol';
 
 const TOKEN_KEY = 'ganatri.token';
@@ -146,4 +147,8 @@ export function blockUser(targetUserId: string): Promise<BlockUserAck> {
 
 export function unblockUser(targetUserId: string): Promise<UnblockUserAck> {
   return emitAck<UnblockUserAck>(EVENTS.UNBLOCK_USER, { targetUserId });
+}
+
+export function getBlockedUsers(): Promise<GetBlockedUsersAck> {
+  return emitAck<GetBlockedUsersAck>(EVENTS.GET_BLOCKED_USERS);
 }

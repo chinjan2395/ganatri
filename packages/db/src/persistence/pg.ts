@@ -22,6 +22,7 @@ import {
 } from '../schema';
 import type {
   AppendEventInput,
+  BlockedUserEntry,
   CoPlayerEntry,
   CreateAuthSessionInput,
   FinalPlayerResult,
@@ -846,6 +847,27 @@ export class PgPersistence implements GamePersistence {
       .from(userBlocks)
       .where(eq(userBlocks.blockerId, userId));
     return rows.map((r) => r.blockedId);
+  }
+
+  async getBlockedUsers(userId: string): Promise<BlockedUserEntry[]> {
+    try {
+      const rows = await this.db
+        .select({
+          userId: users.id,
+          displayName: users.displayName,
+          avatarUrl: users.avatarUrl,
+        })
+        .from(userBlocks)
+        .innerJoin(users, eq(userBlocks.blockedId, users.id))
+        .where(eq(userBlocks.blockerId, userId));
+      return rows.map((r) => ({
+        userId: r.userId,
+        displayName: r.displayName,
+        avatarUrl: r.avatarUrl,
+      }));
+    } catch {
+      return [];
+    }
   }
 
   async isBlocked(blockerId: string, blockedId: string): Promise<boolean> {

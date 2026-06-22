@@ -31,6 +31,7 @@ import {
   type UpdateDisplayNameAck,
   type CoPlayerView,
   type GetRecentPlayersAck,
+  type GetBlockedUsersAck,
   type InvitePlayerPayload,
   type InvitePlayerAck,
   type RespondToInvitePayload,
@@ -612,6 +613,11 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
   socket.on(EVENTS.GET_RECENT_PLAYERS, (ack: (res: GetRecentPlayersAck) => void) => {
     if (typeof ack !== 'function') return;
     void handleGetRecentPlayers(session, ack);
+  });
+
+  socket.on(EVENTS.GET_BLOCKED_USERS, (ack: (res: GetBlockedUsersAck) => void) => {
+    if (typeof ack !== 'function') return;
+    void handleGetBlockedUsers(session, ack);
   });
 
   socket.on(EVENTS.INVITE_PLAYER, (payload: unknown, ack: (res: InvitePlayerAck) => void) => {
@@ -1427,6 +1433,34 @@ function flattenHistoryEntry(e: DbGameHistoryEntry): WireGameHistoryEntry {
       wasCut: pl.wasCut,
     })),
   };
+}
+
+// ---------------------------------------------------------------------------
+// get_blocked_users
+// ---------------------------------------------------------------------------
+
+async function handleGetBlockedUsers(
+  session: SessionState,
+  ack: (res: GetBlockedUsersAck) => void,
+): Promise<void> {
+  if (session.userId === null) {
+    ack({ ok: false, error: 'NOT_LOGGED_IN' });
+    return;
+  }
+
+  const p = getPersistence();
+  if (!p) {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+
+  try {
+    const blockedUsers = await p.getBlockedUsers(session.userId);
+    ack({ ok: true, users: blockedUsers });
+  } catch (err) {
+    console.error(`[blocked-users] getBlockedUsers failed for ${session.userId}:`, err);
+    ack({ ok: false, error: 'UNAVAILABLE' });
+  }
 }
 
 // ---------------------------------------------------------------------------
