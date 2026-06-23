@@ -9,6 +9,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'http';
 import { randomBytes } from 'node:crypto';
 import { Server } from 'socket.io';
 import { setupSocketHandlers, type SocketHandlerTimers } from './handlers.js';
+import { rehydrateFromDb } from './recovery.js';
 import { attachSessionMiddleware } from './auth/sessionMiddleware.js';
 import {
   isOAuthEnabled,
@@ -248,6 +249,10 @@ export function createApp(): AppInstance {
   attachSessionMiddleware(io);
 
   const timers: SocketHandlerTimers = setupSocketHandlers(io);
+
+  // Rehydrate any games that were in-progress when the server last stopped.
+  // Fire-and-forget: a DB failure never blocks server startup.
+  void rehydrateFromDb();
 
   const host = process.env['HOST'] ?? '0.0.0.0';
 

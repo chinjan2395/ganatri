@@ -323,28 +323,110 @@ export function setupSocketHandlers(io: Server): SocketHandlerTimers {
 }
 
 // ---------------------------------------------------------------------------
+// Ghost session adoption (post-restart recovery)
+// ---------------------------------------------------------------------------
+
+/**
+ * After a server restart, recovery.ts pre-populates ghost sessions (socketId
+ * === null) for every player in a recovered game. When the player connects
+ * with an unknown token (or no token), we match them by their playerId and
+ * "adopt" the ghost: swap in the new token and socket, then call handleReconnect.
+ *
+ * Matching precedence:
+ *  1. Logged-in users: authoritative playerId comes from socket.data.userId
+ *     (resolved by the OAuth session cookie — cannot be spoofed by the client).
+ *  2. Guests: use the playerId the client sends in handshake auth (from
+ *     localStorage). Same trust level as the session token itself.
+ */
+function tryAdoptGhostSession(
+  socket: Socket,
+  incomingPlayerId?: string,
+): SessionState | null {
+  const playerId: string | undefined = socket.data.userId ?? incomingPlayerId;
+  if (!playerId) return null;
+
+  const existingToken = store.playerIndex.get(playerId);
+  if (existingToken === undefined) return null;
+
+  const ghost = store.sessions.get(existingToken);
+  // Only adopt sessions that are genuinely disconnected (socketId === null).
+  // Active sessions (socketId set) are handled via the normal token path.
+  if (!ghost || ghost.socketId !== null) return null;
+
+  // Adopt: replace the temporary ghost token with a real per-socket token.
+  const newToken = uuidv4();
+  store.sessions.delete(existingToken);
+  ghost.token = newToken;
+  ghost.socketId = socket.id;
+  store.sessions.set(newToken, ghost);
+  store.playerIndex.set(playerId, newToken);
+  bindAccount(socket, ghost);
+  socket.emit(EVENTS.SESSION, sessionPayload(ghost));
+  return ghost;
+}
+
+/**
+ * Set up a grace-period timer for a player that was disconnected at server
+ * restart. Called by recovery.ts after creating ghost sessions so that games
+ * auto-resolve if all players fail to reconnect.
+ */
+export function scheduleGracePeriodForRecovery(
+  roomCode: string,
+  playerId: string,
+): void {
+  const room = getRoom(roomCode);
+  if (!room || room.phase !== 'PLAYING') return;
+  if (room.gracePeriodTimers.has(playerId)) return; // already scheduled
+
+  room.disconnectedAt.set(playerId, Date.now());
+  const timer = setTimeout(() => {
+    room.gracePeriodTimers.delete(playerId);
+    room.disconnectedAt.delete(playerId);
+    gracePeriodExpired(roomCode, playerId, transport);
+  }, getConfig().gracePeriodMs);
+  room.gracePeriodTimers.set(playerId, timer);
+}
+
+// ---------------------------------------------------------------------------
 // Connection handler
 // ---------------------------------------------------------------------------
 
 function handleConnection(io: Server, socket: Socket): void {
   // Resolve or create session.
   const incomingToken = socket.handshake.auth['token'] as string | undefined;
+  // playerId sent from client localStorage — used to adopt ghost sessions after
+  // a server restart when the old token is no longer in the store.
+  const incomingPlayerId = socket.handshake.auth['playerId'] as string | undefined;
   let session: SessionState;
 
   if (incomingToken !== undefined && incomingToken !== '') {
     const existing = getSession(incomingToken);
     if (existing !== undefined) {
-      // Reconnect path: restore socket binding.
+      // Normal reconnect: token found in store.
       session = existing;
       existing.socketId = socket.id;
       bindAccount(socket, session);
       handleReconnect(socket, session);
     } else {
-      // Unknown token → issue fresh session (treat as new player).
-      session = issueNewSession(socket);
+      // Token not recognised (e.g. server restarted). Check whether a ghost
+      // session exists for this playerId so we can rejoin an in-progress game.
+      const ghost = tryAdoptGhostSession(socket, incomingPlayerId);
+      if (ghost !== null) {
+        session = ghost;
+        handleReconnect(socket, session);
+      } else {
+        session = issueNewSession(socket);
+      }
     }
   } else {
-    session = issueNewSession(socket);
+    // No token — still check for a ghost before treating as completely new.
+    const ghost = tryAdoptGhostSession(socket, incomingPlayerId);
+    if (ghost !== null) {
+      session = ghost;
+      handleReconnect(socket, session);
+    } else {
+      session = issueNewSession(socket);
+    }
   }
 
   // Register all event listeners for this socket.

@@ -704,17 +704,25 @@ export class MemoryPersistence implements GamePersistence {
   // Recovery reads ----------------------------------------------------------
 
   async loadActiveGames(): Promise<GameWithPlayers[]> {
-    const playingRoomIds = new Set(
+    const playingRooms = new Map<string, RoomRow>(
       [...this.rooms.values()]
         .filter((r) => r.status === 'PLAYING')
-        .map((r) => r.id)
+        .map((r) => [r.id, r])
     );
     return [...this.games.values()]
-      .filter((g) => playingRoomIds.has(g.roomId) && g.endedAt == null)
+      .filter((g) => playingRooms.has(g.roomId) && g.endedAt == null)
       // Deterministic recovery order by startedAt (ties fall back to insertion
       // order via stable sort), matching PgPersistence.
       .sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime())
-      .map((game) => ({ game, players: this.playersOf(game.id) }));
+      .map((game) => {
+        const room = playingRooms.get(game.roomId);
+        return {
+          game,
+          players: this.playersOf(game.id),
+          roomCode: room?.roomCode,
+          hostUserId: room?.hostUserId,
+        };
+      });
   }
 
   async loadGameEvents(gameId: string): Promise<GameEventRow[]> {

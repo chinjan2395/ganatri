@@ -96,6 +96,10 @@ export interface AppendEventInput {
 export interface GameWithPlayers {
   game: GameRow;
   players: GamePlayerRow[];
+  /** Room code for this game (only populated by loadActiveGames). */
+  roomCode?: string;
+  /** Host user id (only populated by loadActiveGames). */
+  hostUserId?: string;
 }
 
 // ---------------------------------------------------------------------------

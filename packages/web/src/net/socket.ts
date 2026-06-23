@@ -31,6 +31,7 @@ import {
 } from '../protocol';
 
 const TOKEN_KEY = 'ganatri.token';
+const PLAYER_ID_KEY = 'ganatri.playerId';
 export const SERVER_URL = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:4000';
 
 export function getToken(): string | null {
@@ -40,13 +41,26 @@ export function getToken(): string | null {
 export function setToken(token: string): void {
   localStorage.setItem(TOKEN_KEY, token);
   // Keep the handshake auth in sync for the next (re)connect.
-  socket.auth = { token };
+  socket.auth = { ...socket.auth as object, token };
+}
+
+export function getPlayerId(): string | null {
+  return localStorage.getItem(PLAYER_ID_KEY);
+}
+
+export function setPlayerId(playerId: string): void {
+  localStorage.setItem(PLAYER_ID_KEY, playerId);
+  // Keep the handshake auth in sync so reconnects after restart can find the ghost session.
+  socket.auth = { ...socket.auth as object, playerId };
 }
 
 export const socket: Socket = io(SERVER_URL, {
   autoConnect: true,
   withCredentials: true,
-  auth: { token: getToken() ?? undefined },
+  auth: {
+    token: getToken() ?? undefined,
+    playerId: getPlayerId() ?? undefined,
+  },
   transports: ['websocket', 'polling'],
 });
 
