@@ -944,4 +944,103 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
       expect(result).toEqual([]);
     });
   });
+
+  // getAdminKpiStats ---------------------------------------------------------
+
+  /**
+   * Helper: creates a room+game that ended at `endedAt` with optional
+   * durationMs and isAbandoned flag.
+   */
+  async function seedEndedGame(opts: {
+    endedAt: Date;
+    durationMs?: number | null;
+    isAbandoned?: boolean;
+  }): Promise<void> {
+    const host = await freshUser('KPIHost');
+    const code = `K${Math.random().toString(36).slice(2, 6).toUpperCase()}`.slice(0, 6);
+    const room = await repo.recordRoomCreated({ roomCode: code, hostUserId: host });
+    const game = await repo.recordGameStarted({
+      roomId: room.id,
+      seed: 'kpi-seed',
+      seatingOrder: [host],
+      startedAt: new Date(opts.endedAt.getTime() - (opts.durationMs ?? 60_000)),
+    });
+    await repo.recordGameFinished({
+      gameId: game.id,
+      endedAt: opts.endedAt,
+      durationMs: opts.durationMs ?? null,
+      isAbandoned: opts.isAbandoned ?? false,
+      winnerId: opts.isAbandoned ? null : host,
+      players: [
+        {
+          userId: host,
+          seatIndex: 0,
+          displayName: 'KPIHost',
+          finalRank: opts.isAbandoned ? null : 1,
+          wasCut: false,
+          captureCount: 0,
+          result: opts.isAbandoned ? 'ABANDONED' : 'WIN',
+        },
+      ],
+    });
+  }
+
+  describe('getAdminKpiStats', () => {
+    it('returns zeroed stats when no games ended in the window', async () => {
+      // Seed a game that ended 30 days ago (outside default 7-day window).
+      const oldEnded = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000 - 1000);
+      await seedEndedGame({ endedAt: oldEnded, durationMs: 5000 });
+
+      const stats = await repo.getAdminKpiStats(7);
+      expect(stats.windowDays).toBe(7);
+      expect(stats.totalGames).toBe(0);
+      expect(stats.completedGames).toBe(0);
+      expect(stats.abandonedGames).toBe(0);
+      expect(stats.abandonmentRate).toBe(0);
+      expect(stats.avgDurationMs).toBeNull();
+      expect(stats.dailyBreakdown).toHaveLength(0);
+    });
+
+    it('correctly counts completed vs abandoned games in the window', async () => {
+      const recentEnded = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000); // 2 days ago
+      // 2 completed games
+      await seedEndedGame({ endedAt: recentEnded, durationMs: 10_000 });
+      await seedEndedGame({ endedAt: recentEnded, durationMs: 20_000 });
+      // 1 abandoned game
+      await seedEndedGame({ endedAt: recentEnded, durationMs: null, isAbandoned: true });
+
+      const stats = await repo.getAdminKpiStats(7);
+      expect(stats.totalGames).toBe(3);
+      expect(stats.completedGames).toBe(2);
+      expect(stats.abandonedGames).toBe(1);
+      expect(stats.abandonmentRate).toBeCloseTo(1 / 3, 6);
+      // avgDurationMs only considers completed games with durationMs set.
+      expect(stats.avgDurationMs).toBeCloseTo(15_000, 1); // (10000+20000)/2
+    });
+
+    it('avgDurationMs is null when no completed games have durationMs', async () => {
+      const recentEnded = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000); // yesterday
+      // Only an abandoned game (no durationMs).
+      await seedEndedGame({ endedAt: recentEnded, durationMs: null, isAbandoned: true });
+
+      const stats = await repo.getAdminKpiStats(7);
+      expect(stats.totalGames).toBe(1);
+      expect(stats.completedGames).toBe(0);
+      expect(stats.avgDurationMs).toBeNull();
+    });
+
+    it('avgDurationMs only counts completed games that have durationMs (not null-duration ones)', async () => {
+      const recentEnded = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000); // yesterday
+      // Two completed games with real durations and one completed game with null durationMs.
+      await seedEndedGame({ endedAt: recentEnded, durationMs: 1_000 });
+      await seedEndedGame({ endedAt: recentEnded, durationMs: 2_000 });
+      await seedEndedGame({ endedAt: recentEnded, durationMs: null }); // completed but no duration
+
+      const stats = await repo.getAdminKpiStats(7);
+      expect(stats.totalGames).toBe(3);
+      expect(stats.completedGames).toBe(3);
+      // avgDurationMs must be (1000+2000)/2 = 1500, NOT (1000+2000+0)/3 = 1000
+      expect(stats.avgDurationMs).toBeCloseTo(1_500, 1);
+    });
+  });
 });

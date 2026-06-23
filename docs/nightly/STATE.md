@@ -41,20 +41,20 @@ small full-stack vertical slices that mirror the history slice.
 Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — skip in nightly runs.
 
 ## Last Run
-- Date: 2026-06-22
-- Outcome: ✅ Priority TODO — Remove hint text and disable text selection in hand card area: deleted `game__hint` div render from GameScreen.tsx, removed `.game__hint` CSS rule + landscape override from GameScreen.css, added `user-select: none` / `-webkit-user-select: none` to `.game__hand-area`. All 387 tests pass (153 engine + 80 server + 154 db). Build green.
-- Branch/PR: nightly/2026-06-22-2143
+- Date: 2026-06-23
+- Outcome: ✅ Phase 6h KPI charts — `admin_get_kpi_stats` socket event: DB layer (`AdminKpiStats` type + `getAdminKpiStats(windowDays)` in `GamePersistence` interface, PgPersistence, MemoryPersistence); server handler (admin-auth + UNAVAILABLE guards, 7-day window); AdminScreen KPI section (3 summary tiles + CSS-only stacked bar chart for daily breakdown). Code review fix: corrected `PgPersistence` weighted-average bug (was weighting by `completed`, now correctly weights by `completed_with_duration`). New contract test added for null-duration mixed-case. All 398 tests pass (153 engine + 83 server + 162 db). Build green.
+- Branch/PR: nightly/2026-06-23-0744
 
 ## Blockers / Needs Human Input
 (none)
 
 ## Notes for Next Run
-Priority TODO queue is now fully checked (all items done). Resuming normal Phase 6 flow. Remaining self-contained next units:
+Remaining Phase 6 work (pick next in order):
 
-1. **6h continued: KPI charts** — Games/day, abandonment rate, avg duration from the DB (requires `getPersistence()` in the handler). Endpoint: `admin_get_kpi_stats`; no aggregation job yet — compute inline from DB queries (acceptably slow for admin dashboard). Requires persistence; returns `UNAVAILABLE` when none.
+1. **6c remaining account settings** — Avatar URL edit + OAuth link/unlink (complex; skip for now if tight).
 
-2. **6c remaining account settings** — Avatar URL edit + OAuth link/unlink (more complex).
+2. **6h: User management** — Admin: search users, view stats, ban/suspend. Requires new DB queries (e.g. `searchUsers(query)`, `adminGetUserStats(userId)`). Add to AdminScreen user-search panel.
 
-3. **6h: User management** — Search users, view stats, ban/suspend. Requires new DB queries.
+3. **6h: Data export** — CSV/JSON export endpoint (admin-gated) for games/stats offline analysis.
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.

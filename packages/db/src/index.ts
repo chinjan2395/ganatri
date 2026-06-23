@@ -31,6 +31,7 @@ export type { GameStore, SessionData, RoomData } from './store';
 
 // Durable persistence layer (Stage B).
 export type {
+  AdminKpiStats,
   GamePersistence,
   UserRow,
   UserBlockRow,

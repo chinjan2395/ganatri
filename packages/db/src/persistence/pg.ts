@@ -21,6 +21,7 @@ import {
   users,
 } from '../schema';
 import type {
+  AdminKpiStats,
   AppendEventInput,
   BlockedUserEntry,
   CoPlayerEntry,
@@ -877,6 +878,73 @@ export class PgPersistence implements GamePersistence {
       .where(and(eq(userBlocks.blockerId, blockerId), eq(userBlocks.blockedId, blockedId)))
       .limit(1);
     return rows.length > 0;
+  }
+
+  async getAdminKpiStats(windowDays = 7): Promise<AdminKpiStats> {
+    const cutoff = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
+
+    // Query daily breakdown: group by UTC date of ended_at, count total/abandoned,
+    // compute avg durationMs for completed games.
+    const result = await this.db.execute(sql`
+      SELECT
+        TO_CHAR(ended_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS date,
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE is_abandoned = false)::int AS completed,
+        COUNT(*) FILTER (WHERE is_abandoned = true)::int AS abandoned,
+        COUNT(*) FILTER (WHERE is_abandoned = false AND duration_ms IS NOT NULL)::int AS completed_with_duration,
+        AVG(duration_ms) FILTER (WHERE is_abandoned = false AND duration_ms IS NOT NULL) AS avg_duration_ms
+      FROM games
+      WHERE ended_at IS NOT NULL
+        AND ended_at >= ${cutoff}
+      GROUP BY TO_CHAR(ended_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')
+      ORDER BY date ASC
+    `);
+
+    const rows = result.rows as Array<{
+      date: string;
+      total: number | string;
+      completed: number | string;
+      abandoned: number | string;
+      completed_with_duration: number | string;
+      avg_duration_ms: number | string | null;
+    }>;
+
+    const dailyBreakdown = rows.map((r) => ({
+      date: r.date,
+      total: Number(r.total),
+      completed: Number(r.completed),
+      abandoned: Number(r.abandoned),
+    }));
+
+    const totalGames = dailyBreakdown.reduce((s, r) => s + r.total, 0);
+    const completedGames = dailyBreakdown.reduce((s, r) => s + r.completed, 0);
+    const abandonedGames = dailyBreakdown.reduce((s, r) => s + r.abandoned, 0);
+    const abandonmentRate = totalGames > 0 ? abandonedGames / totalGames : 0;
+
+    // Compute overall avgDurationMs from the per-day weighted averages.
+    // Weight by completed_with_duration (games that actually have a durationMs value),
+    // not by completed — completed may include games where durationMs IS NULL.
+    let weightedSum = 0;
+    let weightedCount = 0;
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i]!;
+      const c = Number(r.completed_with_duration);
+      if (c > 0 && r.avg_duration_ms != null) {
+        weightedSum += Number(r.avg_duration_ms) * c;
+        weightedCount += c;
+      }
+    }
+    const avgDurationMs = weightedCount > 0 ? weightedSum / weightedCount : null;
+
+    return {
+      windowDays,
+      totalGames,
+      completedGames,
+      abandonedGames,
+      abandonmentRate,
+      avgDurationMs,
+      dailyBreakdown,
+    };
   }
 }
 
