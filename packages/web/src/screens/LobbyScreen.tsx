@@ -754,6 +754,9 @@ interface ProfilePanelProps {
   blockedUsers: BlockedUserView[] | null;
   blockedLoading: boolean;
   blockedError: string | null;
+  showDeleteConfirm: boolean;
+  deleteLoading: boolean;
+  deleteError: string | null;
   onSaveName: () => void;
   onCancelEdit: () => void;
   onOpenEdit: () => void;
@@ -761,6 +764,9 @@ interface ProfilePanelProps {
   onEditNameKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   onBlockedToggle: () => void;
   onUnblock: (userId: string) => void;
+  onDeleteAccountClick: () => void;
+  onDeleteAccountConfirm: () => void;
+  onDeleteAccountCancel: () => void;
   onLogout: () => void;
   onGoogleLogin: () => void;
   onSetScreen: (s: 'history' | 'stats') => void;
@@ -770,8 +776,10 @@ interface ProfilePanelProps {
 function ProfilePanel({
   account, loggedIn, editingName, editNameValue, editNameBusy, editNameError, editInputRef,
   blockedOpen, blockedUsers, blockedLoading, blockedError,
+  showDeleteConfirm, deleteLoading, deleteError,
   onSaveName, onCancelEdit, onOpenEdit, onEditNameChange, onEditNameKeyDown,
-  onBlockedToggle, onUnblock, onLogout, onGoogleLogin, onSetScreen, onClose,
+  onBlockedToggle, onUnblock, onDeleteAccountClick, onDeleteAccountConfirm, onDeleteAccountCancel,
+  onLogout, onGoogleLogin, onSetScreen, onClose,
 }: ProfilePanelProps): React.ReactNode {
   return (
     <div className="lobby__profile-overlay" role="dialog" aria-modal="true" aria-label="Profile & Settings">
@@ -912,6 +920,46 @@ function ProfilePanel({
                 </div>
               )}
             </div>
+
+            {/* Delete account */}
+            <div className="lobby__delete-section">
+              {!showDeleteConfirm ? (
+                <button
+                  type="button"
+                  className="lobby__delete-btn"
+                  onClick={onDeleteAccountClick}
+                >
+                  Delete account
+                </button>
+              ) : (
+                <div className="lobby__delete-confirm">
+                  <p className="lobby__delete-confirm-text">
+                    This will permanently delete your account and all your data. This cannot be undone.
+                  </p>
+                  {deleteError && (
+                    <p className="lobby__delete-error">{deleteError}</p>
+                  )}
+                  <div className="lobby__delete-confirm-actions">
+                    <button
+                      type="button"
+                      className="lobby__confirm-yes-btn"
+                      onClick={onDeleteAccountConfirm}
+                      disabled={deleteLoading}
+                    >
+                      {deleteLoading ? 'Deleting...' : 'Yes, delete my account'}
+                    </button>
+                    <button
+                      type="button"
+                      className="lobby__confirm-cancel-btn"
+                      onClick={onDeleteAccountCancel}
+                      disabled={deleteLoading}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           <div className="lobby__profile-body">
@@ -982,7 +1030,7 @@ export function LobbyScreen(): React.ReactNode {
   const {
     createRoom, joinRoom, account, loginWithGoogle, logout, setScreen,
     updateDisplayName, guestName, recentPlayers, invitePlayer,
-    getBlockedUsers, unblockUser,
+    getBlockedUsers, unblockUser, deleteAccount,
     requestMyStats, requestLeaderboard,
   } = useGame();
   const loggedIn = account?.loggedIn ?? false;
@@ -1010,6 +1058,11 @@ export function LobbyScreen(): React.ReactNode {
   const [blockedUsers, setBlockedUsers] = useState<BlockedUserView[] | null>(null);
   const [blockedLoading, setBlockedLoading] = useState(false);
   const [blockedError, setBlockedError] = useState<string | null>(null);
+
+  // Delete account state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // New overlay state
   const [profileOpen, setProfileOpen] = useState(false);
@@ -1094,6 +1147,20 @@ export function LobbyScreen(): React.ReactNode {
     const ack = await unblockUser(userId);
     if (ack.ok) {
       setBlockedUsers((prev) => prev?.filter((u) => u.userId !== userId) ?? prev);
+    }
+  }
+
+  async function handleDeleteAccount(): Promise<void> {
+    setDeleteLoading(true);
+    setDeleteError(null);
+    const ack = await deleteAccount();
+    setDeleteLoading(false);
+    if (ack.ok) {
+      setShowDeleteConfirm(false);
+    } else if (ack.error === 'NOT_LOGGED_IN') {
+      setDeleteError('Already logged out.');
+    } else {
+      setDeleteError('Server unavailable, try again.');
     }
   }
 
@@ -1252,6 +1319,9 @@ export function LobbyScreen(): React.ReactNode {
           blockedUsers={blockedUsers}
           blockedLoading={blockedLoading}
           blockedError={blockedError}
+          showDeleteConfirm={showDeleteConfirm}
+          deleteLoading={deleteLoading}
+          deleteError={deleteError}
           onSaveName={() => void handleSaveName()}
           onCancelEdit={cancelEditName}
           onOpenEdit={openEditName}
@@ -1262,6 +1332,9 @@ export function LobbyScreen(): React.ReactNode {
           }}
           onBlockedToggle={() => void handleBlockedToggle()}
           onUnblock={(uid) => void handleUnblock(uid)}
+          onDeleteAccountClick={() => { setShowDeleteConfirm(true); setDeleteError(null); }}
+          onDeleteAccountConfirm={() => void handleDeleteAccount()}
+          onDeleteAccountCancel={() => setShowDeleteConfirm(false)}
           onLogout={() => logout()}
           onGoogleLogin={() => loginWithGoogle()}
           onSetScreen={setScreen}

@@ -7,7 +7,7 @@
  * `onConflictDoNothing`.
  */
 
-import { and, asc, desc, eq, inArray, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, lt, or, sql } from 'drizzle-orm';
 import type { Database } from '../db';
 import {
   authSessions,
@@ -93,6 +93,59 @@ export class PgPersistence implements GamePersistence {
       .update(users)
       .set({ displayName: newDisplayName })
       .where(eq(users.id, userId));
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      // 1. Anonymize historical game_players rows.
+      await tx
+        .update(gamePlayers)
+        .set({ userId: null })
+        .where(eq(gamePlayers.userId, userId));
+
+      // 2. Anonymize game_events actor references.
+      await tx
+        .update(gameEvents)
+        .set({ actorUserId: null })
+        .where(eq(gameEvents.actorUserId, userId));
+
+      // 3. Nullify games.winner_id references.
+      await tx
+        .update(games)
+        .set({ winnerId: null })
+        .where(eq(games.winnerId, userId));
+
+      // 4. Nullify rooms.host_user_id references.
+      await tx
+        .update(rooms)
+        .set({ hostUserId: null })
+        .where(eq(rooms.hostUserId, userId));
+
+      // 5. Delete aggregate stats row.
+      await tx
+        .delete(playerStats)
+        .where(eq(playerStats.userId, userId));
+
+      // 6. Delete all auth sessions.
+      await tx
+        .delete(authSessions)
+        .where(eq(authSessions.userId, userId));
+
+      // 7. Delete OAuth account links.
+      await tx
+        .delete(oauthAccounts)
+        .where(eq(oauthAccounts.userId, userId));
+
+      // 8. Delete user block rows (both sides).
+      await tx
+        .delete(userBlocks)
+        .where(or(eq(userBlocks.blockerId, userId), eq(userBlocks.blockedId, userId)));
+
+      // 9. Delete the user row itself.
+      await tx
+        .delete(users)
+        .where(eq(users.id, userId));
+    });
   }
 
   // Auth (OAuth + sessions) -------------------------------------------------

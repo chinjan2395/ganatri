@@ -1222,4 +1222,62 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
       expect(second!.seed).toBe('export-seed-1');
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // deleteUser (Phase 6i)
+  // ---------------------------------------------------------------------------
+
+  describe('deleteUser', () => {
+    it('deleteUser removes the user row and their stats', async () => {
+      const userId = h.newUserId();
+      await repo.ensureGuest(userId, 'ToDelete');
+      await repo.upsertPlayerStats({ userId, gamesPlayed: 1, gamesWon: 1 });
+
+      await repo.deleteUser(userId);
+
+      // Stats should be gone.
+      const stats = await repo.getPlayerStats(userId);
+      expect(stats).toBeNull();
+
+      // User should not appear in admin stats lookup.
+      const adminStats = await repo.adminGetUserStats(userId);
+      expect(adminStats).toBeNull();
+    });
+
+    it('deleteUser nulls game_player userId references', async () => {
+      const userId = h.newUserId();
+      const hostId = h.newUserId();
+      await repo.ensureGuest(userId, 'Player');
+      await repo.ensureGuest(hostId, 'Host');
+      const room = await repo.recordRoomCreated({ roomCode: 'DEL001', hostUserId: hostId });
+      const game = await repo.recordGameStarted({
+        roomId: room.id,
+        seed: 'del-seed',
+        seatingOrder: [hostId, userId],
+      });
+      await repo.recordGameFinished({
+        gameId: game.id,
+        endedAt: new Date(),
+        durationMs: 1000,
+        winnerId: hostId,
+        isAbandoned: false,
+        players: [
+          { userId: hostId, seatIndex: 0, displayName: 'Host', finalRank: 1, wasCut: false, captureCount: 3, result: 'WIN' },
+          { userId, seatIndex: 1, displayName: 'Player', finalRank: 2, wasCut: false, captureCount: 1, result: 'LOSS' },
+        ],
+      });
+
+      await repo.deleteUser(userId);
+
+      // The user's game history should now be empty (their userId was nulled in game_players).
+      const history = await repo.getUserGameHistory(userId);
+      expect(history).toHaveLength(0);
+    });
+
+    it('deleteUser is a no-op for an unknown userId', async () => {
+      const fakeId = h.newUserId();
+      // Should not throw.
+      await expect(repo.deleteUser(fakeId)).resolves.toBeUndefined();
+    });
+  });
 });

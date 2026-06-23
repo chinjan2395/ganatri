@@ -293,6 +293,17 @@ export type UpdateDisplayNameAck =
   | { ok: true; displayName: string }
   | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' | 'INVALID_NAME' };
 
+/**
+ * Ack for delete_account (right to erasure).
+ * - logged-in account → hard-delete the user row + anonymize historical records, then convert
+ *   the current session back to a guest state.
+ * - guest → NOT_LOGGED_IN
+ * - no persistence / DB error → UNAVAILABLE
+ */
+export type DeleteAccountAck =
+  | { ok: true }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
+
 // ---------------------------------------------------------------------------
 // Server → Client pushed events
 // ---------------------------------------------------------------------------
@@ -607,6 +618,7 @@ export const EVENTS = {
   GET_RECENT_PLAYERS: 'get_recent_players',
   GET_BLOCKED_USERS: 'get_blocked_users',
   UPDATE_DISPLAY_NAME: 'update_display_name',
+  DELETE_ACCOUNT: 'delete_account',
 
   // Social / invitations (Client → Server)
   INVITE_PLAYER: 'invite_player',

@@ -40,6 +40,7 @@ import {
   type LeaderboardEntryView,
   type UpdateDisplayNamePayload,
   type UpdateDisplayNameAck,
+  type DeleteAccountAck,
   type CoPlayerView,
   type GetRecentPlayersAck,
   type GetBlockedUsersAck,
@@ -773,6 +774,11 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
   socket.on(EVENTS.UPDATE_DISPLAY_NAME, (payload: unknown, ack: (res: UpdateDisplayNameAck) => void) => {
     if (typeof ack !== 'function') return;
     void handleUpdateDisplayName(socket, session, payload, ack).catch(console.error);
+  });
+
+  socket.on(EVENTS.DELETE_ACCOUNT, (ack: (res: DeleteAccountAck) => void) => {
+    if (typeof ack !== 'function') return;
+    void handleDeleteAccount(socket, session, ack).catch(console.error);
   });
 
   // Admin: authenticate
@@ -1835,6 +1841,53 @@ async function handleUpdateDisplayName(
   socket.emit(EVENTS.SESSION, sessionPayload(session));
 
   ack({ ok: true, displayName: sanitized });
+}
+
+// ---------------------------------------------------------------------------
+// delete_account (right to erasure)
+// ---------------------------------------------------------------------------
+
+async function handleDeleteAccount(
+  socket: Socket,
+  session: SessionState,
+  ack: (res: DeleteAccountAck) => void,
+): Promise<void> {
+  // Guard: must be a logged-in account.
+  if (session.userId === null || session.account === null) {
+    ack({ ok: false, error: 'NOT_LOGGED_IN' });
+    return;
+  }
+  // Capture userId now — silentLeaveRoom does not null it, but we want a stable
+  // local binding so TS narrowing is preserved across the function call.
+  const userId = session.userId;
+
+  const p = getPersistence();
+  if (!p) {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+
+  // Clean up any room membership before deleting the DB record.
+  // session.userId is still populated at this point so invite cancellation works.
+  silentLeaveRoom(socket, session);
+
+  try {
+    await p.deleteUser(userId);
+  } catch (err) {
+    console.error(`[account] deleteUser failed for ${userId}:`, err);
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+
+  // Convert the session back to a guest (strip account binding).
+  session.userId = null;
+  session.account = null;
+  updateSession(session.token, { name: '' });
+
+  // Re-emit SESSION as guest so the frontend transitions back to the logged-out state.
+  socket.emit(EVENTS.SESSION, sessionPayload(session));
+
+  ack({ ok: true });
 }
 
 // ---------------------------------------------------------------------------
