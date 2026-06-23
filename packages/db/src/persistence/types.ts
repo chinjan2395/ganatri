@@ -98,8 +98,8 @@ export interface GameWithPlayers {
   players: GamePlayerRow[];
   /** Room code for this game (only populated by loadActiveGames). */
   roomCode?: string;
-  /** Host user id (only populated by loadActiveGames). */
-  hostUserId?: string;
+  /** Host user id (only populated by loadActiveGames). Null when the host account was deleted. */
+  hostUserId?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -210,6 +210,12 @@ export interface GamePersistence {
 
   /** Update a registered user's display name. No-op if the user does not exist. */
   updateUserDisplayName(userId: string, newDisplayName: string): Promise<void>;
+
+  /**
+   * Permanently delete a user and anonymize all their historical records.
+   * Runs in a single transaction. No-op for unknown userId.
+   */
+  deleteUser(userId: string): Promise<void>;
 
   // Auth (OAuth + sessions) -------------------------------------------------
 

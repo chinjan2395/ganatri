@@ -33,6 +33,7 @@ IN_PROGRESS — Phase 6 stats/accounts vertical slices landing incrementally.  <
 - [x] Phase 6c (2026-06-20) — Guest → registered upgrade flow: `mergeGuestIntoUser` in DB (Pg+Memory), guest cookie relay through OAuth, server merge call in callback
 - [x] Phase 6h KPI charts (2026-06-23) — `getAdminKpiStats` DB + server + web `KpiSection` bar chart
 - [x] Phase 6h User Management (2026-06-23) — `searchUsers`/`adminGetUserStats` DB + server (`ADMIN_SEARCH_USERS`/`ADMIN_GET_USER_STATS` events) + web `UserManagementSection` in AdminScreen
+- [x] Phase 6i Account Deletion (2026-06-23) — `deleteUser(userId)` in GamePersistence (DB + 6 contract tests); `DELETE_ACCOUNT` event + `handleDeleteAccount` handler (silentLeaveRoom + DB delete + session→guest + SESSION re-emit, 3 integration tests); web `deleteAccount()` helper + ProfilePanel danger button + inline confirm flow. Schema: `rooms.hostUserId` made nullable + migration `0004_nullable_room_host.sql`. 441 tests pass (153 engine + 102 server + 186 db).
 
 ## Sequencing Note
 STATE.md was previously stale (claimed only 6a complete). It has been reconciled with
@@ -44,8 +45,8 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-23
-- Outcome: ✅ Phase 6h Data Export — Full vertical slice: DB (`ExportGameRow` type + `exportGamesData(limit?)` in `GamePersistence` interface, PgPersistence (2-query: games+rooms ordered by startedAt DESC, then game_players grouped in JS), MemoryPersistence (sort+slice+lookup); 4 new contract tests. Server: `ADMIN_EXPORT_DATA='admin_export_data'` event + `handleAdminExportData` handler (admin-auth gate, limit clamped to ≤500); 3 new integration tests in `admin-export.test.ts` (Server: 91→94). Web: `ExportGameView`/`AdminExportDataAck` types in protocol.ts; `EXPORT_DATA` in `ADMIN_EVENTS`; "Export Games (JSON)" button in AdminScreen with loading state + inline error + Blob/ObjectURL download (Safari-compatible: append/remove body). Code-review: no Critical issues; Safari download fix applied. All 427 tests pass (153 engine + 94 server + 180 db). Build green.
-- Branch/PR: nightly/2026-06-23-1329
+- Outcome: ✅ Phase 6i Account Deletion — Full vertical slice: DB `deleteUser(userId)` in GamePersistence interface + PgPersistence (9-step transaction: null FK refs in game_players/game_events/games/rooms, delete player_stats/auth_sessions/oauth_accounts/user_blocks/users) + MemoryPersistence; 6 new contract test runs (180→186 db). Schema: `rooms.hostUserId` made nullable + migration `0004_nullable_room_host.sql`. Server: `DELETE_ACCOUNT` event + `handleDeleteAccount` (silentLeaveRoom cleanup → deleteUser → session→guest → SESSION re-emit); 3 integration tests (94→102 server). Web: `deleteAccount()` socket helper + GameProvider wiring + ProfilePanel danger "Delete account" button with inline confirm dialog + error handling; web build green. Code-review critical bugs fixed: rooms.hostUserId NOT NULL constraint + web emitAck spurious `{}` payload. All 441 tests pass (153 engine + 102 server + 186 db).
+- Branch/PR: nightly/2026-06-23-1826
 
 ## Blockers / Needs Human Input
 (none)
@@ -55,14 +56,8 @@ Remaining Phase 6 work (pick next in order):
 
 1. **6c remaining account settings** — Avatar URL edit + OAuth link/unlink (complex; skip for now if tight).
 
-2. **6i: Account deletion (right to erasure)** — Hard-delete or anonymize user across users/game_players/events/stats. Server event + handler + web UI (delete button in LobbyScreen profile panel with confirmation dialog). Define FK `ON DELETE` behavior.
+2. **6i: User data export (GDPR/right to access)** — Let a logged-in user download their own account data (history, stats). Separate from the admin export already done. Server event `download_my_data`, handler that calls `getUserGameHistory` + `getPlayerStats`, returns JSON blob or acks it directly. Web: button in LobbyScreen profile panel or a new screen.
 
-3. **6i: User data export (GDPR)** — Let a logged-in user download their own account data (history, stats). Separate from admin export.
-
-4. **6j: Ops hardening** — DB monitoring, connection-pool sizing, cost alerts.
-
-Known review items from data export (non-blocking, can be addressed later):
-- Seed field is exposed in admin export (admin-only risk; document or omit)
-- Server integration tests missing: limit clamping contract test + non-empty shape test
+3. **6j: Ops hardening** — DB monitoring, connection-pool sizing, cost alerts.
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.

@@ -78,7 +78,7 @@ async function rehydrateGame(
   game: GameRow,
   dbPlayers: GamePlayerRow[],
   roomCode: string | undefined,
-  hostUserId: string | undefined,
+  hostUserId: string | null | undefined,
 ): Promise<void> {
   if (!roomCode) throw new Error(`game ${game.id} has no room code`);
 

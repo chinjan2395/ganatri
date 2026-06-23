@@ -145,7 +145,6 @@ export const rooms = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     roomCode: varchar('room_code', { length: 6 }).notNull().unique(),
     hostUserId: uuid('host_user_id')
-      .notNull()
       .references(() => users.id),
     status: roomStatusEnum('status').notNull().default('LOBBY'),
     // Snapshot of game config used in this room (JSON for flexibility).

@@ -103,6 +103,64 @@ export class MemoryPersistence implements GamePersistence {
     }
   }
 
+  async deleteUser(userId: string): Promise<void> {
+    // 1. Anonymize game_players rows.
+    for (const [id, gp] of this.gamePlayers) {
+      if (gp.userId === userId) {
+        this.gamePlayers.set(id, { ...gp, userId: null });
+      }
+    }
+
+    // 2. Anonymize game_events actor references.
+    for (const [id, ev] of this.events) {
+      if (ev.actorUserId === userId) {
+        this.events.set(id, { ...ev, actorUserId: null });
+      }
+    }
+
+    // 3. Nullify games.winnerId references.
+    for (const [id, g] of this.games) {
+      if (g.winnerId === userId) {
+        this.games.set(id, { ...g, winnerId: null });
+      }
+    }
+
+    // 4. Nullify rooms.hostUserId references.
+    for (const [id, r] of this.rooms) {
+      if (r.hostUserId === userId) {
+        this.rooms.set(id, { ...r, hostUserId: null });
+      }
+    }
+
+    // 5. Delete aggregate stats row.
+    this.stats.delete(userId);
+
+    // 6. Delete all auth sessions for this user.
+    for (const [id, s] of this.authSessions) {
+      if (s.userId === userId) {
+        this.authSessions.delete(id);
+      }
+    }
+
+    // 7. Delete OAuth account links.
+    for (const [id, a] of this.oauthAccounts) {
+      if (a.userId === userId) {
+        this.oauthAccounts.delete(id);
+      }
+    }
+
+    // 8. Delete user block rows (both sides).
+    for (const key of [...this.blocks]) {
+      const [blockerId, blockedId] = key.split(':') as [string, string];
+      if (blockerId === userId || blockedId === userId) {
+        this.blocks.delete(key);
+      }
+    }
+
+    // 9. Delete the user row itself.
+    this.users.delete(userId);
+  }
+
   // Auth (OAuth + sessions) -------------------------------------------------
 
   async upsertOAuthUser(input: UpsertOAuthUserInput): Promise<UserRow> {

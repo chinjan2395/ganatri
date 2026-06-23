@@ -31,6 +31,7 @@ import {
   blockUser as netBlockUser,
   unblockUser as netUnblockUser,
   getBlockedUsers as netGetBlockedUsers,
+  deleteAccount as netDeleteAccount,
 } from '../net/socket';
 import {
   EVENTS,
@@ -58,6 +59,7 @@ import {
   type BlockUserAck,
   type UnblockUserAck,
   type GetBlockedUsersAck,
+  type DeleteAccountAck,
 } from '../protocol';
 
 export interface SessionInfo {
@@ -119,6 +121,7 @@ export interface GameContextValue {
   blockUser: (targetUserId: string) => Promise<BlockUserAck>;
   unblockUser: (targetUserId: string) => Promise<UnblockUserAck>;
   getBlockedUsers: () => Promise<GetBlockedUsersAck>;
+  deleteAccount: () => Promise<DeleteAccountAck>;
   refreshRecentPlayers: () => Promise<void>;
 }
 
@@ -349,6 +352,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
   const blockUser = useCallback((targetUserId: string) => netBlockUser(targetUserId), []);
   const unblockUser = useCallback((targetUserId: string) => netUnblockUser(targetUserId), []);
   const getBlockedUsers = useCallback(() => netGetBlockedUsers(), []);
+  const deleteAccount = useCallback(() => netDeleteAccount(), []);
   const refreshRecentPlayers = useCallback(async () => {
     const ack = await netRequestRecentPlayers();
     if (ack.ok) setRecentPlayers(ack.players);
@@ -428,6 +432,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       blockUser,
       unblockUser,
       getBlockedUsers,
+      deleteAccount,
       refreshRecentPlayers,
     }),
     [
@@ -465,6 +470,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       blockUser,
       unblockUser,
       getBlockedUsers,
+      deleteAccount,
       refreshRecentPlayers,
     ],
   );

@@ -331,6 +331,7 @@ export const EVENTS = {
   GET_RECENT_PLAYERS: 'get_recent_players',
   GET_BLOCKED_USERS: 'get_blocked_users',
   UPDATE_DISPLAY_NAME: 'update_display_name',
+  DELETE_ACCOUNT: 'delete_account',
 
   // Social / invitations (Client → Server)
   INVITE_PLAYER: 'invite_player',
@@ -494,3 +495,7 @@ export interface ExportGameView {
 export type AdminExportDataAck =
   | { ok: true; games: ExportGameView[] }
   | { ok: false; error: 'NOT_AUTHORIZED' | 'UNAVAILABLE' };
+
+export type DeleteAccountAck =
+  | { ok: true }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
