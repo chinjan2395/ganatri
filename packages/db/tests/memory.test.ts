@@ -945,6 +945,101 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
     });
   });
 
+  // searchUsers / adminGetUserStats -----------------------------------------
+
+  describe('searchUsers', () => {
+    it('returns matching users case-insensitively by displayName', async () => {
+      const id = h.newUserId();
+      await repo.upsertUser({ id, displayName: 'Alphonso', isGuest: false });
+
+      const results = await repo.searchUsers('alph');
+      expect(results.some((r) => r.userId === id)).toBe(true);
+      const hit = results.find((r) => r.userId === id)!;
+      expect(hit.displayName).toBe('Alphonso');
+    });
+
+    it('returns empty array when no match', async () => {
+      const id = h.newUserId();
+      await repo.upsertUser({ id, displayName: 'Zeno', isGuest: false });
+      const results = await repo.searchUsers('qqqqqqqqqq');
+      expect(results).toEqual([]);
+    });
+
+    it('respects limit', async () => {
+      // Create 5 users all matching the query.
+      for (let i = 0; i < 5; i++) {
+        const id = h.newUserId();
+        await repo.upsertUser({ id, displayName: `SearchUser${i}`, isGuest: false });
+      }
+      const results = await repo.searchUsers('SearchUser', 3);
+      expect(results.length).toBeLessThanOrEqual(3);
+    });
+
+    it('matches by email case-insensitively', async () => {
+      const user = await repo.upsertOAuthUser({
+        provider: 'google',
+        providerUserId: 'su-email-1',
+        email: 'FindMe@example.com',
+        displayName: 'FindMeByEmail',
+      });
+      const results = await repo.searchUsers('findme@');
+      expect(results.some((r) => r.userId === user.id)).toBe(true);
+    });
+  });
+
+  describe('adminGetUserStats', () => {
+    it('returns full stats for a known user', async () => {
+      const id = h.newUserId();
+      await repo.upsertUser({ id, displayName: 'StatUser', email: null, isGuest: false });
+      await repo.upsertPlayerStats({
+        userId: id,
+        gamesPlayed: 10,
+        gamesWon: 6,
+        gamesLost: 3,
+        gamesAbandoned: 1,
+        totalCaptures: 20,
+        cutsGiven: 2,
+        cutsReceived: 1,
+        timesSafe: 4,
+        totalPlayTimeMs: 50_000,
+        longestWinStreak: 3,
+        currentWinStreak: 2,
+      });
+
+      const stats = await repo.adminGetUserStats(id);
+      expect(stats).not.toBeNull();
+      expect(stats!.userId).toBe(id);
+      expect(stats!.displayName).toBe('StatUser');
+      expect(stats!.gamesPlayed).toBe(10);
+      expect(stats!.gamesWon).toBe(6);
+      expect(stats!.gamesLost).toBe(3);
+      expect(stats!.gamesAbandoned).toBe(1);
+      expect(stats!.winRate).toBeCloseTo(0.6, 6);
+      expect(stats!.totalCaptures).toBe(20);
+      expect(stats!.longestWinStreak).toBe(3);
+      expect(stats!.currentWinStreak).toBe(2);
+      expect(stats!.updatedAt).not.toBeNull();
+    });
+
+    it('returns null for unknown userId', async () => {
+      const result = await repo.adminGetUserStats('does-not-exist');
+      expect(result).toBeNull();
+    });
+
+    it('returns zeroed stats when no player_stats row exists', async () => {
+      const id = h.newUserId();
+      await repo.upsertUser({ id, displayName: 'NoStats', isGuest: false });
+
+      const stats = await repo.adminGetUserStats(id);
+      expect(stats).not.toBeNull();
+      expect(stats!.gamesPlayed).toBe(0);
+      expect(stats!.gamesWon).toBe(0);
+      expect(stats!.winRate).toBe(0);
+      expect(stats!.totalCaptures).toBe(0);
+      expect(stats!.updatedAt).toBeNull();
+    });
+  });
+
   // getAdminKpiStats ---------------------------------------------------------
 
   /**

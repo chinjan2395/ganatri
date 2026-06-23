@@ -375,11 +375,13 @@ export type EventName = (typeof EVENTS)[keyof typeof EVENTS];
 export interface AdminAuthPayload { email: string; secret?: string; }
 
 export const ADMIN_EVENTS = {
-  AUTH:          'admin_auth',
-  GET_CONFIG:    'admin_get_config',
-  UPDATE_CONFIG: 'admin_update_config',
-  GET_STATS:     'admin_get_stats',
-  GET_KPI_STATS: 'admin_get_kpi_stats',
+  AUTH:           'admin_auth',
+  GET_CONFIG:     'admin_get_config',
+  UPDATE_CONFIG:  'admin_update_config',
+  GET_STATS:      'admin_get_stats',
+  GET_KPI_STATS:  'admin_get_kpi_stats',
+  SEARCH_USERS:   'admin_search_users',
+  GET_USER_STATS: 'admin_get_user_stats',
 } as const;
 
 export interface GameConfig {
@@ -421,3 +423,44 @@ export interface AdminKpiStats {
 export type AdminGetKpiStatsAck =
   | { ok: true; stats: AdminKpiStats }
   | { ok: false; reason: 'NOT_AUTHORIZED' | 'UNAVAILABLE' };
+
+// --- Admin user management ---
+
+export interface AdminUserView {
+  userId: string;
+  displayName: string;
+  email: string | null;
+  avatarUrl: string | null;
+  isGuest: boolean;
+  gamesPlayed: number;
+  gamesWon: number;
+}
+
+export interface AdminUserStatsView {
+  userId: string;
+  displayName: string;
+  email: string | null;
+  avatarUrl: string | null;
+  isGuest: boolean;
+  gamesPlayed: number;
+  gamesWon: number;
+  gamesLost: number;
+  gamesAbandoned: number;
+  winRate: number;
+  totalCaptures: number;
+  cutsGiven: number;
+  cutsReceived: number;
+  timesSafe: number;
+  totalPlayTimeMs: number;
+  longestWinStreak: number;
+  currentWinStreak: number;
+  updatedAt: string | null;
+}
+
+export type AdminSearchUsersAck =
+  | { ok: true; users: AdminUserView[] }
+  | { ok: false; error: 'NOT_AUTHORIZED' | 'UNAVAILABLE' };
+
+export type AdminGetUserStatsAck =
+  | { ok: true; stats: AdminUserStatsView }
+  | { ok: false; error: 'NOT_AUTHORIZED' | 'UNAVAILABLE' | 'NOT_FOUND' };

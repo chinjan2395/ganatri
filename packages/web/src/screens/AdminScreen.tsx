@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { ADMIN_EVENTS, AdminGetKpiStatsAck, AdminGetStatsAck, AdminKpiStats, AdminServerStats, GameConfig } from '../protocol';
+import {
+  ADMIN_EVENTS,
+  AdminGetKpiStatsAck,
+  AdminGetStatsAck,
+  AdminGetUserStatsAck,
+  AdminKpiStats,
+  AdminSearchUsersAck,
+  AdminServerStats,
+  AdminUserStatsView,
+  AdminUserView,
+  GameConfig,
+} from '../protocol';
 import './AdminScreen.css';
 
 const SERVER_URL = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? 'http://localhost:4000';
@@ -103,6 +114,250 @@ function KpiSection({ loading, stats, error }: KpiSectionProps) {
               </div>
             )}
           </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ---- helpers ----
+
+function formatAvgDuration(totalMs: number, gamesPlayed: number): string {
+  if (gamesPlayed === 0) return '—';
+  return formatDuration(totalMs / gamesPlayed);
+}
+
+function formatHumanDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  } catch {
+    return iso;
+  }
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(w => w[0]?.toUpperCase() ?? '')
+    .join('');
+}
+
+// ---- UserManagementSection ----
+
+interface UserManagementSectionProps {
+  socket: Socket | null;
+}
+
+function UserManagementSection({ socket }: UserManagementSectionProps) {
+  const [query, setQuery] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<AdminUserView[] | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<AdminUserStatsView | null>(null);
+  const [userStatsLoading, setUserStatsLoading] = useState(false);
+  const [userStatsError, setUserStatsError] = useState<string | null>(null);
+
+  const handleSearch = () => {
+    if (!socket || query.trim() === '') return;
+    setSearching(true);
+    setSearchError(null);
+    setSearchResults(null);
+    setSelectedUser(null);
+    socket.emit(ADMIN_EVENTS.SEARCH_USERS, { query: query.trim() }, (ack: AdminSearchUsersAck) => {
+      setSearching(false);
+      if (ack.ok) {
+        setSearchResults(ack.users);
+      } else {
+        setSearchError(ack.error === 'NOT_AUTHORIZED' ? 'Not authorized.' : 'Unavailable, try again.');
+      }
+    });
+  };
+
+  const handleViewStats = (userId: string) => {
+    if (!socket) return;
+    setUserStatsLoading(true);
+    setUserStatsError(null);
+    socket.emit(ADMIN_EVENTS.GET_USER_STATS, { userId }, (ack: AdminGetUserStatsAck) => {
+      setUserStatsLoading(false);
+      if (ack.ok) {
+        setSelectedUser(ack.stats);
+      } else {
+        const msg =
+          ack.error === 'NOT_FOUND' ? 'User not found.' :
+          ack.error === 'NOT_AUTHORIZED' ? 'Not authorized.' :
+          'Unavailable, try again.';
+        setUserStatsError(msg);
+      }
+    });
+  };
+
+  return (
+    <div className="admin__section admin__user-search">
+      <h2 className="admin__section-title">User Management</h2>
+
+      {selectedUser ? (
+        <div className="admin__user-detail">
+          <div className="admin__user-detail-header">
+            {selectedUser.avatarUrl ? (
+              <img
+                className="admin__user-avatar"
+                src={selectedUser.avatarUrl}
+                alt={selectedUser.displayName}
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="admin__user-avatar-initials">
+                {getInitials(selectedUser.displayName)}
+              </div>
+            )}
+            <div className="admin__user-info">
+              <span className="admin__user-name">{selectedUser.displayName}</span>
+              <span className="admin__user-meta">
+                {selectedUser.isGuest ? (
+                  <span className="admin__user-guest-badge">Guest</span>
+                ) : (
+                  selectedUser.email ?? 'No email'
+                )}
+              </span>
+            </div>
+            <button
+              className="admin__user-detail-back"
+              onClick={() => setSelectedUser(null)}
+            >
+              &larr; Back
+            </button>
+          </div>
+
+          {userStatsError && <p className="admin__error">{userStatsError}</p>}
+
+          <div className="admin__user-stats-grid">
+            <div className="admin__user-stat">
+              <span className="admin__stat-value">{selectedUser.gamesPlayed}</span>
+              <span className="admin__stat-label">Games Played</span>
+            </div>
+            <div className="admin__user-stat">
+              <span className="admin__stat-value">{selectedUser.gamesWon}</span>
+              <span className="admin__stat-label">Wins</span>
+            </div>
+            <div className="admin__user-stat">
+              <span className="admin__stat-value">{selectedUser.gamesLost}</span>
+              <span className="admin__stat-label">Losses</span>
+            </div>
+            <div className="admin__user-stat">
+              <span className="admin__stat-value">{selectedUser.gamesAbandoned}</span>
+              <span className="admin__stat-label">Abandoned</span>
+            </div>
+            <div className="admin__user-stat">
+              <span className="admin__stat-value">{(selectedUser.winRate * 100).toFixed(1)}%</span>
+              <span className="admin__stat-label">Win Rate</span>
+            </div>
+            <div className="admin__user-stat">
+              <span className="admin__stat-value">
+                {formatAvgDuration(selectedUser.totalPlayTimeMs, selectedUser.gamesPlayed)}
+              </span>
+              <span className="admin__stat-label">Avg Game Duration</span>
+            </div>
+            <div className="admin__user-stat">
+              <span className="admin__stat-value">{selectedUser.totalCaptures}</span>
+              <span className="admin__stat-label">Captures</span>
+            </div>
+            <div className="admin__user-stat">
+              <span className="admin__stat-value">{selectedUser.cutsGiven}</span>
+              <span className="admin__stat-label">Cuts Given</span>
+            </div>
+            <div className="admin__user-stat">
+              <span className="admin__stat-value">{selectedUser.cutsReceived}</span>
+              <span className="admin__stat-label">Cuts Received</span>
+            </div>
+            <div className="admin__user-stat">
+              <span className="admin__stat-value">{selectedUser.timesSafe}</span>
+              <span className="admin__stat-label">Times Safe</span>
+            </div>
+            <div className="admin__user-stat">
+              <span className="admin__stat-value">{selectedUser.longestWinStreak}</span>
+              <span className="admin__stat-label">Longest Streak</span>
+            </div>
+            <div className="admin__user-stat">
+              <span className="admin__stat-value">{selectedUser.currentWinStreak}</span>
+              <span className="admin__stat-label">Current Streak</span>
+            </div>
+          </div>
+
+          <p className="admin__hint">
+            Stats last updated:{' '}
+            {selectedUser.updatedAt ? formatHumanDate(selectedUser.updatedAt) : 'Never'}
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="admin__user-search-bar">
+            <input
+              className="admin__user-search-input admin__input"
+              type="text"
+              placeholder="Search by name or email…"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !searching && query.trim() !== '' && handleSearch()}
+            />
+            <button
+              className="admin__btn"
+              onClick={handleSearch}
+              disabled={searching || query.trim() === ''}
+            >
+              {searching ? 'Searching…' : 'Search'}
+            </button>
+          </div>
+
+          {searchError && <p className="admin__error">{searchError}</p>}
+          {userStatsError && <p className="admin__error">{userStatsError}</p>}
+          {userStatsLoading && <p className="admin__hint">Loading user stats…</p>}
+
+          {searchResults !== null && (
+            <div className="admin__user-list">
+              {searchResults.length === 0 ? (
+                <p className="admin__hint">No users found.</p>
+              ) : (
+                searchResults.map(user => (
+                  <div className="admin__user-row" key={user.userId}>
+                    {user.avatarUrl ? (
+                      <img
+                        className="admin__user-avatar"
+                        src={user.avatarUrl}
+                        alt={user.displayName}
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="admin__user-avatar-initials">
+                        {getInitials(user.displayName)}
+                      </div>
+                    )}
+                    <div className="admin__user-info">
+                      <span className="admin__user-name">{user.displayName}</span>
+                      <span className="admin__user-meta">
+                        {user.isGuest ? (
+                          <span className="admin__user-guest-badge">Guest</span>
+                        ) : (
+                          <span className="admin__user-email">{user.email ?? 'No email'}</span>
+                        )}
+                        {' '}&middot;{' '}
+                        {user.gamesPlayed} played / {user.gamesWon} won
+                      </span>
+                    </div>
+                    <div className="admin__user-actions">
+                      <button
+                        className="admin__btn"
+                        onClick={() => handleViewStats(user.userId)}
+                      >
+                        View Stats
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </>
       )}
     </div>
@@ -283,6 +538,8 @@ export function AdminScreen() {
         </div>
 
         <KpiSection loading={kpiLoading} stats={kpiStats} error={kpiError} />
+
+        <UserManagementSection socket={socketRef.current} />
 
         <div className="admin__fields">
           {draft && (Object.keys(LABELS) as (keyof GameConfig)[]).map(key => (

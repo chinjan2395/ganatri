@@ -15,6 +15,12 @@ import {
   type AdminUpdateConfigPayload,
   type AdminGetStatsAck,
   type AdminGetKpiStatsAck,
+  type AdminSearchUsersPayload,
+  type AdminSearchUsersAck,
+  type AdminUserView,
+  type AdminGetUserStatsPayload,
+  type AdminGetUserStatsAck,
+  type AdminUserStatsView,
   type CreateRoomAck,
   type JoinRoomAck,
   type LeaveRoomAck,
@@ -783,6 +789,18 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
     }).catch(() => {
       ack({ ok: false, reason: 'UNAVAILABLE' });
     });
+  });
+
+  // Admin: search users by display name or email.
+  socket.on(EVENTS.ADMIN_SEARCH_USERS, (payload: unknown, ack: (res: AdminSearchUsersAck) => void) => {
+    if (typeof ack !== 'function') return;
+    void handleAdminSearchUsers(socket, payload, ack);
+  });
+
+  // Admin: get full stats for a single user.
+  socket.on(EVENTS.ADMIN_GET_USER_STATS, (payload: unknown, ack: (res: AdminGetUserStatsAck) => void) => {
+    if (typeof ack !== 'function') return;
+    void handleAdminGetUserStats(socket, payload, ack);
   });
 
   // Voice chat: hand out ICE servers (STUN + minted Cloudflare TURN creds).
@@ -1752,6 +1770,101 @@ function broadcastRoomUpdate(roomCode: string): void {
     playerNames,
     playerAvatarUrls,
   });
+}
+
+// ---------------------------------------------------------------------------
+// Admin: user management handlers
+// ---------------------------------------------------------------------------
+
+async function handleAdminSearchUsers(
+  socket: Socket,
+  payload: unknown,
+  ack: (res: AdminSearchUsersAck) => void,
+): Promise<void> {
+  if (!store.adminSockets.has(socket.id)) {
+    ack({ ok: false, error: 'NOT_AUTHORIZED' });
+    return;
+  }
+  const p = getPersistence();
+  if (!p) {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+  const raw = payload as AdminSearchUsersPayload | undefined;
+  const query = (typeof raw?.query === 'string' ? raw.query : '').trim();
+  if (query === '') {
+    // Refuse blind DB scan — return empty list immediately.
+    ack({ ok: true, users: [] });
+    return;
+  }
+  const limit = Math.min(typeof raw?.limit === 'number' ? raw.limit : 20, 100);
+  try {
+    const results = await p.searchUsers(query, limit);
+    const users: AdminUserView[] = results.map((r) => ({
+      userId: r.userId,
+      displayName: r.displayName,
+      email: r.email,
+      avatarUrl: r.avatarUrl,
+      isGuest: r.isGuest,
+      gamesPlayed: r.gamesPlayed,
+      gamesWon: r.gamesWon,
+    }));
+    ack({ ok: true, users });
+  } catch {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+  }
+}
+
+async function handleAdminGetUserStats(
+  socket: Socket,
+  payload: unknown,
+  ack: (res: AdminGetUserStatsAck) => void,
+): Promise<void> {
+  if (!store.adminSockets.has(socket.id)) {
+    ack({ ok: false, error: 'NOT_AUTHORIZED' });
+    return;
+  }
+  const p = getPersistence();
+  if (!p) {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+  const raw = payload as AdminGetUserStatsPayload | undefined;
+  const userId = typeof raw?.userId === 'string' ? raw.userId : '';
+  if (!userId) {
+    ack({ ok: false, error: 'NOT_FOUND' });
+    return;
+  }
+  try {
+    const result = await p.adminGetUserStats(userId);
+    if (result === null) {
+      ack({ ok: false, error: 'NOT_FOUND' });
+      return;
+    }
+    const stats: AdminUserStatsView = {
+      userId: result.userId,
+      displayName: result.displayName,
+      email: result.email,
+      avatarUrl: result.avatarUrl,
+      isGuest: result.isGuest,
+      gamesPlayed: result.gamesPlayed,
+      gamesWon: result.gamesWon,
+      gamesLost: result.gamesLost,
+      gamesAbandoned: result.gamesAbandoned,
+      winRate: result.winRate,
+      totalCaptures: result.totalCaptures,
+      cutsGiven: result.cutsGiven,
+      cutsReceived: result.cutsReceived,
+      timesSafe: result.timesSafe,
+      totalPlayTimeMs: result.totalPlayTimeMs,
+      longestWinStreak: result.longestWinStreak,
+      currentWinStreak: result.currentWinStreak,
+      updatedAt: result.updatedAt,
+    };
+    ack({ ok: true, stats });
+  } catch {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -11,6 +11,7 @@ import type { Database } from '../db';
 import { PgPersistence, toHistoryEntry, toLeaderboardEntry } from './pg';
 import type {
   AdminKpiStats,
+  AdminUserStats,
   AppendEventInput,
   AuthSessionRow,
   BlockedUserEntry,
@@ -34,6 +35,7 @@ import type {
   RoomStatus,
   UpsertOAuthUserInput,
   UserRow,
+  UserSearchResult,
 } from './types';
 
 let counter = 0;
@@ -803,6 +805,58 @@ export class MemoryPersistence implements GamePersistence {
 
   async isBlocked(blockerId: string, blockedId: string): Promise<boolean> {
     return this.blocks.has(`${blockerId}:${blockedId}`);
+  }
+
+  async searchUsers(query: string, limit = 20): Promise<UserSearchResult[]> {
+    const lower = query.toLowerCase();
+    const results: UserSearchResult[] = [];
+    for (const user of this.users.values()) {
+      const nameMatch = user.displayName.toLowerCase().includes(lower);
+      const emailMatch = user.email !== null && user.email.toLowerCase().includes(lower);
+      if (nameMatch || emailMatch) {
+        const s = this.stats.get(user.id);
+        results.push({
+          userId: user.id,
+          displayName: user.displayName,
+          email: user.email,
+          avatarUrl: user.avatarUrl,
+          isGuest: user.isGuest,
+          gamesPlayed: s?.gamesPlayed ?? 0,
+          gamesWon: s?.gamesWon ?? 0,
+        });
+      }
+    }
+    results.sort((a, b) => a.displayName.localeCompare(b.displayName));
+    return results.slice(0, limit);
+  }
+
+  async adminGetUserStats(userId: string): Promise<AdminUserStats | null> {
+    const user = this.users.get(userId);
+    if (!user) return null;
+    const s = this.stats.get(userId);
+    const gamesPlayed = s?.gamesPlayed ?? 0;
+    const gamesWon = s?.gamesWon ?? 0;
+    const winRate = gamesPlayed > 0 ? gamesWon / gamesPlayed : 0;
+    return {
+      userId: user.id,
+      displayName: user.displayName,
+      email: user.email,
+      avatarUrl: user.avatarUrl,
+      isGuest: user.isGuest,
+      gamesPlayed,
+      gamesWon,
+      gamesLost: s?.gamesLost ?? 0,
+      gamesAbandoned: s?.gamesAbandoned ?? 0,
+      winRate,
+      totalCaptures: s?.totalCaptures ?? 0,
+      cutsGiven: s?.cutsGiven ?? 0,
+      cutsReceived: s?.cutsReceived ?? 0,
+      timesSafe: s?.timesSafe ?? 0,
+      totalPlayTimeMs: s?.totalPlayTimeMs ?? 0,
+      longestWinStreak: s?.longestWinStreak ?? 0,
+      currentWinStreak: s?.currentWinStreak ?? 0,
+      updatedAt: s?.updatedAt instanceof Date ? s.updatedAt.toISOString() : null,
+    };
   }
 
   async getAdminKpiStats(windowDays = 7): Promise<AdminKpiStats> {
