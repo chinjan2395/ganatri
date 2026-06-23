@@ -10,6 +10,7 @@
 import type { Database } from '../db';
 import { PgPersistence, toHistoryEntry, toLeaderboardEntry } from './pg';
 import type {
+  AdminKpiStats,
   AppendEventInput,
   AuthSessionRow,
   BlockedUserEntry,
@@ -802,6 +803,70 @@ export class MemoryPersistence implements GamePersistence {
 
   async isBlocked(blockerId: string, blockedId: string): Promise<boolean> {
     return this.blocks.has(`${blockerId}:${blockedId}`);
+  }
+
+  async getAdminKpiStats(windowDays = 7): Promise<AdminKpiStats> {
+    const cutoffMs = Date.now() - windowDays * 24 * 60 * 60 * 1000;
+    const cutoff = new Date(cutoffMs);
+
+    // Collect per-day buckets.
+    const byDate = new Map<string, { total: number; completed: number; abandoned: number; totalDurationMs: number; durationCount: number }>();
+
+    for (const game of this.games.values()) {
+      if (game.endedAt == null) continue;
+      if (game.endedAt.getTime() < cutoffMs) continue;
+
+      // Format YYYY-MM-DD in UTC.
+      const date = game.endedAt.toISOString().slice(0, 10);
+      const bucket = byDate.get(date) ?? { total: 0, completed: 0, abandoned: 0, totalDurationMs: 0, durationCount: 0 };
+      bucket.total += 1;
+      if (game.isAbandoned) {
+        bucket.abandoned += 1;
+      } else {
+        bucket.completed += 1;
+        if (game.durationMs != null) {
+          bucket.totalDurationMs += game.durationMs;
+          bucket.durationCount += 1;
+        }
+      }
+      byDate.set(date, bucket);
+    }
+
+    // Sort dates ascending.
+    const sortedDates = [...byDate.keys()].sort();
+    const dailyBreakdown = sortedDates.map((date) => {
+      const b = byDate.get(date)!;
+      return { date, total: b.total, completed: b.completed, abandoned: b.abandoned };
+    });
+
+    const totalGames = dailyBreakdown.reduce((s, r) => s + r.total, 0);
+    const completedGames = dailyBreakdown.reduce((s, r) => s + r.completed, 0);
+    const abandonedGames = dailyBreakdown.reduce((s, r) => s + r.abandoned, 0);
+    const abandonmentRate = totalGames > 0 ? abandonedGames / totalGames : 0;
+
+    let weightedSum = 0;
+    let weightedCount = 0;
+    for (const [date, bucket] of byDate) {
+      void date; // used for iteration key only
+      if (bucket.durationCount > 0) {
+        weightedSum += bucket.totalDurationMs;
+        weightedCount += bucket.durationCount;
+      }
+    }
+    const avgDurationMs = weightedCount > 0 ? weightedSum / weightedCount : null;
+
+    // Suppress unused variable warning
+    void cutoff;
+
+    return {
+      windowDays,
+      totalGames,
+      completedGames,
+      abandonedGames,
+      abandonmentRate,
+      avgDurationMs,
+      dailyBreakdown,
+    };
   }
 }
 

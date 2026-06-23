@@ -14,6 +14,7 @@ import {
   type AdminAuthPayload,
   type AdminUpdateConfigPayload,
   type AdminGetStatsAck,
+  type AdminGetKpiStatsAck,
   type CreateRoomAck,
   type JoinRoomAck,
   type LeaveRoomAck,
@@ -762,6 +763,25 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
         connectedPlayers,
         totalSessions: store.sessions.size,
       },
+    });
+  });
+
+  // Admin: get historical KPI stats from the DB.
+  socket.on(EVENTS.ADMIN_GET_KPI_STATS, (_: unknown, ack: (res: AdminGetKpiStatsAck) => void) => {
+    if (typeof ack !== 'function') return;
+    if (!store.adminSockets.has(socket.id)) {
+      ack({ ok: false, reason: 'NOT_AUTHORIZED' });
+      return;
+    }
+    const p = getPersistence();
+    if (!p) {
+      ack({ ok: false, reason: 'UNAVAILABLE' });
+      return;
+    }
+    void p.getAdminKpiStats(7).then((stats) => {
+      ack({ ok: true, stats });
+    }).catch(() => {
+      ack({ ok: false, reason: 'UNAVAILABLE' });
     });
   });
 

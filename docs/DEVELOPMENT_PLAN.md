@@ -1,6 +1,12 @@
 # Ganatri — Phasewise Development Plan
 
+Last updated: 2026-06-23 (Phase 6h KPI charts — code-review fix: `PgPersistence.getAdminKpiStats` weighted-average bug corrected. Added `COUNT(*) FILTER (WHERE is_abandoned = false AND duration_ms IS NOT NULL)::int AS completed_with_duration` SQL column; weighted-average now uses `completed_with_duration` as the weight instead of `completed`, preventing null-duration games from inflating the count. New contract test "avgDurationMs only counts completed games that have durationMs" added to `memory.test.ts` (run vs both PgPersistence + MemoryPersistence = 2 new test runs). DB tests: 160→162. All 398 tests pass (153 engine + 83 server + 162 db). Build green.)
+
 Last updated: 2026-06-22 (GameScreen polish: removed `game__hint` render from hand section and deleted its CSS rule + landscape override; added `user-select: none` / `-webkit-user-select: none` to `.game__hand-area` to prevent accidental text selection on card tap. Build green, zero TS errors.)
+
+Last updated: 2026-06-23 (Phase 6h KPI charts server+db complete: `AdminKpiStats` type + `getAdminKpiStats(windowDays=7)` added to `GamePersistence` interface (`packages/db/src/persistence/types.ts`), implemented in `PgPersistence` (raw SQL GROUP BY UTC date, weighted avg durationMs) and `MemoryPersistence` (iterates games map). Exported from `packages/db/src/index.ts`. 3 new contract test cases (zeroed window, completed-vs-abandoned counts, null avgDurationMs) run against both impls = 6 new db tests (154→160). Server: `AdminKpiStats`/`AdminGetKpiStatsAck` types added to `packages/server/src/protocol.ts`; `ADMIN_GET_KPI_STATS='admin_get_kpi_stats'` added to `EVENTS`; handler added to `handlers.ts` (admin-auth gate, no-persistence UNAVAILABLE guard, calls `p.getAdminKpiStats(7)`); 3 new integration tests in `admin-kpi.test.ts` (unauthenticated→NOT_AUTHORIZED, no-persistence→UNAVAILABLE, happy path shape check). Server: 80→83 tests. Total: 153 engine + 83 server + 160 db = 396.)
+
+Last updated: 2026-06-23 (Phase 6h KPI charts web-side complete: `AdminKpiStats`+`AdminGetKpiStatsAck` types added to `packages/web/src/protocol.ts`; `GET_KPI_STATS: 'admin_get_kpi_stats'` added to `ADMIN_EVENTS`; `AdminScreen.tsx` gains `kpiStats`/`kpiLoading`/`kpiError` state, `fetchKpi()` (mirrors `fetchStats` pattern), called on auth success + wired to existing Refresh button; `KpiSection` sub-component (pure CSS bar chart, no libs): 3 summary tiles (Total Games / Abandonment Rate / Avg Duration), daily bar chart with completed (green) + abandoned (orange) stacked bars, date labels, count labels, empty state; `formatDuration`/`formatDate` helpers; `AdminScreen.css` adds 10 KPI classes (`.admin__kpi-section`, `.admin__kpi-tiles`, `.admin__kpi-chart`, `.admin__kpi-bar-row`, `.admin__kpi-bar-group`, `.admin__kpi-bar-count`, `.admin__kpi-bar`, `.admin__kpi-bar-completed`, `.admin__kpi-bar-abandoned`, `.admin__kpi-bar-label`, `.admin__kpi-empty`). Build green, zero TS errors.)
 
 Last updated: 2026-06-23 (HistoryScreen casino redesign complete: full rewrite of `packages/web/src/screens/HistoryScreen.tsx` + `HistoryScreen.css`. Mirrors Leaderboard/Stats shell: `hist__root` layout, sticky header (mobile: back + GAME HISTORY + profile icon; desktop: logo + top nav with History active + avatar), desktop 280px profile sidebar left, 5-tab mobile bottom nav (History active), mobile profile strip. Main content: summary bar (games/wins/win rate from history), unified bordered match list with outcome badges, expandable scorecards preserved. Build green.)
 
@@ -81,7 +87,7 @@ Last updated: 2026-06-19 (Phase A — DB layer for accounts/auth/history/retenti
 Last updated: 2026-06-19 (Phase 6d/6e: wired DB write-through into the server — new `server/src/persistence.ts` service + `handlers.ts` calls. Persists `rooms` (on game start), `games`, `game_players`, `game_events` (async, seq-ordered, batched), and incremental `player_stats` on game-end/abandon. Async fire-and-forget — never blocks the engine; `getPersistence()` returns null when `DATABASE_URL` unset. Restart-rehydration via `loadActiveGames` deferred / out of scope; 28 server tests, 2 new.)  
 Last updated: 2026-06-18 (Phase 6a/6b: fixed @ganatri/db foundation — node-postgres Pool + DATABASE_URL, text seed, regenerated migration; built fully-tested GamePersistence layer (Pg + Memory); review fixes: idempotent recordGameFinished via (game_id, seat_index) unique index, deterministic+batched loadActiveGames, isGuest preservation on upsert)  
 Last updated: 2026-06-16 (Voice perf/heat fixes: room-gated mic acquisition, watchdog backoff+cap, AudioContext suspend while muted/idle; Critical fixes: TURN_TIMEOUT event, XSS sanitization, grace expiry broadcast, DRY refactor, freeze duration; 26 server tests)  
-All 387 tests passing (153 engine + 80 server + 154 db).
+All 398 tests passing (153 engine + 83 server + 162 db).
 
 ---
 
@@ -212,7 +218,7 @@ All 387 tests passing (153 engine + 80 server + 154 db).
 | `get_blocked_users` socket event + handler                            | ✅      | `BlockedUserView`/`GetBlockedUsersAck` in `protocol.ts`; `GET_BLOCKED_USERS` in `EVENTS`; `handleGetBlockedUsers` in `handlers.ts` (NOT_LOGGED_IN/UNAVAILABLE guards); 3 tests in `blocked-users.test.ts` |
 
 
-**Test count: 80 / 80 passing.**
+**Test count: 83 / 83 passing.**
 
 ---
 
@@ -445,7 +451,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | ---- | ------ | ----- |
 | Extend `AdminScreen` with analytics views | 🟡 | Build on existing admin auth (harden first per Phase 7e). Live Ops tile section now live. |
 | Live operations view | ✅ | `admin_get_stats` socket event; 4-tile grid (Connected / Active games / In lobby / Total rooms); 15 s auto-refresh + manual Refresh button; responsive 2-column on mobile. |
-| KPI charts | ⬜ | DAU/MAU, games per day, avg duration, abandonment rate, signup conversions. |
+| KPI charts | ✅ | Full stack complete. DB: `getAdminKpiStats(windowDays=7)` in `GamePersistence` (Pg raw SQL + Memory impl); 6 contract tests. Server: `ADMIN_GET_KPI_STATS` event + handler (admin-auth gate, UNAVAILABLE guard); 3 integration tests in `admin-kpi.test.ts`. Web: `AdminKpiStats`/`AdminGetKpiStatsAck` types + `GET_KPI_STATS` in `ADMIN_EVENTS`; `KpiSection` component (3 summary tiles + CSS-only bar chart, stacked completed/abandoned bars); `fetchKpi()` on auth + Refresh. |
 | User management | ⬜ | Search users, view stats, ban/suspend, reset/merge accounts. |
 | Data export | ⬜ | CSV/JSON export of games/stats for offline analysis. |
 | Secure admin data endpoints | 🟡 | All analytics/admin queries behind hardened admin auth + authorization checks. `admin_get_stats` now requires admin auth; more endpoints forthcoming. |

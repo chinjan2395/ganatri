@@ -350,6 +350,12 @@ export interface GamePersistence {
 
   /** True if blockerId has blocked blockedId (one-directional). */
   isBlocked(blockerId: string, blockedId: string): Promise<boolean>;
+
+  /**
+   * Historical KPI stats for the admin dashboard. Aggregates games that ended
+   * within the last `windowDays` days. Default window is 7 days.
+   */
+  getAdminKpiStats(windowDays?: number): Promise<AdminKpiStats>;
 }
 
 // ---------------------------------------------------------------------------
@@ -367,4 +373,30 @@ export interface BlockedUserEntry {
   userId: string;
   displayName: string;
   avatarUrl: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Admin KPI stats (Phase 6h)
+// ---------------------------------------------------------------------------
+
+export interface AdminKpiStats {
+  /** How many days the window covers (default 7). */
+  windowDays: number;
+  /** completed + abandoned games ended in window */
+  totalGames: number;
+  /** non-abandoned games ended in window */
+  completedGames: number;
+  /** abandoned games ended in window */
+  abandonedGames: number;
+  /** abandonedGames / totalGames; 0 when totalGames === 0 */
+  abandonmentRate: number;
+  /** avg durationMs for completed games; null when no completed games */
+  avgDurationMs: number | null;
+  dailyBreakdown: Array<{
+    /** "YYYY-MM-DD" UTC date */
+    date: string;
+    total: number;
+    completed: number;
+    abandoned: number;
+  }>;
 }

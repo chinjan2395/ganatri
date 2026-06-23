@@ -472,6 +472,30 @@ export type AdminGetStatsAck =
   | { ok: true; stats: AdminServerStats }
   | { ok: false; reason: string };
 
+/**
+ * Historical KPI stats for the admin dashboard (7-day window by default).
+ * Mirrors AdminKpiStats from @ganatri/db.
+ */
+export interface AdminKpiStats {
+  windowDays: number;
+  totalGames: number;
+  completedGames: number;
+  abandonedGames: number;
+  abandonmentRate: number;
+  avgDurationMs: number | null;
+  dailyBreakdown: Array<{
+    date: string;
+    total: number;
+    completed: number;
+    abandoned: number;
+  }>;
+}
+
+/** Ack for admin_get_kpi_stats. Requires admin auth and persistence. */
+export type AdminGetKpiStatsAck =
+  | { ok: true; stats: AdminKpiStats }
+  | { ok: false; reason: 'NOT_AUTHORIZED' | 'UNAVAILABLE' };
+
 // Re-export for consumers that want the config shape via the protocol module.
 export type { GameConfig };
 
@@ -505,6 +529,7 @@ export const EVENTS = {
   ADMIN_GET_CONFIG: 'admin_get_config',
   ADMIN_UPDATE_CONFIG: 'admin_update_config',
   ADMIN_GET_STATS: 'admin_get_stats',
+  ADMIN_GET_KPI_STATS: 'admin_get_kpi_stats',
 
   // Server → Client
   SESSION: 'session',

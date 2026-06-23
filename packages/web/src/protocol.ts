@@ -379,6 +379,7 @@ export const ADMIN_EVENTS = {
   GET_CONFIG:    'admin_get_config',
   UPDATE_CONFIG: 'admin_update_config',
   GET_STATS:     'admin_get_stats',
+  GET_KPI_STATS: 'admin_get_kpi_stats',
 } as const;
 
 export interface GameConfig {
@@ -401,3 +402,22 @@ export interface AdminServerStats {
 export type AdminGetStatsAck =
   | { ok: true; stats: AdminServerStats }
   | { ok: false; reason: string };
+
+export interface AdminKpiStats {
+  windowDays: number;
+  totalGames: number;
+  completedGames: number;
+  abandonedGames: number;
+  abandonmentRate: number;
+  avgDurationMs: number | null;
+  dailyBreakdown: Array<{
+    date: string;
+    total: number;
+    completed: number;
+    abandoned: number;
+  }>;
+}
+
+export type AdminGetKpiStatsAck =
+  | { ok: true; stats: AdminKpiStats }
+  | { ok: false; reason: 'NOT_AUTHORIZED' | 'UNAVAILABLE' };
