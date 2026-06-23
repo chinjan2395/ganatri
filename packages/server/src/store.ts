@@ -113,7 +113,7 @@ export function getSessionByPlayerId(playerId: string): SessionState | undefined
 }
 
 /** Create a brand-new session and register it in the store. */
-export function createSession(token: string, playerId: string, socketId: string, name = ''): SessionState {
+export function createSession(token: string, playerId: string, socketId: string | null, name = ''): SessionState {
   const session: SessionState = {
     token,
     playerId,

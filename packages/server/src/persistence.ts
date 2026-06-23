@@ -71,6 +71,27 @@ function clearRoom(roomCode: string): void {
   startedAtMs.delete(roomCode);
 }
 
+/**
+ * Restore the per-room persistence bookkeeping for a game that was recovered
+ * from the DB after a server restart. Call this before setting up the in-memory
+ * room in the store so that future event and game-end writes resolve correctly
+ * against the existing DB rows.
+ */
+export function restoreGamePersistenceState(
+  roomCode: string,
+  gameId: string,
+  roomId: string | undefined,
+  nextEventSeq: number,
+  restoredEvents: GameEvent[],
+  gameStartedAtMs: number,
+): void {
+  gameIdPromises.set(roomCode, Promise.resolve(gameId));
+  if (roomId !== undefined) roomIds.set(roomCode, roomId);
+  eventSeq.set(roomCode, nextEventSeq);
+  eventLog.set(roomCode, [...restoredEvents]);
+  startedAtMs.set(roomCode, gameStartedAtMs);
+}
+
 const userIdOf = (pid: string): string => pid;
 
 // ---------------------------------------------------------------------------

@@ -743,7 +743,11 @@ export class PgPersistence implements GamePersistence {
 
   async loadActiveGames(): Promise<GameWithPlayers[]> {
     const activeGames = await this.db
-      .select({ game: games })
+      .select({
+        game: games,
+        roomCode: rooms.roomCode,
+        hostUserId: rooms.hostUserId,
+      })
       .from(games)
       .innerJoin(rooms, eq(games.roomId, rooms.id))
       .where(and(eq(rooms.status, 'PLAYING'), sql`${games.endedAt} is null`))
@@ -768,9 +772,11 @@ export class PgPersistence implements GamePersistence {
       else byGame.set(p.gameId, [p]);
     }
 
-    return activeGames.map(({ game }) => ({
+    return activeGames.map(({ game, roomCode, hostUserId }) => ({
       game,
       players: byGame.get(game.id) ?? [],
+      roomCode,
+      hostUserId,
     }));
   }
 

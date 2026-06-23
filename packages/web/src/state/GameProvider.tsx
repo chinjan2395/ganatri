@@ -21,6 +21,7 @@ import {
   loginWithGoogle as netLoginWithGoogle,
   logout as netLogout,
   setToken,
+  setPlayerId,
   socket,
   startGame as netStartGame,
   updateDisplayName as netUpdateDisplayName,
@@ -162,6 +163,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
     }
     function onSession(payload: SessionPayload): void {
       setToken(payload.token);
+      setPlayerId(payload.playerId);
       setSession({ token: payload.token, playerId: payload.playerId });
       setAccount({
         loggedIn: payload.loggedIn,
