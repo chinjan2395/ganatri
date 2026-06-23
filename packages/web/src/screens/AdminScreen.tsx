@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import {
   ADMIN_EVENTS,
+  AdminExportDataAck,
   AdminGetKpiStatsAck,
   AdminGetStatsAck,
   AdminGetUserStatsAck,
@@ -379,6 +380,8 @@ export function AdminScreen() {
   const [kpiStats, setKpiStats] = useState<AdminKpiStats | null>(null);
   const [kpiLoading, setKpiLoading] = useState(false);
   const [kpiError, setKpiError] = useState<string | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
@@ -452,6 +455,30 @@ export function AdminScreen() {
       } else {
         setSaveStatus('error');
         setTimeout(() => setSaveStatus('idle'), 3000);
+      }
+    });
+  };
+
+  const handleExport = () => {
+    const s = socketRef.current;
+    if (!s) return;
+    setExportLoading(true);
+    setExportError(null);
+    s.emit(ADMIN_EVENTS.EXPORT_DATA, {}, (ack: AdminExportDataAck) => {
+      setExportLoading(false);
+      if (ack.ok) {
+        const json = JSON.stringify({ exportedAt: new Date().toISOString(), games: ack.games }, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'ganatri-export.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else {
+        setExportError('Export failed: ' + ack.error);
       }
     });
   };
@@ -540,6 +567,21 @@ export function AdminScreen() {
         <KpiSection loading={kpiLoading} stats={kpiStats} error={kpiError} />
 
         <UserManagementSection socket={socketRef.current} />
+
+        <div className="admin__section admin__export-section">
+          <h2 className="admin__section-title">Data Export</h2>
+          <p className="admin__subtitle">Download all games data as JSON for offline analysis.</p>
+          <div className="admin__actions">
+            <button
+              className="admin__btn admin__export-btn"
+              onClick={handleExport}
+              disabled={exportLoading}
+            >
+              {exportLoading ? 'Exporting...' : 'Export Games (JSON)'}
+            </button>
+          </div>
+          {exportError && <p className="admin__error">{exportError}</p>}
+        </div>
 
         <div className="admin__fields">
           {draft && (Object.keys(LABELS) as (keyof GameConfig)[]).map(key => (

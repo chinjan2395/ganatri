@@ -1138,4 +1138,88 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
       expect(stats.avgDurationMs).toBeCloseTo(1_500, 1);
     });
   });
+
+  // exportGamesData ----------------------------------------------------------
+
+  describe('exportGamesData', () => {
+    it('returns empty array when no games', async () => {
+      const result = await repo.exportGamesData();
+      expect(result).toEqual([]);
+    });
+
+    it('returns games with player rows newest first', async () => {
+      const u1 = await freshUser('ExportA');
+      const u2 = await freshUser('ExportB');
+
+      const code1 = `E${Math.random().toString(36).slice(2, 6).toUpperCase()}`.slice(0, 6);
+      const code2 = `F${Math.random().toString(36).slice(2, 6).toUpperCase()}`.slice(0, 6);
+
+      const room1 = await repo.recordRoomCreated({ roomCode: code1, hostUserId: u1 });
+      const room2 = await repo.recordRoomCreated({ roomCode: code2, hostUserId: u1 });
+
+      const olderStart = new Date(Date.now() - 2 * 60 * 60 * 1000); // 2 hours ago
+      const newerStart = new Date(Date.now() - 1 * 60 * 60 * 1000); // 1 hour ago
+
+      const game1 = await repo.recordGameStarted({
+        roomId: room1.id,
+        seed: 'export-seed-1',
+        seatingOrder: [u1],
+        startedAt: olderStart,
+      });
+      const game2 = await repo.recordGameStarted({
+        roomId: room2.id,
+        seed: 'export-seed-2',
+        seatingOrder: [u1, u2],
+        startedAt: newerStart,
+      });
+
+      await repo.recordGameFinished({
+        gameId: game1.id,
+        endedAt: new Date(olderStart.getTime() + 60_000),
+        durationMs: 60_000,
+        isAbandoned: false,
+        winnerId: u1,
+        players: [
+          { userId: u1, seatIndex: 0, displayName: 'ExportA', finalRank: 1, wasCut: false, captureCount: 5, result: 'WIN' },
+        ],
+      });
+      await repo.recordGameFinished({
+        gameId: game2.id,
+        endedAt: new Date(newerStart.getTime() + 120_000),
+        durationMs: 120_000,
+        isAbandoned: true,
+        winnerId: null,
+        players: [
+          { userId: u1, seatIndex: 0, displayName: 'ExportA', finalRank: null, wasCut: false, captureCount: 2, result: 'ABANDONED' },
+          { userId: u2, seatIndex: 1, displayName: 'ExportB', finalRank: null, wasCut: false, captureCount: 1, result: 'ABANDONED' },
+        ],
+      });
+
+      const result = await repo.exportGamesData();
+      expect(result).toHaveLength(2);
+
+      // Newest first: game2 (newerStart) should come before game1 (olderStart).
+      const [first, second] = result;
+      expect(first!.id).toBe(game2.id);
+      expect(second!.id).toBe(game1.id);
+
+      // Verify player rows on the first (newer) game.
+      expect(first!.players).toHaveLength(2);
+      expect(first!.players[0]!.seatIndex).toBe(0);
+      expect(first!.players[0]!.displayName).toBe('ExportA');
+      expect(first!.players[1]!.seatIndex).toBe(1);
+      expect(first!.players[1]!.displayName).toBe('ExportB');
+      expect(first!.isAbandoned).toBe(true);
+      expect(typeof first!.startedAt).toBe('string');
+      expect(first!.endedAt).not.toBeNull();
+
+      // Verify roomCode is present.
+      expect(first!.roomCode).toBe(code2);
+      expect(second!.roomCode).toBe(code1);
+
+      // Verify seed.
+      expect(first!.seed).toBe('export-seed-2');
+      expect(second!.seed).toBe('export-seed-1');
+    });
+  });
 });
