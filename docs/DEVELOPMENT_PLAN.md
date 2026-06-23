@@ -1,5 +1,7 @@
 # Ganatri — Phasewise Development Plan
 
+Last updated: 2026-06-23 (Phase 6h User Management complete: full vertical slice (DB + server + web). DB: `UserSearchResult`/`AdminUserStats` types; `searchUsers`/`adminGetUserStats` in `GamePersistence` interface, `PgPersistence` (ILIKE left-join with wildcard escaping, UUID guard), `MemoryPersistence`; 14 new contract test runs (DB: 162→176). Server: `AdminSearchUsersPayload`/`AdminUserView`/`AdminSearchUsersAck`/`AdminGetUserStatsPayload`/`AdminUserStatsView`/`AdminGetUserStatsAck` types in `protocol.ts`; `ADMIN_SEARCH_USERS`/`ADMIN_GET_USER_STATS` events; `handleAdminSearchUsers` (admin-auth gate, empty-query guard, limit clamped to ≤100) + `handleAdminGetUserStats` (admin-auth gate, NOT_FOUND); 8 new tests in `admin-users.test.ts` (Server: 83→91). Code-review fixes applied: PgPersistence ILIKE wildcards escaped + server-side limit clamped to 100. Web: `AdminUserView`/`AdminUserStatsView`/`AdminSearchUsersAck`/`AdminGetUserStatsAck` types + `SEARCH_USERS`/`GET_USER_STATS` in `ADMIN_EVENTS`; `UserManagementSection` in `AdminScreen.tsx` (search bar, results list with avatar/initials/guest badge, user detail panel with 12-stat grid + avg duration + updatedAt); CSS added to `AdminScreen.css`. All 420 tests pass (153 engine + 91 server + 176 db). Build green.)
+
 Last updated: 2026-06-23 (Phase 6h KPI charts — code-review fix: `PgPersistence.getAdminKpiStats` weighted-average bug corrected. Added `COUNT(*) FILTER (WHERE is_abandoned = false AND duration_ms IS NOT NULL)::int AS completed_with_duration` SQL column; weighted-average now uses `completed_with_duration` as the weight instead of `completed`, preventing null-duration games from inflating the count. New contract test "avgDurationMs only counts completed games that have durationMs" added to `memory.test.ts` (run vs both PgPersistence + MemoryPersistence = 2 new test runs). DB tests: 160→162. All 398 tests pass (153 engine + 83 server + 162 db). Build green.)
 
 Last updated: 2026-06-22 (GameScreen polish: removed `game__hint` render from hand section and deleted its CSS rule + landscape override; added `user-select: none` / `-webkit-user-select: none` to `.game__hand-area` to prevent accidental text selection on card tap. Build green, zero TS errors.)
@@ -87,7 +89,7 @@ Last updated: 2026-06-19 (Phase A — DB layer for accounts/auth/history/retenti
 Last updated: 2026-06-19 (Phase 6d/6e: wired DB write-through into the server — new `server/src/persistence.ts` service + `handlers.ts` calls. Persists `rooms` (on game start), `games`, `game_players`, `game_events` (async, seq-ordered, batched), and incremental `player_stats` on game-end/abandon. Async fire-and-forget — never blocks the engine; `getPersistence()` returns null when `DATABASE_URL` unset. Restart-rehydration via `loadActiveGames` deferred / out of scope; 28 server tests, 2 new.)  
 Last updated: 2026-06-18 (Phase 6a/6b: fixed @ganatri/db foundation — node-postgres Pool + DATABASE_URL, text seed, regenerated migration; built fully-tested GamePersistence layer (Pg + Memory); review fixes: idempotent recordGameFinished via (game_id, seat_index) unique index, deterministic+batched loadActiveGames, isGuest preservation on upsert)  
 Last updated: 2026-06-16 (Voice perf/heat fixes: room-gated mic acquisition, watchdog backoff+cap, AudioContext suspend while muted/idle; Critical fixes: TURN_TIMEOUT event, XSS sanitization, grace expiry broadcast, DRY refactor, freeze duration; 26 server tests)  
-All 398 tests passing (153 engine + 83 server + 162 db).
+All 420 tests passing (153 engine + 91 server + 176 db).
 
 ---
 
@@ -218,7 +220,7 @@ All 398 tests passing (153 engine + 83 server + 162 db).
 | `get_blocked_users` socket event + handler                            | ✅      | `BlockedUserView`/`GetBlockedUsersAck` in `protocol.ts`; `GET_BLOCKED_USERS` in `EVENTS`; `handleGetBlockedUsers` in `handlers.ts` (NOT_LOGGED_IN/UNAVAILABLE guards); 3 tests in `blocked-users.test.ts` |
 
 
-**Test count: 83 / 83 passing.**
+**Test count: 91 / 91 passing.**
 
 ---
 
@@ -452,7 +454,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | Extend `AdminScreen` with analytics views | 🟡 | Build on existing admin auth (harden first per Phase 7e). Live Ops tile section now live. |
 | Live operations view | ✅ | `admin_get_stats` socket event; 4-tile grid (Connected / Active games / In lobby / Total rooms); 15 s auto-refresh + manual Refresh button; responsive 2-column on mobile. |
 | KPI charts | ✅ | Full stack complete. DB: `getAdminKpiStats(windowDays=7)` in `GamePersistence` (Pg raw SQL + Memory impl); 6 contract tests. Server: `ADMIN_GET_KPI_STATS` event + handler (admin-auth gate, UNAVAILABLE guard); 3 integration tests in `admin-kpi.test.ts`. Web: `AdminKpiStats`/`AdminGetKpiStatsAck` types + `GET_KPI_STATS` in `ADMIN_EVENTS`; `KpiSection` component (3 summary tiles + CSS-only bar chart, stacked completed/abandoned bars); `fetchKpi()` on auth + Refresh. |
-| User management | ⬜ | Search users, view stats, ban/suspend, reset/merge accounts. |
+| User management | ✅ | Full stack complete. DB + server layer: `searchUsers`/`adminGetUserStats` in `GamePersistence` + both impls; `ADMIN_SEARCH_USERS`/`ADMIN_GET_USER_STATS` socket events + handlers (8 integration tests). Web: `AdminUserView`/`AdminUserStatsView`/`AdminSearchUsersAck`/`AdminGetUserStatsAck` types added to `packages/web/src/protocol.ts`; `SEARCH_USERS`/`GET_USER_STATS` added to `ADMIN_EVENTS`; `UserManagementSection` component in `AdminScreen.tsx` (search bar, results list with avatar/initials/guest badge/games summary/View Stats button, user detail panel with 12-stat grid + formatted avg duration + updatedAt footer, back link); CSS classes added to `AdminScreen.css`. Mounted between KPI section and config fields. Build green. |
 | Data export | ⬜ | CSV/JSON export of games/stats for offline analysis. |
 | Secure admin data endpoints | 🟡 | All analytics/admin queries behind hardened admin auth + authorization checks. `admin_get_stats` now requires admin auth; more endpoints forthcoming. |
 | `admin_get_stats` live ops endpoint (server) | ✅ | Returns totalRooms/lobbyRooms/activeGames/completedRooms/connectedPlayers/totalSessions; 3 tests in admin.test.ts |
@@ -672,7 +674,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | Phase                        | Status                                                                                  |
 | ---------------------------- | --------------------------------------------------------------------------------------- |
 | Phase 1 — Engine             | ✅ Complete (153 tests)                                                                  |
-| Phase 2 — Server             | ✅ Complete (80 tests; TURN_TIMEOUT + sanitization + grace expiry broadcast + DRY refactor + freeze fix + DB write-through + OAuth/history/retention + flat history wire-contract fix + `get_my_stats` + `get_leaderboard` + `myEntry` in leaderboard ack + time-windowed leaderboard + `timeWindow` runtime validation + `update_display_name` + admin secret check + `admin_get_stats` live ops endpoint + session-persistence flow fixes: `name?` in `SessionPayload`, guest name in SESSION emit, stale roomCode cleared on reconnect + `get_recent_players` + invitation system + `get_blocked_users`) |
+| Phase 2 — Server             | ✅ Complete (91 tests; TURN_TIMEOUT + sanitization + grace expiry broadcast + DRY refactor + freeze fix + DB write-through + OAuth/history/retention + flat history wire-contract fix + `get_my_stats` + `get_leaderboard` + `myEntry` in leaderboard ack + time-windowed leaderboard + `timeWindow` runtime validation + `update_display_name` + admin secret check + `admin_get_stats` live ops endpoint + session-persistence flow fixes + `get_recent_players` + invitation system + `get_blocked_users` + `admin_get_kpi_stats` KPI endpoint + `admin_search_users`/`admin_get_user_stats` user management) |
 | Phase 3 — Web Client         | ✅ Complete (player names wired, all components functional)                              |
 | Phase 4 — Polish             | ✅ Complete (animations, mobile polish; deployment user-handled via Render + Cloudflare) |
 | Phase 5 — Voice Chat         | 🟡 Core + cross-browser fixes + Perfect Negotiation recovery + Cloudflare TURN; smoke test pending |

@@ -22,6 +22,7 @@ import {
 } from '../schema';
 import type {
   AdminKpiStats,
+  AdminUserStats,
   AppendEventInput,
   BlockedUserEntry,
   CoPlayerEntry,
@@ -45,6 +46,7 @@ import type {
   RoomStatus,
   UpsertOAuthUserInput,
   UserRow,
+  UserSearchResult,
 } from './types';
 
 export class PgPersistence implements GamePersistence {
@@ -944,6 +946,124 @@ export class PgPersistence implements GamePersistence {
       abandonmentRate,
       avgDurationMs,
       dailyBreakdown,
+    };
+  }
+
+  async searchUsers(query: string, limit = 20): Promise<UserSearchResult[]> {
+    const escaped = query.replace(/[%_\\]/g, '\\$&');
+    const pattern = `%${escaped}%`;
+    const result = await this.db.execute(sql`
+      SELECT
+        u.id          AS "userId",
+        u.display_name AS "displayName",
+        u.email,
+        u.avatar_url   AS "avatarUrl",
+        u.is_guest     AS "isGuest",
+        COALESCE(ps.games_played, 0)::int AS "gamesPlayed",
+        COALESCE(ps.games_won, 0)::int    AS "gamesWon"
+      FROM users u
+      LEFT JOIN player_stats ps ON ps.user_id = u.id
+      WHERE
+        u.display_name ILIKE ${pattern}
+        OR u.email ILIKE ${pattern}
+      ORDER BY u.display_name ASC
+      LIMIT ${limit}
+    `);
+    return (result.rows as Array<{
+      userId: string;
+      displayName: string;
+      email: string | null;
+      avatarUrl: string | null;
+      isGuest: boolean;
+      gamesPlayed: number | string;
+      gamesWon: number | string;
+    }>).map((row) => ({
+      userId: row.userId,
+      displayName: row.displayName,
+      email: row.email,
+      avatarUrl: row.avatarUrl,
+      isGuest: row.isGuest,
+      gamesPlayed: Number(row.gamesPlayed),
+      gamesWon: Number(row.gamesWon),
+    }));
+  }
+
+  async adminGetUserStats(userId: string): Promise<AdminUserStats | null> {
+    // Guard against invalid UUID strings that would cause a Postgres parse error.
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRe.test(userId)) return null;
+
+    const result = await this.db.execute(sql`
+      SELECT
+        u.id            AS "userId",
+        u.display_name  AS "displayName",
+        u.email,
+        u.avatar_url    AS "avatarUrl",
+        u.is_guest      AS "isGuest",
+        COALESCE(ps.games_played, 0)::int       AS "gamesPlayed",
+        COALESCE(ps.games_won, 0)::int          AS "gamesWon",
+        COALESCE(ps.games_lost, 0)::int         AS "gamesLost",
+        COALESCE(ps.games_abandoned, 0)::int    AS "gamesAbandoned",
+        COALESCE(ps.total_captures, 0)::int     AS "totalCaptures",
+        COALESCE(ps.cuts_given, 0)::int         AS "cutsGiven",
+        COALESCE(ps.cuts_received, 0)::int      AS "cutsReceived",
+        COALESCE(ps.times_safe, 0)::int         AS "timesSafe",
+        COALESCE(ps.total_play_time_ms, 0)::bigint AS "totalPlayTimeMs",
+        COALESCE(ps.longest_win_streak, 0)::int AS "longestWinStreak",
+        COALESCE(ps.current_win_streak, 0)::int AS "currentWinStreak",
+        ps.updated_at   AS "updatedAt"
+      FROM users u
+      LEFT JOIN player_stats ps ON ps.user_id = u.id
+      WHERE u.id = ${userId}
+      LIMIT 1
+    `);
+    const row = result.rows[0] as {
+      userId: string;
+      displayName: string;
+      email: string | null;
+      avatarUrl: string | null;
+      isGuest: boolean;
+      gamesPlayed: number | string;
+      gamesWon: number | string;
+      gamesLost: number | string;
+      gamesAbandoned: number | string;
+      totalCaptures: number | string;
+      cutsGiven: number | string;
+      cutsReceived: number | string;
+      timesSafe: number | string;
+      totalPlayTimeMs: number | string;
+      longestWinStreak: number | string;
+      currentWinStreak: number | string;
+      updatedAt: Date | string | null;
+    } | undefined;
+    if (!row) return null;
+    const gamesPlayed = Number(row.gamesPlayed);
+    const gamesWon = Number(row.gamesWon);
+    const winRate = gamesPlayed > 0 ? gamesWon / gamesPlayed : 0;
+    const updatedAt = row.updatedAt instanceof Date
+      ? row.updatedAt.toISOString()
+      : typeof row.updatedAt === 'string'
+        ? row.updatedAt
+        : null;
+    return {
+      userId: row.userId,
+      displayName: row.displayName,
+      email: row.email,
+      avatarUrl: row.avatarUrl,
+      isGuest: row.isGuest,
+      gamesPlayed,
+      gamesWon,
+      gamesLost: Number(row.gamesLost),
+      gamesAbandoned: Number(row.gamesAbandoned),
+      winRate,
+      totalCaptures: Number(row.totalCaptures),
+      cutsGiven: Number(row.cutsGiven),
+      cutsReceived: Number(row.cutsReceived),
+      timesSafe: Number(row.timesSafe),
+      totalPlayTimeMs: Number(row.totalPlayTimeMs),
+      longestWinStreak: Number(row.longestWinStreak),
+      currentWinStreak: Number(row.currentWinStreak),
+      updatedAt,
     };
   }
 }

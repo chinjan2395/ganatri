@@ -356,6 +356,19 @@ export interface GamePersistence {
    * within the last `windowDays` days. Default window is 7 days.
    */
   getAdminKpiStats(windowDays?: number): Promise<AdminKpiStats>;
+
+  /**
+   * Search users by partial display name or email (case-insensitive).
+   * Returns up to `limit` results (default 20), ordered by displayName ASC.
+   * Includes isGuest and basic stats counts from player_stats (may be null → 0 for guests).
+   */
+  searchUsers(query: string, limit?: number): Promise<UserSearchResult[]>;
+
+  /**
+   * Full admin-level stats for a single user (by userId).
+   * Returns null when the user does not exist.
+   */
+  adminGetUserStats(userId: string): Promise<AdminUserStats | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -373,6 +386,41 @@ export interface BlockedUserEntry {
   userId: string;
   displayName: string;
   avatarUrl: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Admin user management (Phase 6h)
+// ---------------------------------------------------------------------------
+
+export interface UserSearchResult {
+  userId: string;
+  displayName: string;
+  email: string | null;
+  avatarUrl: string | null;
+  isGuest: boolean;
+  gamesPlayed: number;
+  gamesWon: number;
+}
+
+export interface AdminUserStats {
+  userId: string;
+  displayName: string;
+  email: string | null;
+  avatarUrl: string | null;
+  isGuest: boolean;
+  gamesPlayed: number;
+  gamesWon: number;
+  gamesLost: number;
+  gamesAbandoned: number;
+  winRate: number; // gamesWon / gamesPlayed, 0-guarded
+  totalCaptures: number;
+  cutsGiven: number;
+  cutsReceived: number;
+  timesSafe: number;
+  totalPlayTimeMs: number;
+  longestWinStreak: number;
+  currentWinStreak: number;
+  updatedAt: string | null; // ISO string from player_stats.updated_at, null when no row
 }
 
 // ---------------------------------------------------------------------------

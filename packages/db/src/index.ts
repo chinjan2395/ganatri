@@ -32,6 +32,7 @@ export type { GameStore, SessionData, RoomData } from './store';
 // Durable persistence layer (Stage B).
 export type {
   AdminKpiStats,
+  AdminUserStats,
   GamePersistence,
   UserRow,
   UserBlockRow,
@@ -57,6 +58,7 @@ export type {
   RankedLeaderboardEntry,
   CoPlayerEntry,
   BlockedUserEntry,
+  UserSearchResult,
 } from './persistence/types';
 export { PgPersistence, PostgresStore } from './persistence/pg';
 export { MemoryPersistence } from './persistence/memory';

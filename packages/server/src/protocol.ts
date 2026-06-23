@@ -496,6 +496,58 @@ export type AdminGetKpiStatsAck =
   | { ok: true; stats: AdminKpiStats }
   | { ok: false; reason: 'NOT_AUTHORIZED' | 'UNAVAILABLE' };
 
+// ---------------------------------------------------------------------------
+// Admin: user management
+// ---------------------------------------------------------------------------
+
+export interface AdminSearchUsersPayload {
+  query: string;
+  limit?: number;
+}
+
+export interface AdminUserView {
+  userId: string;
+  displayName: string;
+  email: string | null;
+  avatarUrl: string | null;
+  isGuest: boolean;
+  gamesPlayed: number;
+  gamesWon: number;
+}
+
+export type AdminSearchUsersAck =
+  | { ok: true; users: AdminUserView[] }
+  | { ok: false; error: 'NOT_AUTHORIZED' | 'UNAVAILABLE' };
+
+export interface AdminGetUserStatsPayload {
+  userId: string;
+}
+
+export interface AdminUserStatsView {
+  userId: string;
+  displayName: string;
+  email: string | null;
+  avatarUrl: string | null;
+  isGuest: boolean;
+  gamesPlayed: number;
+  gamesWon: number;
+  gamesLost: number;
+  gamesAbandoned: number;
+  winRate: number;
+  totalCaptures: number;
+  cutsGiven: number;
+  cutsReceived: number;
+  timesSafe: number;
+  totalPlayTimeMs: number;
+  longestWinStreak: number;
+  currentWinStreak: number;
+  updatedAt: string | null;
+}
+
+export type AdminGetUserStatsAck =
+  | { ok: true; stats: AdminUserStatsView }
+  | { ok: false; error: 'NOT_AUTHORIZED' | 'UNAVAILABLE' | 'NOT_FOUND' };
+
 // Re-export for consumers that want the config shape via the protocol module.
 export type { GameConfig };
 
@@ -530,6 +582,8 @@ export const EVENTS = {
   ADMIN_UPDATE_CONFIG: 'admin_update_config',
   ADMIN_GET_STATS: 'admin_get_stats',
   ADMIN_GET_KPI_STATS: 'admin_get_kpi_stats',
+  ADMIN_SEARCH_USERS: 'admin_search_users',
+  ADMIN_GET_USER_STATS: 'admin_get_user_stats',
 
   // Server → Client
   SESSION: 'session',
