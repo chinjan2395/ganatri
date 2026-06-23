@@ -434,3 +434,12 @@
   flex-direction: column;
   gap: 0.25rem;
 }
+
+/* Data Export */
+.admin__export-section {
+  margin-top: 0;
+}
+
+.admin__export-btn {
+  /* inherits .admin__btn; no overrides needed */
+}

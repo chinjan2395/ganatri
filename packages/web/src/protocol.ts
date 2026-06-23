@@ -382,6 +382,7 @@ export const ADMIN_EVENTS = {
   GET_KPI_STATS:  'admin_get_kpi_stats',
   SEARCH_USERS:   'admin_search_users',
   GET_USER_STATS: 'admin_get_user_stats',
+  EXPORT_DATA:    'admin_export_data',
 } as const;
 
 export interface GameConfig {
@@ -464,3 +465,32 @@ export type AdminSearchUsersAck =
 export type AdminGetUserStatsAck =
   | { ok: true; stats: AdminUserStatsView }
   | { ok: false; error: 'NOT_AUTHORIZED' | 'UNAVAILABLE' | 'NOT_FOUND' };
+
+// --- Admin data export ---
+
+export interface ExportGamePlayerView {
+  userId: string | null;
+  displayName: string;
+  seatIndex: number;
+  finalRank: number | null;
+  captureCount: number;
+  wasCut: boolean;
+  result: string | null;
+}
+
+export interface ExportGameView {
+  id: string;
+  roomCode: string | null;
+  seed: string;
+  startedAt: string;
+  endedAt: string | null;
+  durationMs: number | null;
+  playerCount: number;
+  isAbandoned: boolean;
+  winnerId: string | null;
+  players: ExportGamePlayerView[];
+}
+
+export type AdminExportDataAck =
+  | { ok: true; games: ExportGameView[] }
+  | { ok: false; error: 'NOT_AUTHORIZED' | 'UNAVAILABLE' };

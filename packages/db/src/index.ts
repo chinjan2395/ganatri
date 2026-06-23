@@ -33,6 +33,8 @@ export type { GameStore, SessionData, RoomData } from './store';
 export type {
   AdminKpiStats,
   AdminUserStats,
+  ExportGameRow,
+  ExportGamePlayer,
   GamePersistence,
   UserRow,
   UserBlockRow,

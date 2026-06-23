@@ -44,8 +44,8 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-23
-- Outcome: ✅ Phase 6h User Management — Full vertical slice: DB (`searchUsers`/`adminGetUserStats` in `GamePersistence` interface + PgPersistence + MemoryPersistence; 14 new contract test runs; ILIKE wildcards escaped, UUID guard), server (`ADMIN_SEARCH_USERS`/`ADMIN_GET_USER_STATS` events + handlers, limit clamped to ≤100, 8 new integration tests; Server: 83→91), web (`UserManagementSection` component in AdminScreen: search bar, results list with avatar/initials/guest badge, user detail panel with 12-stat grid). Code-review fixes: ILIKE wildcard escaping + limit clamping. All 420 tests pass (153 engine + 91 server + 176 db). Build green.
-- Branch/PR: nightly/2026-06-23-0832
+- Outcome: ✅ Phase 6h Data Export — Full vertical slice: DB (`ExportGameRow` type + `exportGamesData(limit?)` in `GamePersistence` interface, PgPersistence (2-query: games+rooms ordered by startedAt DESC, then game_players grouped in JS), MemoryPersistence (sort+slice+lookup); 4 new contract tests. Server: `ADMIN_EXPORT_DATA='admin_export_data'` event + `handleAdminExportData` handler (admin-auth gate, limit clamped to ≤500); 3 new integration tests in `admin-export.test.ts` (Server: 91→94). Web: `ExportGameView`/`AdminExportDataAck` types in protocol.ts; `EXPORT_DATA` in `ADMIN_EVENTS`; "Export Games (JSON)" button in AdminScreen with loading state + inline error + Blob/ObjectURL download (Safari-compatible: append/remove body). Code-review: no Critical issues; Safari download fix applied. All 427 tests pass (153 engine + 94 server + 180 db). Build green.
+- Branch/PR: nightly/2026-06-23-1329
 
 ## Blockers / Needs Human Input
 (none)
@@ -55,8 +55,14 @@ Remaining Phase 6 work (pick next in order):
 
 1. **6c remaining account settings** — Avatar URL edit + OAuth link/unlink (complex; skip for now if tight).
 
-2. **6h: Data export** — CSV/JSON export endpoint (admin-gated) for games/stats offline analysis. Add `exportGamesCSV()` and `exportStatsCSV()` or a unified export endpoint that returns JSON. Add a download button to AdminScreen.
+2. **6i: Account deletion (right to erasure)** — Hard-delete or anonymize user across users/game_players/events/stats. Server event + handler + web UI (delete button in LobbyScreen profile panel with confirmation dialog). Define FK `ON DELETE` behavior.
 
-3. **6i/6j: Privacy + Ops** — Account deletion (right to erasure), data export for users (GDPR), retention policy UI.
+3. **6i: User data export (GDPR)** — Let a logged-in user download their own account data (history, stats). Separate from admin export.
+
+4. **6j: Ops hardening** — DB monitoring, connection-pool sizing, cost alerts.
+
+Known review items from data export (non-blocking, can be addressed later):
+- Seed field is exposed in admin export (admin-only risk; document or omit)
+- Server integration tests missing: limit clamping contract test + non-empty shape test
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.

@@ -548,6 +548,44 @@ export type AdminGetUserStatsAck =
   | { ok: true; stats: AdminUserStatsView }
   | { ok: false; error: 'NOT_AUTHORIZED' | 'UNAVAILABLE' | 'NOT_FOUND' };
 
+// ---------------------------------------------------------------------------
+// Admin: data export
+// ---------------------------------------------------------------------------
+
+export interface ExportGamePlayerView {
+  userId: string | null;
+  displayName: string;
+  seatIndex: number;
+  finalRank: number | null;
+  captureCount: number;
+  wasCut: boolean;
+  result: string | null;
+}
+
+export interface ExportGameView {
+  id: string;
+  roomCode: string | null;
+  seed: string;
+  startedAt: string;
+  endedAt: string | null;
+  durationMs: number | null;
+  playerCount: number;
+  isAbandoned: boolean;
+  winnerId: string | null;
+  players: ExportGamePlayerView[];
+}
+
+/** Payload for admin_export_data (no required fields). */
+export interface AdminExportDataPayload {
+  /** Max games to return; clamped to 500 server-side. Default 500. */
+  limit?: number;
+}
+
+/** Ack for admin_export_data. Requires admin auth. */
+export type AdminExportDataAck =
+  | { ok: true; games: ExportGameView[] }
+  | { ok: false; error: 'NOT_AUTHORIZED' | 'UNAVAILABLE' };
+
 // Re-export for consumers that want the config shape via the protocol module.
 export type { GameConfig };
 
@@ -584,6 +622,7 @@ export const EVENTS = {
   ADMIN_GET_KPI_STATS: 'admin_get_kpi_stats',
   ADMIN_SEARCH_USERS: 'admin_search_users',
   ADMIN_GET_USER_STATS: 'admin_get_user_stats',
+  ADMIN_EXPORT_DATA: 'admin_export_data',
 
   // Server → Client
   SESSION: 'session',

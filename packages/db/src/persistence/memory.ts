@@ -17,6 +17,7 @@ import type {
   BlockedUserEntry,
   CoPlayerEntry,
   CreateAuthSessionInput,
+  ExportGameRow,
   GameEventRow,
   GameHistoryEntry,
   GamePersistence,
@@ -929,6 +930,43 @@ export class MemoryPersistence implements GamePersistence {
       avgDurationMs,
       dailyBreakdown,
     };
+  }
+
+  async exportGamesData(limit = 500): Promise<ExportGameRow[]> {
+    // Build a roomId -> roomCode lookup for quick access.
+    const roomCodeById = new Map<string, string>();
+    for (const room of this.rooms.values()) {
+      roomCodeById.set(room.id, room.roomCode);
+    }
+
+    const sorted = [...this.games.values()]
+      .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
+      .slice(0, limit);
+
+    return sorted.map((game) => {
+      const roomCode = game.roomId ? (roomCodeById.get(game.roomId) ?? null) : null;
+      const players = this.playersOf(game.id).map((p) => ({
+        userId: p.userId,
+        displayName: p.displayNameSnapshot,
+        seatIndex: p.seatIndex,
+        finalRank: p.finalRank,
+        captureCount: p.captureCount,
+        wasCut: p.wasCut,
+        result: p.result,
+      }));
+      return {
+        id: game.id,
+        roomCode,
+        seed: game.seed,
+        startedAt: game.startedAt.toISOString(),
+        endedAt: game.endedAt ? game.endedAt.toISOString() : null,
+        durationMs: game.durationMs,
+        playerCount: game.playerCount,
+        isAbandoned: game.isAbandoned,
+        winnerId: game.winnerId,
+        players,
+      };
+    });
   }
 }
 

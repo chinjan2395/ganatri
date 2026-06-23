@@ -21,6 +21,10 @@ import {
   type AdminGetUserStatsPayload,
   type AdminGetUserStatsAck,
   type AdminUserStatsView,
+  type AdminExportDataPayload,
+  type AdminExportDataAck,
+  type ExportGameView,
+  type ExportGamePlayerView,
   type CreateRoomAck,
   type JoinRoomAck,
   type LeaveRoomAck,
@@ -883,6 +887,12 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
   socket.on(EVENTS.ADMIN_GET_USER_STATS, (payload: unknown, ack: (res: AdminGetUserStatsAck) => void) => {
     if (typeof ack !== 'function') return;
     void handleAdminGetUserStats(socket, payload, ack);
+  });
+
+  // Admin: export all games data.
+  socket.on(EVENTS.ADMIN_EXPORT_DATA, (payload: unknown, ack: (res: AdminExportDataAck) => void) => {
+    if (typeof ack !== 'function') return;
+    void handleAdminExportData(socket, payload, ack);
   });
 
   // Voice chat: hand out ICE servers (STUN + minted Cloudflare TURN creds).
@@ -1944,6 +1954,53 @@ async function handleAdminGetUserStats(
       updatedAt: result.updatedAt,
     };
     ack({ ok: true, stats });
+  } catch {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+  }
+}
+
+async function handleAdminExportData(
+  socket: Socket,
+  payload: unknown,
+  ack: (res: AdminExportDataAck) => void,
+): Promise<void> {
+  if (!store.adminSockets.has(socket.id)) {
+    ack({ ok: false, error: 'NOT_AUTHORIZED' });
+    return;
+  }
+  const p = getPersistence();
+  if (!p) {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+  const raw = payload as AdminExportDataPayload | undefined;
+  const limit = Math.min(
+    typeof raw?.limit === 'number' && raw.limit > 0 ? raw.limit : 500,
+    500,
+  );
+  try {
+    const rows = await p.exportGamesData(limit);
+    const games: ExportGameView[] = rows.map((r) => ({
+      id: r.id,
+      roomCode: r.roomCode,
+      seed: r.seed,
+      startedAt: r.startedAt,
+      endedAt: r.endedAt,
+      durationMs: r.durationMs,
+      playerCount: r.playerCount,
+      isAbandoned: r.isAbandoned,
+      winnerId: r.winnerId,
+      players: r.players.map((p): ExportGamePlayerView => ({
+        userId: p.userId,
+        displayName: p.displayName,
+        seatIndex: p.seatIndex,
+        finalRank: p.finalRank,
+        captureCount: p.captureCount,
+        wasCut: p.wasCut,
+        result: p.result,
+      })),
+    }));
+    ack({ ok: true, games });
   } catch {
     ack({ ok: false, error: 'UNAVAILABLE' });
   }

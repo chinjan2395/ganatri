@@ -27,6 +27,7 @@ import type {
   BlockedUserEntry,
   CoPlayerEntry,
   CreateAuthSessionInput,
+  ExportGameRow,
   FinalPlayerResult,
   GameEventRow,
   GameHistoryEntry,
@@ -1071,6 +1072,61 @@ export class PgPersistence implements GamePersistence {
       currentWinStreak: Number(row.currentWinStreak),
       updatedAt,
     };
+  }
+
+  async exportGamesData(limit = 500): Promise<ExportGameRow[]> {
+    // Step 1: fetch games ordered newest-first, limited.
+    const gameRows = await this.db
+      .select({ game: games, roomCode: rooms.roomCode })
+      .from(games)
+      .leftJoin(rooms, eq(games.roomId, rooms.id))
+      .orderBy(desc(games.startedAt))
+      .limit(limit);
+
+    if (gameRows.length === 0) return [];
+
+    const gameIds = gameRows.map((r) => r.game.id);
+
+    // Step 2: fetch all player rows for those games.
+    const allPlayers = await this.db
+      .select()
+      .from(gamePlayers)
+      .where(inArray(gamePlayers.gameId, gameIds))
+      .orderBy(asc(gamePlayers.seatIndex));
+
+    const byGame = new Map<string, GamePlayerRow[]>();
+    for (const p of allPlayers) {
+      const list = byGame.get(p.gameId);
+      if (list) list.push(p);
+      else byGame.set(p.gameId, [p]);
+    }
+
+    return gameRows.map(({ game, roomCode }) => ({
+      id: game.id,
+      roomCode: roomCode ?? null,
+      seed: game.seed,
+      startedAt: game.startedAt instanceof Date
+        ? game.startedAt.toISOString()
+        : String(game.startedAt),
+      endedAt: game.endedAt instanceof Date
+        ? game.endedAt.toISOString()
+        : game.endedAt != null
+          ? String(game.endedAt)
+          : null,
+      durationMs: game.durationMs,
+      playerCount: game.playerCount,
+      isAbandoned: game.isAbandoned,
+      winnerId: game.winnerId,
+      players: (byGame.get(game.id) ?? []).map((p) => ({
+        userId: p.userId,
+        displayName: p.displayNameSnapshot,
+        seatIndex: p.seatIndex,
+        finalRank: p.finalRank,
+        captureCount: p.captureCount,
+        wasCut: p.wasCut,
+        result: p.result,
+      })),
+    }));
   }
 }
 

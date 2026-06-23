@@ -373,6 +373,13 @@ export interface GamePersistence {
    * Returns null when the user does not exist.
    */
   adminGetUserStats(userId: string): Promise<AdminUserStats | null>;
+
+  /**
+   * Admin data export: returns up to `limit` completed/abandoned games
+   * (most recent first), each with their player rows.
+   * Default limit 500; max enforced by callers.
+   */
+  exportGamesData(limit?: number): Promise<ExportGameRow[]>;
 }
 
 // ---------------------------------------------------------------------------
@@ -425,6 +432,35 @@ export interface AdminUserStats {
   longestWinStreak: number;
   currentWinStreak: number;
   updatedAt: string | null; // ISO string from player_stats.updated_at, null when no row
+}
+
+// ---------------------------------------------------------------------------
+// Admin data export (Phase 6h)
+// ---------------------------------------------------------------------------
+
+/** One player row within an exported game. */
+export interface ExportGamePlayer {
+  userId: string | null;
+  displayName: string;
+  seatIndex: number;
+  finalRank: number | null;
+  captureCount: number;
+  wasCut: boolean;
+  result: string | null;
+}
+
+/** One game row for the admin data export. */
+export interface ExportGameRow {
+  id: string;
+  roomCode: string | null;
+  seed: string;
+  startedAt: string; // ISO string
+  endedAt: string | null; // ISO string
+  durationMs: number | null;
+  playerCount: number;
+  isAbandoned: boolean;
+  winnerId: string | null;
+  players: ExportGamePlayer[];
 }
 
 // ---------------------------------------------------------------------------
