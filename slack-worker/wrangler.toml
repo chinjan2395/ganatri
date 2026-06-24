@@ -8,6 +8,7 @@ compatibility_date = "2024-11-01"
 [vars]
 GITHUB_REPO = "chinjan2395/ganatri"
 NIGHTLY_WORKFLOW = "nightly.yml"
+PHASE_NIGHTLY_WORKFLOW = "phase-nightly.yml"
 
 [observability]
 enabled = true
