@@ -131,7 +131,7 @@ All 441 tests passing (153 engine + 102 server + 186 db).
 - Tackle items **top to bottom, one per run**. Leave finished items checked (with a date) for visibility, or delete them once their PR is merged.
 - Each item should be self-contained and reviewable: include a short acceptance criterion and the package/files it touches.
 
-**Current priority: resume remaining Phase 6 work (6i/6j privacy/ops), then Phase 5 voice smoke test, then production/deployment follow-ups.**
+**Current priority: resume remaining Phase 6 work (6i/6j privacy/ops), then Phase 5 voice smoke test, then Phase 9 scoring/progression, then production/deployment follow-ups.**
 
 **How to add a priority item:** insert a `- [ ]` line between the two markers below, e.g.
 `- [ ] **Fix leaderboard pagination off-by-one** — packages/server handlers.ts; offset should be page*limit. Acceptance: new server test covers page 2.`
@@ -679,6 +679,156 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 ---
 
+## Phase 9 — Scoring, Rating & XP Progression
+
+**Goal:** Add a server-authoritative scoring system based on [POINTS_SYSTEM.md](/Users/chinjanpatel/Documents/ganatri/docs/POINTS_SYSTEM.md): placement still determines the winner, but each match now also produces (1) a per-match **Match Score**, (2) a persistent **Ranked Rating** delta, and (3) persistent **XP / level progression** for logged-in players.
+
+**Status:** ⬜ Not started
+
+### Architecture decisions
+
+- **Winner remains engine-defined:** scoring never changes `rankings`; the rules engine still decides who wins and loses.
+- **Three separate outputs:** a match produces `matchScore`, `rankedRatingDelta`, and `xpEarned`; they solve different product needs and must not be conflated.
+- **Server is authoritative:** clients may preview values in UI, but only the server computes and persists final scoring.
+- **Guests may see match score, but only accounts persist progression:** guest sessions should still receive end-screen scoring feedback, but `rankedRating`, `xp`, `level`, and progression history only persist for durable users.
+- **Event-log derived where possible:** Part 1/Part 2 scoring should be computed from existing game events / persisted outcome data instead of trusting ad-hoc client state.
+- **Ledger before cosmetics:** first ship auditable scoring + progression storage; cosmetics/reward spending can come later without redesigning the scoring core.
+
+### Scoring model summary (from `docs/POINTS_SYSTEM.md`)
+
+#### Ranked Rating
+
+- Placement-only rating change:
+  - 2 players: `1st +20`, `2nd -20`
+  - 3 players: `1st +24`, `2nd +4`, `3rd -16`
+  - 4 players: `1st +28`, `2nd +10`, `3rd -4`, `4th -18`
+- Abandon / disconnect-forfeit: extra `-15`
+- Never affected by captures, same-rank bonuses, table clears, cuts, ghost bonus, or XP.
+
+#### Match Score
+
+- Part 1:
+  - `+1` per captured card
+  - `+2` same-rank bonus per move that captured at least one same-rank card
+  - `+5` table-clear bonus per move that emptied the table
+- Part 2:
+  - `+3` per successful cut
+- End-of-match placement bonus:
+  - 4 players: `1st +30`, `2nd +20`, `3rd +10`, `4th +0`
+  - 3 players: `1st +30`, `2nd +20`, `3rd +0`
+  - 2 players: `winner +30`, `loser +0`
+- Ghost bonus:
+  - `+5` when a player captured zero cards in Part 1 and starts Part 2 already safe
+
+#### XP / Level
+
+- `xpEarned = 10 + matchScore`
+- `level = floor(sqrt(totalXp / 25)) + 1`
+
+### 9a — Shared domain model and scoring spec
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Finalize TS domain types for `MatchScoreBreakdown`, `PlayerProgression`, `RankedRatingChange`, `XpAward`, `ScoreLedgerEntry` | ⬜ | Prefer shared types in `packages/db` and mirrored wire types in server/web protocols |
+| Add a scorer-spec doc section or appendix mapping each formula to authoritative inputs | ⬜ | Clarify exactly which engine/server events trigger each bonus; link back to `docs/POINTS_SYSTEM.md` |
+| Define canonical scoring reasons / ledger enums | ⬜ | e.g. `CAPTURE_CARD`, `SAME_RANK_BONUS`, `TABLE_CLEAR`, `CUT`, `PLACEMENT_BONUS`, `GHOST_BONUS`, `RANKED_PLACEMENT`, `ABANDON_PENALTY`, `XP_MATCH_BASE` |
+| Decide guest behavior explicitly | ⬜ | Recommended: guests receive ephemeral `matchScore` and `xpEarned` in end-screen payload, but no durable progression rows are written |
+
+### 9b — DB schema and persistence layer
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Add `player_progression` table | ⬜ | Suggested columns: `user_id PK/FK`, `ranked_rating`, `total_xp`, `level`, `highest_match_score`, `total_match_score`, `ghost_finishes`, `updated_at` |
+| Add `score_ledger` table | ⬜ | Suggested columns: `id`, `user_id`, `game_id`, `kind`, `reason`, `delta`, `created_at`, `meta_json`; append-only audit trail |
+| Optional: add per-player scoring snapshot to `game_players` | ⬜ | `match_score`, `xp_earned`, `ranked_rating_delta` are useful for history / exports / end-screen replay without re-deriving |
+| Update `packages/db/src/schema.ts` + new migration | ⬜ | Include indexes for `user_id`, `game_id`, and `(user_id, created_at DESC)` |
+| Extend `GamePersistence` interface | ⬜ | Add methods like `getPlayerProgression`, `applyGameScoring`, `listScoreLedger`, maybe `getScoringHistory` |
+| Implement both Pg + Memory persistence | ⬜ | Must stay contract-compatible; prefer one transaction per finished game |
+| Add contract tests + drift-guard updates | ⬜ | Cover insert/update idempotency, repeated finish protection, ledger shape, guest no-op persistence, level recomputation |
+
+### 9c — Server scoring engine at game end
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Add pure server-side scorer module | ⬜ | New module, e.g. `packages/server/src/scoring.ts`, consuming final game state + emitted events + persisted finish data |
+| Compute per-player Part 1 score breakdown | ⬜ | Count captured cards, same-rank moves, table clears, leftover sweep contribution |
+| Compute Part 2 bonuses | ⬜ | Count successful cuts from authoritative event stream |
+| Compute placement bonus + ghost bonus | ⬜ | Placement from `rankings`; ghost from zero Part 1 captures / safe-from-start outcome |
+| Compute Ranked Rating delta | ⬜ | Placement table by player-count + extra abandon penalty |
+| Compute XP + resulting level | ⬜ | `xpEarned = 10 + matchScore`; level from cumulative XP after applying award |
+| Persist scoring atomically with game finish | ⬜ | Reuse/extend existing finish-write path so `game_players`, `player_stats`, progression, and ledger stay consistent |
+| Ensure idempotency on duplicate finish / reconnect flows | ⬜ | Must not double-award rating or XP if finish logic runs twice |
+
+### 9d — Server protocol and read endpoints
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Extend end-of-game payloads with score breakdown | ⬜ | Include `matchScore`, `xpEarned`, `rankedRatingDelta`, and flat breakdown rows for the end screen |
+| Add `GET_MY_PROGRESSION` socket event | ⬜ | Logged-in only; returns `rankedRating`, `totalXp`, `level`, `xpToNextLevel`, `highestMatchScore`, `ghostFinishes` |
+| Add `GET_MY_SCORE_HISTORY` socket event | ⬜ | Logged-in only; recent ledger-backed scoring history or match summaries |
+| Optionally extend `REQUEST_HISTORY` response | ⬜ | Include per-game `matchScore`, `xpEarned`, `rankedRatingDelta` so HistoryScreen can show scoring recap |
+| Add server tests for all new events and end-game payloads | ⬜ | Guards: `NOT_LOGGED_IN`, `UNAVAILABLE`; happy paths for 2/3/4 player matches and abandonment |
+
+### 9e — Web state and socket helpers
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Mirror scoring/progression protocol types | ⬜ | `packages/web/src/protocol.ts` |
+| Add socket helpers for progression/history endpoints | ⬜ | `getMyProgression()`, `getMyScoreHistory()` in `packages/web/src/net/socket.ts` |
+| Extend `GameProvider` with scoring/progression state | ⬜ | Cache current progression, latest end-of-match scoring payload, and loading/error states |
+| Auto-refresh progression after completed matches and on login | ⬜ | Keep lobby/profile values fresh without manual reload |
+
+### 9f — Match UX: in-game score and end screen
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Add live or turn-delayed match score display in `GameScreen` | ⬜ | Show each player's current match score; if live scoring is noisy, update after each authoritative event batch |
+| Upgrade `EndScreen` to show scoring recap | ⬜ | Placement + `matchScore` + `xpEarned` + `rankedRatingDelta` + breakdown rows |
+| Surface ghost bonus / cut bonus / table clear moments cleanly | ⬜ | Avoid cluttering the main board; keep detail in recap modal/panel if needed |
+| Show guest-persistence limitation gracefully | ⬜ | e.g. “Create an account to keep XP and rating” without blocking normal play |
+
+### 9g — Lobby, profile, history, leaderboard, and stats integration
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Lobby/profile: show level, XP progress bar, ranked rating | ⬜ | Existing Rewards affordance can become the entry point |
+| Add progression panel or Rewards screen | ⬜ | Minimal v1 can live inside `LobbyScreen`; dedicated screen is cleaner if scope permits |
+| HistoryScreen: show stored match score / XP / rating delta per match | ⬜ | Expand current scorecards instead of creating a disconnected scoring UI |
+| StatsScreen: add lifetime scoring metrics | ⬜ | `highestMatchScore`, `totalMatchScore`, `ghostFinishes`, maybe average match score |
+| Leaderboard follow-up: decide if/when to pivot from wins leaderboard to rating leaderboard | ⬜ | Recommended v1: keep existing wins leaderboard and add a future rated board instead of breaking current UX |
+
+### 9h — Admin, exports, analytics, and rollout safety
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Admin user detail: show progression summary | ⬜ | `rankedRating`, `level`, `totalXp`, `highestMatchScore`, recent ledger entries |
+| Admin export: include progression and per-match scoring fields | ⬜ | Extend existing export path so scoring is audit-friendly |
+| KPI follow-up: optional scoring analytics | ⬜ | XP granted/day, average match score by player count, abandon-rate impact on rating |
+| Backfill / default strategy for existing users | ⬜ | Recommended v1: initialize progression at defaults (`rating=0`, `xp=0`, `level=1`) with no historical backfill |
+| Rollout guardrails | ⬜ | Feature flag or config gate for scoring UI while backend stabilizes |
+
+### Recommended implementation order
+
+1. `9a` shared scoring spec/types
+2. `9b` DB schema + persistence + tests
+3. `9c` game-end server scorer + atomic persistence
+4. `9d` read endpoints + protocol wiring
+5. `9e` web state/helpers
+6. `9f` end screen scoring recap
+7. `9g` lobby/profile/history/stats integration
+8. `9h` admin/export/analytics follow-up
+
+### Recommended v1 acceptance bar
+
+- Every finished match produces a deterministic `matchScore`, `xpEarned`, and `rankedRatingDelta` for each player.
+- Placement still exclusively determines the winner.
+- Logged-in users persist `rankedRating`, `totalXp`, and `level`.
+- End screen shows a trustworthy scoring breakdown.
+- Lobby/profile surfaces current level and rating.
+- History / exports can display stored per-match scoring without recomputation drift.
+
+---
+
 ## Deferred (out of v1 scope)
 
 
@@ -710,5 +860,5 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | Phase C — Web OAuth UI/history screen | ✅ Optional Google login + game-history/score-card screen in `packages/web`. Socket `withCredentials:true`; `requestHistory`/`loginWithGoogle`/`logout` helpers; protocol mirror for `REQUEST_HISTORY`/`GameHistoryEntry` + `SessionPayload` account fields; `GameProvider.account` + `screen` nav; `LobbyScreen` login/account UI (guest flow untouched, `?login=error` handled); new `HistoryScreen` w/ expandable framer-motion score cards. Build green; no web tests/lint present. |
 | Phase 7 — Improvements       | ⬜ Backlog identified; not yet started (27 tasks across 7 sub-phases 7a–7g). **Deprioritized below Phase 8.** |
 | Phase 8 — Social (Co-players & Invitations) | ✅ Complete (all 8a–8h shipped; 387 total tests) |
+| Phase 9 — Scoring / Rating / XP Progression | ⬜ Planned from `docs/POINTS_SYSTEM.md`: server-authoritative Match Score + Ranked Rating + XP/level progression, durable progression tables + score ledger, end-screen scoring recap, lobby/profile/history integration, admin/export follow-up. |
 | Phase 6i — Account deletion (right to erasure) | ✅ Complete (full stack: DB + server + web; 441 total tests) |
-
