@@ -1,0 +1,295 @@
+name: Ganatri Phase Nightly Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_run:
+        description: 'Run even if an open phase-nightly/* PR exists'
+        required: false
+        default: 'false'
+        type: boolean
+
+concurrency:
+  group: ganatri-phase-nightly
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+env:
+  PHASE_BRANCH: phase/9-scoring
+  SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+  SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+
+jobs:
+  phase-nightly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Decide whether to run
+        id: gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          FORCE_RUN="${{ github.event.inputs.force_run || 'false' }}"
+          echo "force_run=${FORCE_RUN}" >> "$GITHUB_OUTPUT"
+
+          OPEN_PR=$(gh pr list --base "$PHASE_BRANCH" --state open --json number,headRefName,title \
+                      --jq '.[] | select(.headRefName | startswith("phase-nightly/")) | "#\(.number) (\(.headRefName)) - \(.title)"' \
+                      | head -1)
+          if [ "$FORCE_RUN" != "true" ] && [ -n "$OPEN_PR" ]; then
+            echo "Skipping - open phase-nightly PR exists: ${OPEN_PR}. Merge or close it first (or re-run with force_run)."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=open_pr" >> "$GITHUB_OUTPUT"
+            {
+              echo "open_pr<<EOF"
+              printf '%s\n' "$OPEN_PR"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          STATUS=$(awk '/^## Status/{getline; while ($0 ~ /^[[:space:]]*$/) getline; print; exit}' \
+                     docs/phase-nightly/STATE.md | sed 's/<!--.*-->//')
+          echo "Phase STATE.md status: ${STATUS}"
+          if echo "$STATUS" | grep -q 'BLOCKED'; then
+            echo "Skipping Claude run - phase is BLOCKED, needs human input."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=blocked" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          NEXT_TASK=$(awk '/<!-- PHASE_TODO:START -->/{f=1; next} /<!-- PHASE_TODO:END -->/{f=0} f && /^[[:space:]]*- \[ \]/' \
+                        docs/phase-nightly/STATE.md | head -1 \
+                        | sed -E 's/^[[:space:]]*- \[ \] //; s/\*\*([^*]+)\*\*.*/\1/')
+          if [ -z "$NEXT_TASK" ]; then
+            NEXT_TASK=$(awk '/^## Current Sub-Phase Cursor$/{getline; while ($0 ~ /^[[:space:]]*$/) getline; print; exit}' \
+                          docs/phase-nightly/STATE.md)
+          fi
+          {
+            echo "next_task<<EOF"
+            printf '%s\n' "$NEXT_TASK"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Notify Slack — gate skipped
+        if: steps.gate.outputs.run != 'true' && steps.gate.outputs.skip_reason != ''
+        continue-on-error: true
+        env:
+          OPEN_PR: ${{ steps.gate.outputs.open_pr }}
+        run: |
+          if [ "${{ steps.gate.outputs.skip_reason }}" = "open_pr" ]; then
+            MSG=":double_vertical_bar: *Phase nightly paused* - ${OPEN_PR} is still waiting for review into ${PHASE_BRANCH}."
+          else
+            MSG=":double_vertical_bar: *Phase nightly paused* - the phase is blocked and needs your input."
+          fi
+          bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$MSG"
+
+      - name: Prepare phase branch and working branch
+        id: branch
+        if: steps.gate.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          git fetch origin --prune
+
+          if git show-ref --verify --quiet "refs/remotes/origin/${PHASE_BRANCH}"; then
+            git checkout -B "$PHASE_BRANCH" "origin/${PHASE_BRANCH}"
+            git merge --no-edit origin/main
+            git push origin "$PHASE_BRANCH"
+          else
+            git checkout -B "$PHASE_BRANCH" origin/main
+            git push origin "$PHASE_BRANCH"
+          fi
+
+          WORK_BRANCH="phase-nightly/$(date +%Y-%m-%d-%H%M)"
+          git checkout -b "$WORK_BRANCH"
+          echo "name=$WORK_BRANCH" >> "$GITHUB_OUTPUT"
+          echo "base=$PHASE_BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Notify Slack — phase run started
+        if: steps.gate.outputs.run == 'true'
+        continue-on-error: true
+        env:
+          NEXT_TASK: ${{ steps.gate.outputs.next_task }}
+        run: |
+          TASK=$(bash .github/scripts/slack-nightly-msgs.sh clean-task "$NEXT_TASK")
+          if [ -n "$TASK" ]; then
+            TEXT=":hammer_and_wrench: *Phase nightly started*"$'\n'"Working on: *${TASK}*"$'\n'"Base branch: ${PHASE_BRANCH}"
+          else
+            TEXT=":hammer_and_wrench: *Phase nightly started*"$'\n'"Base branch: ${PHASE_BRANCH}"
+          fi
+          bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$TEXT"
+
+      - name: Run Claude on next phase work unit
+        if: steps.gate.outputs.run == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            You are working autonomously on Ganatri's full-phase development lane.
+            No human is available - make safe, conservative decisions.
+
+            This workflow is different from normal nightly:
+            - Your branch will open a PR into `phase/9-scoring`, not `main`.
+            - Do not prepare or request a production merge to `main`.
+            - Partial sub-phase work must stay on the phase branch until the full phase is complete.
+
+            STEP 1 - Read state and context:
+            - Read docs/phase-nightly/STATE.md FIRST. This is the source of truth for this workflow.
+            - Read docs/DEVELOPMENT_PLAN.md, especially "Phase 9 - Scoring, Rating & XP Progression".
+            - Read docs/POINTS_SYSTEM.md and docs/SCORING_RULES.md if present.
+            - Read CLAUDE.md for project conventions and agent routing guidance.
+            - Read docs/GAME_RULES.md before touching game logic.
+
+            STEP 2 - Pick exactly ONE phase work unit:
+            - If docs/phase-nightly/STATE.md says BLOCKED, stop immediately.
+            - If the Phase TODO Queue has unchecked "- [ ]" items, the TOP unchecked item is your unit of work.
+              Complete it, then mark it "- [x]" with today's date.
+            - If the queue is empty, implement the Current Sub-Phase Cursor from docs/phase-nightly/STATE.md.
+            - Do not start a second sub-phase unless the current sub-phase is fully complete and the next step is only a doc cursor update.
+
+            STEP 3 - Implement via agents:
+            You are the coordinator. Do NOT write code directly - delegate to the correct agent:
+            - packages/engine work -> spawn Agent with subagent_type="rules-engine-dev"
+            - packages/server or packages/db work -> spawn Agent with subagent_type="backend-dev"
+            - packages/web work -> spawn Agent with subagent_type="frontend-dev"
+            - After implementation is done -> spawn Agent with subagent_type="code-reviewer"
+            Parallelize independent tasks across agents where safe.
+            After all agents complete, run the relevant tests yourself. Prefer `npm test`; use narrower package tests when the change is narrow.
+            If tests still fail after 2 fix attempts via agents, STOP and record BLOCKED.
+
+            STEP 4 - Update docs/phase-nightly/STATE.md:
+            - Update Status to IN_PROGRESS while the phase is not complete.
+            - If this work unit is complete, update Current Sub-Phase Cursor to the next Phase 9 sub-phase.
+            - If the whole Phase 9 acceptance checklist is complete, set Status COMPLETE.
+            - If blocked, set Status BLOCKED and add a specific blocker with file paths, errors, and attempts.
+            - Always update Last Run with today's date, outcome, branch, and one-line summary.
+            - Also update docs/DEVELOPMENT_PLAN.md Phase 9 task statuses where relevant.
+
+            STEP 5 - Commit:
+            - Stage all changed files.
+            - Commit with a message like: "Phase nightly: Phase 9 - <task title> (complete|partial|blocked)"
+
+            Hard rules:
+            - Branch only - never touch main directly.
+            - This PR targets `phase/9-scoring`, not `main`.
+            - Never skip tests. Never use --no-verify.
+            - If you are unsure about a game rule, mark BLOCKED and ask - do not guess.
+          claude_args: >-
+            --model claude-sonnet-4-6
+            --max-turns 60
+            --allowedTools Edit,Read,Write,Bash,Agent
+
+      - name: Extract run summary for Slack
+        if: steps.gate.outputs.run == 'true'
+        id: summary
+        run: |
+          COMMITS=$(bash .github/scripts/slack-nightly-msgs.sh commits 5)
+          {
+            echo "commits<<EOF"
+            printf '%s\n' "$COMMITS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Push phase work branch
+        id: push
+        if: steps.gate.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BASE="${{ steps.branch.outputs.base }}"
+          if [ "$(git rev-list --count "origin/${BASE}..HEAD")" -eq 0 ]; then
+            echo "No commits this run - skipping push."
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          git push origin "${{ steps.branch.outputs.name }}"
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Open Pull Request into phase branch
+        id: pr
+        if: steps.push.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="${{ steps.branch.outputs.name }}"
+          BASE="${{ steps.branch.outputs.base }}"
+          PR_BODY="$(cat <<'EOF'
+          ## Autonomous phase-nightly run
+
+          This PR targets the long-lived phase branch, not production.
+
+          Review before merging into `phase/9-scoring`. The final production merge is a separate PR from `phase/9-scoring` to `main` after the full phase acceptance checklist passes.
+
+          See `docs/phase-nightly/STATE.md` for the current phase status, next work unit, and blockers.
+
+          Generated with Claude Code.
+          EOF
+          )"
+          set +e
+          PR_ERR=$(gh pr create \
+            --base "$BASE" \
+            --head "$BRANCH" \
+            --title "Phase nightly — $(date +%Y-%m-%d\ %H:%M)" \
+            --body "$PR_BODY" 2>&1)
+          PR_EXIT=$?
+          set -e
+          if [ "$PR_EXIT" -eq 0 ]; then
+            PR_URL="$PR_ERR"
+          else
+            echo "gh pr create failed: $PR_ERR" >&2
+            PR_URL=$(gh pr view "$BRANCH" --json url -q .url 2>/dev/null || true)
+          fi
+          echo "url=${PR_URL}" >> "$GITHUB_OUTPUT"
+          echo "Pull request: ${PR_URL:-<none>}"
+          if [ -z "$PR_URL" ]; then
+            exit 1
+          fi
+
+      - name: Notify Slack — phase run finished
+        if: steps.gate.outputs.run == 'true'
+        continue-on-error: true
+        env:
+          RUN_COMMITS: ${{ steps.summary.outputs.commits }}
+        run: |
+          if [ "${{ steps.push.outputs.pushed }}" = "true" ]; then
+            MSG=":white_check_mark: *Phase nightly done* - PR opened into ${PHASE_BRANCH}"
+            if [ -n "$RUN_COMMITS" ]; then
+              MSG="${MSG}"$'\n'"${RUN_COMMITS}"
+            fi
+            MSG="${MSG}"$'\n'"${{ steps.pr.outputs.url }}"
+          else
+            MSG=":information_source: *Phase nightly finished* - no changes to review this time."
+          fi
+          bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$MSG"
+
+      - name: Notify Slack — phase run failed
+        if: failure()
+        continue-on-error: true
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" \
+            ":x: *Phase nightly failed* - something went wrong in the workflow. <${RUN_URL}|View run logs>"
