@@ -5,8 +5,13 @@
  *   1. Slash command  `/ganatri <text>`  → GitHub repository_dispatch
  *      (event_type "slack-add-todo") → .github/workflows/slack-add-todo.yml
  *      formats the text into a priority TODO and commits it.
- *   2. Interactive "▶️ Run now" button   → GitHub workflow_dispatch on
+ *   2. Slash command `/ganatri-phase <text>` → GitHub repository_dispatch
+ *      (event_type "slack-add-phase-todo") → .github/workflows/slack-add-phase-todo.yml
+ *      formats the text into a phase TODO and commits it.
+ *   3. Interactive "▶️ Run now" button   → GitHub workflow_dispatch on
  *      nightly.yml → Claude implements the top queue item.
+ *   4. Interactive "Run phase now" button → GitHub workflow_dispatch on
+ *      phase-nightly.yml → Claude implements the top phase work item.
  *
  * The outbound (GitHub → Slack) half — start/finish/report-zip messages — lives
  * in the workflows themselves and does not touch this Worker.
@@ -17,6 +22,7 @@
  * Vars (wrangler.toml [vars]):
  *   GITHUB_REPO           — "owner/repo", e.g. "chinjan2395/ganatri"
  *   NIGHTLY_WORKFLOW      — workflow filename to dispatch, e.g. "nightly.yml"
+ *   PHASE_NIGHTLY_WORKFLOW — workflow filename to dispatch, e.g. "phase-nightly.yml"
  */
 
 export interface Env {
@@ -24,6 +30,7 @@ export interface Env {
   GITHUB_TOKEN: string;
   GITHUB_REPO: string;
   NIGHTLY_WORKFLOW: string;
+  PHASE_NIGHTLY_WORKFLOW: string;
 }
 
 const encoder = new TextEncoder();
@@ -90,22 +97,28 @@ async function githubDispatch(env: Env, path: string, body: unknown): Promise<bo
 
 async function handleSlashCommand(env: Env, params: URLSearchParams): Promise<Response> {
   const text = (params.get('text') ?? '').trim();
+  const command = (params.get('command') ?? '').trim();
+  const isPhaseCommand = command === '/ganatri-phase';
   if (!text) {
     return jsonResponse({
       response_type: 'ephemeral',
-      text: 'Usage: `/ganatri <what to build or fix>` — e.g. `/ganatri leaderboard shows the wrong rank on page 2`',
+      text: isPhaseCommand
+        ? 'Usage: `/ganatri-phase <phase work to build>` - e.g. `/ganatri-phase implement Phase 9 scoring DB layer`'
+        : 'Usage: `/ganatri <what to build or fix>` — e.g. `/ganatri leaderboard shows the wrong rank on page 2`',
     });
   }
 
   const ok = await githubDispatch(env, 'dispatches', {
-    event_type: 'slack-add-todo',
+    event_type: isPhaseCommand ? 'slack-add-phase-todo' : 'slack-add-todo',
     client_payload: { text, user: params.get('user_name') ?? '' },
   });
 
   return jsonResponse({
     response_type: 'ephemeral',
     text: ok
-      ? `📥 Queuing: “${text}”\nClaude will format it into a TODO and confirm in the channel shortly.`
+      ? isPhaseCommand
+        ? `📥 Queuing phase work: “${text}”\nClaude will format it into a phase TODO and confirm in the channel shortly.`
+        : `📥 Queuing: “${text}”\nClaude will format it into a TODO and confirm in the channel shortly.`
       : '⚠️ Could not reach GitHub. Check the Worker logs / `GITHUB_TOKEN`.',
   });
 }
@@ -129,6 +142,17 @@ async function handleInteractivity(env: Env, payloadRaw: string): Promise<Respon
         text: ok
           ? '🚀 Nightly run dispatched — watch this channel for progress.'
           : '⚠️ Failed to dispatch the run. Check the Worker logs / `GITHUB_TOKEN`.',
+      });
+    }
+    if (actionId === 'run_phase_now') {
+      const ok = await githubDispatch(env, `actions/workflows/${env.PHASE_NIGHTLY_WORKFLOW}/dispatches`, {
+        ref: 'main',
+      });
+      return jsonResponse({
+        replace_original: true,
+        text: ok
+          ? '🚀 Phase nightly run dispatched — watch this channel for progress.'
+          : '⚠️ Failed to dispatch the phase run. Check the Worker logs / `GITHUB_TOKEN`.',
       });
     }
   }
