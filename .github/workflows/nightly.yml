@@ -369,22 +369,40 @@ jobs:
         run: |
           if git rev-parse --verify origin/main >/dev/null 2>&1 && \
              [ "$(git rev-list --count origin/main..HEAD)" -gt 0 ]; then
-            PR_URL=$(gh pr create \
-              --base main \
-              --head "${{ steps.branch.outputs.name }}" \
-              --title "Nightly build — $(date +%Y-%m-%d\ %H:%M)" \
-              --body "$(cat <<'EOF'
+            BRANCH="${{ steps.branch.outputs.name }}"
+            PR_BODY="$(cat <<'EOF'
           ## Autonomous nightly run
 
-          See \`docs/nightly/STATE.md\` for what was done, what's next, and any blockers.
+          See `docs/nightly/STATE.md` for what was done, what's next, and any blockers.
 
-          **Review before merging** — check diff for correctness against game rules in \`docs/GAME_RULES.md\`.
+          **Review before merging** — check diff for correctness against game rules in `docs/GAME_RULES.md`.
 
           🤖 Generated with [Claude Code](https://claude.ai/claude-code)
           EOF
-          )" 2>/dev/null) || PR_URL=$(gh pr view "${{ steps.branch.outputs.name }}" --json url -q .url 2>/dev/null || true)
+          )"
+            set +e
+            PR_ERR=$(gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "Nightly build — $(date +%Y-%m-%d\ %H:%M)" \
+              --body "$PR_BODY" 2>&1)
+            PR_EXIT=$?
+            set -e
+            if [ "$PR_EXIT" -eq 0 ]; then
+              PR_URL="$PR_ERR"
+            else
+              echo "gh pr create failed: $PR_ERR" >&2
+              if echo "$PR_ERR" | grep -q 'not permitted to create or approve pull requests'; then
+                echo "Fix: repo Settings → Actions → General → Workflow permissions →" >&2
+                echo "  enable \"Allow GitHub Actions to create and approve pull requests\"." >&2
+              fi
+              PR_URL=$(gh pr view "$BRANCH" --json url -q .url 2>/dev/null || true)
+            fi
             echo "url=${PR_URL}" >> "$GITHUB_OUTPUT"
             echo "Pull request: ${PR_URL:-<none>}"
+            if [ -z "$PR_URL" ]; then
+              exit 1
+            fi
           else
             echo "No changes this run — no PR created."
           fi
