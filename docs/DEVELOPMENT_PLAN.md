@@ -123,13 +123,12 @@ All 441 tests passing (153 engine + 102 server + 186 db).
 - Tackle items **top to bottom, one per run**. Leave finished items checked (with a date) for visibility, or delete them once their PR is merged.
 - Each item should be self-contained and reviewable: include a short acceptance criterion and the package/files it touches.
 
-**Current priority: Phase 8 (Social Home Page) supersedes all other in-progress phases (5 voice smoke test, 6i/6j privacy/ops, 7 improvements, production deployment). Work Phase 8 items top-to-bottom before resuming anything else.**
+**Current priority: resume remaining Phase 6 work (6i/6j privacy/ops), then Phase 5 voice smoke test, then production/deployment follow-ups.**
 
 **How to add a priority item:** insert a `- [ ]` line between the two markers below, e.g.
 `- [ ] **Fix leaderboard pagination off-by-one** — packages/server handlers.ts; offset should be page*limit. Acceptance: new server test covers page 2.`
 
 <!-- PRIORITY_TODO:START -->
-- [ ] **Phase 9: Points/scoring system** — `packages/engine` (scoring.ts or score logic in state machine), `packages/server/src/protocol.ts` + `handlers.ts` (emit score updates), `packages/web/src/screens/GameScreen.tsx` + CSS (score display). Add per-event point awards (e.g. cut bonus, capture bonus, trick bonus) referenced from game rules; accumulate per-player points in engine state; broadcast updated scores to clients after each scoring action. Acceptance: a unit test in `packages/engine` verifies that cutting a card awards the correct point value and the player's running total increases accordingly.
 - [x] **Remove hint text and disable text selection in in-hand card area** — `packages/web/src/screens/GameScreen.tsx` (or equivalent game-screen component) + its CSS. Acceptance: no "Waiting for players" or similar hint strings appear inside the hand card section, and tapping/clicking a card never triggers browser text-selection (add `user-select: none` to the hand container). (done 2026-06-22)
 - [x] **Phase 8a: DB layer — co-player query + user_blocks schema** — `packages/db` (schema.ts, new migration `0003_user_blocks.sql`, persistence/types.ts, persistence/pg.ts, persistence/memory.ts, tests/). Add `user_blocks` table (blockerId+blockedId composite PK, FK→users, index on blockedId). Add to `GamePersistence`: `getFrequentCoPlayers(userId, limit?)`, `blockUser`, `unblockUser`, `getBlockedUserIds`, `isBlocked`. Implement in both Pg+Memory impls. Acceptance: drift-guard updated; ~10 new contract tests; all 133 existing db tests pass. (done 2026-06-22)
 - [x] **Phase 8b: Server — get_recent_players event** — `packages/server` (protocol.ts, handlers.ts, test file). Add `GET_RECENT_PLAYERS` event + `CoPlayerView`/`GetRecentPlayersAck` types. Handler: NOT_LOGGED_IN guard, call `getFrequentCoPlayers`, enrich each entry with `isOnline` (check `store.playerIndex` → live socketId). Acceptance: 3 new server tests (guest→NOT_LOGGED_IN, no-persistence→UNAVAILABLE, happy path with isOnline); 63→66 server tests.
@@ -700,5 +699,4 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | Phase 7 — Improvements       | ⬜ Backlog identified; not yet started (27 tasks across 7 sub-phases 7a–7g). **Deprioritized below Phase 8.** |
 | Phase 8 — Social (Co-players & Invitations) | ✅ Complete (all 8a–8h shipped; 387 total tests) |
 | Phase 6i — Account deletion (right to erasure) | ✅ Complete (full stack: DB + server + web; 441 total tests) |
-
 

@@ -13,7 +13,7 @@
 Phase 6 — Persistence, Accounts, Statistics & Analytics
 
 ## Status
-BLOCKED — Phase 9 points/scoring system: game rules do not define numeric point values.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+NOT_STARTED — Next nightly work should resume remaining Phase 6 items, starting with user data export (6i).  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase 1 — Rules Engine (153 tests passing)
@@ -45,34 +45,14 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-23
-- Outcome: ⛔ BLOCKED — Phase 9 points/scoring system: game rules (GAME_RULES.md + CALCULATIONS.md) do not define any numeric point values for cuts, captures, or tricks. The priority TODO item says "referenced from game rules" but those references do not exist. Cannot implement without inventing rules.
+- Outcome: Priority queue updated by human request to remove Phase 9 from next-task consideration; nightly should resume remaining Phase 6 work instead of blocking on scoring.
 - Branch/PR: nightly/2026-06-23-2020
 
 ## Blockers / Needs Human Input
-**Phase 9 — Points/scoring system (priority queue top item)**
-
-The priority TODO reads: "Add per-event point awards (e.g. cut bonus, capture bonus, trick bonus) referenced from game rules; accumulate per-player points in engine state."
-
-However, `docs/GAME_RULES.md` and `docs/CALCULATIONS.md` define **no numeric scoring system**. The game uses a pure ranking system (order of hand-emptying; last player holding cards = loser). There are no defined point values for:
-- Cutting a card
-- Making a capture in Part 1
-- Winning a trick in Part 2
-- Any other game event
-
-To unblock this item, the human needs to define the scoring rules:
-1. What events award points, and what is the point value for each?
-2. Are points awarded during play (live running total), or only at game-end based on rankings?
-3. Do points carry across games (lifetime totals), or are they reset per game?
-4. Should the existing `player_stats` table store cumulative points?
-
-Until specific point values are added to `docs/GAME_RULES.md` (or a new `docs/SCORING_RULES.md` created), this item cannot proceed.
+_(none)_
 
 ## Notes for Next Run
-Phase 9 (Points/scoring) is BLOCKED — needs human input to define point values (see Blockers section above).
-
-Once the human defines scoring rules and clears the blocker, resume with Phase 9.
-
-If the human clears Phase 9 and it's marked [x] in the priority queue, fall back to Phase 6 remaining work:
+Resume Phase 6 remaining work in this order:
 1. **6i: User data export (GDPR/right to access)** — Let a logged-in user download their own account data (history, stats). Separate from the admin export already done. Server event `download_my_data`, handler that calls `getUserGameHistory` + `getPlayerStats`, returns JSON blob or acks it directly. Web: button in LobbyScreen profile panel or a new screen.
 2. **6j: Ops hardening** — DB monitoring, connection-pool sizing, cost alerts.
 3. **6c remaining account settings** — Avatar URL edit + OAuth link/unlink (complex; skip if tight).
