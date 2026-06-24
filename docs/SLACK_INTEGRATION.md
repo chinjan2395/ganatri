@@ -18,6 +18,11 @@ paid-only and gates the "Send a web request" step behind admin connector permiss
   `docs/DEVELOPMENT_PLAN.md`, commits to `main`, and confirms back in Slack with an
   interactive **▶️ Run now** button.
 - Click **▶️ Run now** → dispatches the nightly workflow immediately.
+- `/ganatri-phase <text>` in Slack → `slack-add-phase-todo.yml` runs, Claude formats it into
+  a phase TODO in `docs/phase-nightly/STATE.md`, commits to `main`, and confirms back in Slack
+  with an interactive **Run phase now** button.
+- Click **Run phase now** → dispatches `phase-nightly.yml`, which opens sub-phase PRs into
+  `phase/9-scoring` instead of `main`.
 
 ```
                           ┌──────────────── GitHub Actions ────────────────┐
@@ -27,6 +32,15 @@ paid-only and gates the "Send a web request" step behind admin connector permiss
   Slack channel  ◄──────── chat.postMessage ◄──── "✅ Queued  [▶️ Run now]"
         │
         └─ click ▶️ Run now ─► CF Worker ─► workflow_dispatch ─► nightly.yml ─► 🛠️📊✅
+
+  /ganatri-phase <text> ─► CF Worker ─► repository_dispatch ─► slack-add-phase-todo.yml
+                                           (slack-add-phase-todo) │ commits phase queue to main
+                                                                  ▼
+  Slack channel ◄──────────── chat.postMessage ◄──── "Queued  [Run phase now]"
+        │
+        └─ click Run phase now ─► CF Worker ─► workflow_dispatch ─► phase-nightly.yml
+                                                            │
+                                                            └─ PR base: phase/9-scoring
 ```
 
 ## Prerequisites / caveats (read this)
@@ -96,6 +110,7 @@ npm run deploy                                 # prints the Worker URL
 
 Then in <https://api.slack.com/apps> → your app:
 - **Slash Commands → Create New Command:** `/ganatri`, **Request URL** = the Worker URL.
+- **Slash Commands → Create New Command:** `/ganatri-phase`, **Request URL** = the same Worker URL.
 - **Interactivity & Shortcuts → On:** **Request URL** = the same Worker URL.
 - **Reinstall to Workspace** if prompted.
 
@@ -115,6 +130,11 @@ confirmation with the formatted `- [ ]` line, and `docs/DEVELOPMENT_PLAN.md` on 
 have a new queue item. Click **▶️ Run now** to kick off a build immediately, or let the
 3-hourly nightly pick it up. (`npm run tail` in `slack-worker/` streams Worker logs.)
 
+**Slack → GitHub (add phase TODO):** in Slack run
+`/ganatri-phase implement Phase 9 scoring DB layer`. Within a minute you should get a
+confirmation with a phase TODO in `docs/phase-nightly/STATE.md`. Click **Run phase now** to
+dispatch `phase-nightly.yml`; the resulting PR should target `phase/9-scoring`.
+
 **Quick API smoke test (no Slack needed)** — verifies the PAT + dispatch wiring:
 
 ```bash
@@ -123,6 +143,16 @@ curl -X POST \
   -H "Accept: application/vnd.github+json" \
   https://api.github.com/repos/chinjan2395/ganatri/dispatches \
   -d '{"event_type":"slack-add-todo","client_payload":{"text":"test: add a no-op TODO"}}'
+```
+
+For the phase queue, use:
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer <PAT>" \
+  -H "Accept: application/vnd.github+json" \
+  https://api.github.com/repos/chinjan2395/ganatri/dispatches \
+  -d '{"event_type":"slack-add-phase-todo","client_payload":{"text":"test: add a phase TODO"}}'
 ```
 
 ## Troubleshooting
@@ -136,5 +166,7 @@ curl -X POST \
 | Slash command returns "signature" error | wrong `SLACK_SIGNING_SECRET` on the Worker |
 | `▶️ Run now` does nothing | Interactivity Request URL not set to the Worker, or PAT lacks **Actions: write** |
 | `slack-add-todo` commit fails | `main` is protected — allow `github-actions[bot]` to push |
+| `slack-add-phase-todo` commit fails | same as above; phase TODOs are also committed to `main` |
 | GitHub returns 404 on dispatch | PAT scopes wrong, or `GITHUB_REPO` in `wrangler.toml` is wrong |
 | TODO added but nightly ignores it | it must be on `main` between the `PRIORITY_TODO` markers as an unchecked `- [ ]` |
+| Phase TODO added but phase nightly ignores it | it must be on `main` between the `PHASE_TODO` markers in `docs/phase-nightly/STATE.md` |
