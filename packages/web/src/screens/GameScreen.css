@@ -26,6 +26,22 @@
     radial-gradient(ellipse at 50% 52%, transparent 52%, rgba(0, 0, 0, 0.5) 100%);
 }
 
+.game__scoreboard {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.game__score-pill {
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  border-radius: 999px;
+  background: rgba(17, 17, 17, 0.72);
+  color: #f6deb0;
+  font-size: 0.8rem;
+}
+
 /* ── HUD: transparent row of independent pills ── */
 .game__hud {
   display: flex;

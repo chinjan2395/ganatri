@@ -17,6 +17,8 @@ import {
   requestState,
   requestHistory as netRequestHistory,
   requestMyStats as netRequestMyStats,
+  getMyProgression as netGetMyProgression,
+  getMyScoreHistory as netGetMyScoreHistory,
   requestLeaderboard as netRequestLeaderboard,
   loginWithGoogle as netLoginWithGoogle,
   logout as netLogout,
@@ -42,6 +44,8 @@ import {
   type PlayerReconnectedPayload,
   type RequestHistoryAck,
   type GetMyStatsAck,
+  type GetMyProgressionAck,
+  type GetMyScoreHistoryAck,
   type GetLeaderboardAck,
   type UpdateDisplayNameAck,
   type RoomUpdatePayload,
@@ -49,6 +53,9 @@ import {
   type StartGameAck,
   type StateUpdatePayload,
   type CoPlayerView,
+  type MatchScoringView,
+  type PlayerProgressionView,
+  type ScoreHistoryEntryView,
   type GetRecentPlayersAck,
   type InviteReceivedPayload,
   type InviteAcceptedPayload,
@@ -98,6 +105,11 @@ export interface GameContextValue {
   guestName: string | null;
   /** Recently played co-players for the logged-in user (null while loading). */
   recentPlayers: CoPlayerView[] | null;
+  progression: PlayerProgressionView | null;
+  progressionLoading: boolean;
+  progressionError: string | null;
+  scoreHistory: ScoreHistoryEntryView[];
+  latestMatchScoring: MatchScoringView[];
   /** A pending invite this player has received, or null. */
   pendingInvite: InviteReceivedPayload | null;
   error: string | null;
@@ -112,6 +124,8 @@ export interface GameContextValue {
   setScreen: (screen: 'main' | 'history' | 'stats' | 'leaderboard') => void;
   requestHistory: () => Promise<RequestHistoryAck>;
   requestMyStats: () => Promise<GetMyStatsAck>;
+  getMyProgression: () => Promise<GetMyProgressionAck>;
+  getMyScoreHistory: () => Promise<GetMyScoreHistoryAck>;
   requestLeaderboard: (timeWindow?: 'week' | 'month') => Promise<GetLeaderboardAck>;
   updateDisplayName: (newName: string) => Promise<UpdateDisplayNameAck>;
   loginWithGoogle: () => void;
@@ -143,6 +157,11 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
   const [playerAvatarUrls, setPlayerAvatarUrls] = useState<Record<string, string | null>>({});
   const [guestName, setGuestName] = useState<string | null>(null);
   const [recentPlayers, setRecentPlayers] = useState<CoPlayerView[] | null>(null);
+  const [progression, setProgression] = useState<PlayerProgressionView | null>(null);
+  const [progressionLoading, setProgressionLoading] = useState(false);
+  const [progressionError, setProgressionError] = useState<string | null>(null);
+  const [scoreHistory, setScoreHistory] = useState<ScoreHistoryEntryView[]>([]);
+  const [latestMatchScoring, setLatestMatchScoring] = useState<MatchScoringView[]>([]);
   const [pendingInvite, setPendingInvite] = useState<InviteReceivedPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const eventId = useRef(0);
@@ -204,10 +223,12 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
         setView(null);
         setEventLog([]);
         setLastEvent(null);
+        setLatestMatchScoring([]);
       } else if (payload.phase === 'PLAYING' && prevPhase !== 'PLAYING') {
         // Fresh game only — not on disconnect/reconnect room updates mid-play.
         setEventLog([]);
         setLastEvent(null);
+        setLatestMatchScoring([]);
       }
     }
     function onGameEvent(payload: GameEventPayload): void {
@@ -244,6 +265,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
             setView(pending.view);
             setTurnStartedAt(pending.turnStartedAt ?? null);
             setTurnTimeoutMs(pending.turnTimeoutMs);
+            setLatestMatchScoring(pending.matchScoring ?? []);
           }
         }, freezeMs);
       }
@@ -257,6 +279,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       setView(payload.view);
       setTurnStartedAt(payload.turnStartedAt ?? null);
       setTurnTimeoutMs(payload.turnTimeoutMs);
+      setLatestMatchScoring(payload.matchScoring ?? []);
     }
     function onPlayerDisconnected(payload: PlayerDisconnectedPayload): void {
       setDisconnectedPlayers((prev) => {
@@ -329,12 +352,24 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
     void netRequestRecentPlayers().then((ack) => {
       if (ack.ok) setRecentPlayers(ack.players);
     });
+    setProgressionLoading(true);
+    setProgressionError(null);
+    void netGetMyProgression().then((ack) => {
+      setProgressionLoading(false);
+      if (ack.ok) setProgression(ack.progression);
+      else setProgressionError(ack.error);
+    });
+    void netGetMyScoreHistory().then((ack) => {
+      if (ack.ok) setScoreHistory(ack.history);
+    });
   }, [account?.loggedIn]);
 
   const clearError = useCallback(() => setError(null), []);
 
   const requestHistory = useCallback(() => netRequestHistory(), []);
   const requestMyStats = useCallback(() => netRequestMyStats(), []);
+  const getMyProgression = useCallback(() => netGetMyProgression(), []);
+  const getMyScoreHistory = useCallback(() => netGetMyScoreHistory(), []);
   const requestLeaderboard = useCallback((timeWindow?: 'week' | 'month') => netRequestLeaderboard(timeWindow), []);
   const updateDisplayName = useCallback((newName: string) => netUpdateDisplayName(newName), []);
   const loginWithGoogle = useCallback(() => netLoginWithGoogle(), []);
@@ -384,10 +419,12 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
           view: ack.view,
           turnStartedAt: ack.turnStartedAt,
           turnTimeoutMs: turnTimeoutMsRef.current,
+          matchScoring: ack.matchScoring,
         };
       } else {
         setView(ack.view);
         setTurnStartedAt(ack.turnStartedAt);
+        setLatestMatchScoring(ack.matchScoring ?? []);
       }
       return true;
     }
@@ -411,6 +448,11 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       playerAvatarUrls,
       guestName,
       recentPlayers,
+      progression,
+      progressionLoading,
+      progressionError,
+      scoreHistory,
+      latestMatchScoring,
       pendingInvite,
       error,
       clearError,
@@ -423,6 +465,8 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       setScreen,
       requestHistory,
       requestMyStats,
+      getMyProgression,
+      getMyScoreHistory,
       requestLeaderboard,
       updateDisplayName,
       loginWithGoogle,
@@ -450,6 +494,11 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       playerAvatarUrls,
       guestName,
       recentPlayers,
+      progression,
+      progressionLoading,
+      progressionError,
+      scoreHistory,
+      latestMatchScoring,
       pendingInvite,
       error,
       clearError,
@@ -461,6 +510,8 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       screen,
       requestHistory,
       requestMyStats,
+      getMyProgression,
+      getMyScoreHistory,
       requestLeaderboard,
       updateDisplayName,
       loginWithGoogle,

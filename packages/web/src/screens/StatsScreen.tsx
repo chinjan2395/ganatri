@@ -456,6 +456,7 @@ function RecentResults({
               <li key={game.id} className="st__recent-row">
                 <span className="st__recent-date">{formatDate(game.startedAt)}</span>
                 <span className={`st__recent-finish ${finish.className}`}>{finish.text}</span>
+                <span className="st__recent-score">Score {game.matchScore ?? 0}</span>
               </li>
             );
           })}
@@ -478,6 +479,10 @@ function buildStatCards(stats: PlayerStatsView): { label: string; value: string 
     { label: 'Cuts Given', value: stats.cutsGiven, icon: 'scissors' },
     { label: 'Cuts Received', value: stats.cutsReceived, icon: 'cut' },
     { label: 'Times Safe', value: stats.timesSafe, icon: 'shield' },
+    { label: 'Best Match', value: stats.highestMatchScore, icon: 'cards' },
+    { label: 'Avg Match Score', value: stats.averageMatchScore.toFixed(1), icon: 'podium' },
+    { label: 'Ghost Finishes', value: stats.ghostFinishes, icon: 'shield' },
+    { label: 'Total Match Score', value: stats.totalMatchScore, icon: 'games' },
     { label: 'Current Streak', value: stats.currentWinStreak, icon: 'flame', accent: true },
     { label: 'Longest Streak', value: stats.longestWinStreak, icon: 'streak' },
   ];

@@ -80,7 +80,7 @@ const DEFAULT_HAND_STATE: HandState = {
 };
 
 export function GameScreen(): React.ReactNode {
-  const { view, room, session, account, lastEvent, disconnectedPlayers, playerNames, playerAvatarUrls, turnStartedAt, turnTimeoutMs, makeMove, startGame, leaveRoom } = useGame();
+  const { view, room, session, account, progression, latestMatchScoring, lastEvent, disconnectedPlayers, playerNames, playerAvatarUrls, turnStartedAt, turnTimeoutMs, makeMove, startGame, leaveRoom } = useGame();
   const voice = useVoiceChatContext();
   const [flash, setFlash] = useState<Flash | null>(null);
   const [cutAnimData, setCutAnimData] = useState<CutAnimData | null>(null);
@@ -186,6 +186,8 @@ export function GameScreen(): React.ReactNode {
           isHost={Boolean(isHost)}
           playerNames={resolvedPlayerNames}
           account={account}
+          scoring={latestMatchScoring}
+          progression={progression}
           onPlayAgain={() => { void startGame(); }}
           onLeave={() => { void leaveRoom(); }}
         />
@@ -226,6 +228,16 @@ export function GameScreen(): React.ReactNode {
         {/* Timer pill */}
         {turnStartedAt !== null && (
           <TurnTimer turnStartedAt={turnStartedAt} durationMs={turnTimeoutMs} freezeUntilMs={timerFreezeUntil} />
+        )}
+
+        {latestMatchScoring.length > 0 && (
+          <div className="game__scoreboard">
+            {latestMatchScoring.map((entry) => (
+              <span key={entry.playerId} className="game__score-pill">
+                {(entry.playerId === view.you ? 'You' : nameFor(entry.playerId))}: {entry.matchScore}
+              </span>
+            ))}
+          </div>
         )}
 
         {/* Voice controls */}
