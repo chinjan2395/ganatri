@@ -25,6 +25,13 @@
   --gold: #e7c34a;
   --gold-2: #b8860b;
   --gold-rim: #f5e6a8;
+  --oval-border: 4px solid var(--gold);
+  --oval-glow: 0 0 24px rgba(231,195,74,0.25), inset 0 0 40px rgba(0,0,0,0.3);
+  --card-stack-peek: clamp(18px, 5vw, 24px);
+  --card-stack-hover-lift: -14px;
+  --sidebar-mobile-w: 64px;
+  --sidebar-desktop-w: 240px;
+  --bottom-nav-h: 56px;
   --glow-turn: 0 0 14px rgba(74, 144, 226, 0.7), 0 0 28px rgba(74, 144, 226, 0.45);
   --glow-gold: 0 0 12px rgba(231, 195, 74, 0.55), 0 0 26px rgba(231, 195, 74, 0.3);
   --chip-red: #c0392b;
