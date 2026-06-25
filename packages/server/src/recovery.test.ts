@@ -27,10 +27,10 @@ import { EVENTS } from './protocol.js';
 // Test helpers
 // ---------------------------------------------------------------------------
 
-function connectClient(port: number, opts: { token?: string; playerId?: string } = {}): ClientSocket {
+function connectClient(port: number, opts: { guestToken?: string; playerId?: string } = {}): ClientSocket {
   return ioClient(`http://localhost:${port}`, {
     auth: {
-      ...(opts.token !== undefined ? { token: opts.token } : {}),
+      ...(opts.guestToken !== undefined ? { guestToken: opts.guestToken } : {}),
       ...(opts.playerId !== undefined ? { playerId: opts.playerId } : {}),
     },
     autoConnect: true,
@@ -96,8 +96,8 @@ describe('server restart recovery', () => {
     const host = connectClient(port);
     const guest = connectClient(port);
     const [hostSession, guestSession] = await Promise.all([
-      waitFor<{ token: string; playerId: string }>(host, EVENTS.SESSION),
-      waitFor<{ token: string; playerId: string }>(guest, EVENTS.SESSION),
+      waitFor<{ guestToken?: string; playerId: string }>(host, EVENTS.SESSION),
+      waitFor<{ guestToken?: string; playerId: string }>(guest, EVENTS.SESSION),
     ]);
 
     // Create and start a game.
@@ -182,8 +182,8 @@ describe('server restart recovery', () => {
     const host = connectClient(port);
     const guest = connectClient(port);
     const [hostSession, guestSession] = await Promise.all([
-      waitFor<{ token: string; playerId: string }>(host, EVENTS.SESSION),
-      waitFor<{ token: string; playerId: string }>(guest, EVENTS.SESSION),
+      waitFor<{ guestToken?: string; playerId: string }>(host, EVENTS.SESSION),
+      waitFor<{ guestToken?: string; playerId: string }>(guest, EVENTS.SESSION),
     ]);
 
     const createAck = await emitAck<{ ok: boolean; roomCode: string }>(
@@ -225,9 +225,9 @@ describe('server restart recovery', () => {
 
     // Reconnect as host using their old playerId (simulates localStorage).
     // Token is unknown (server restarted), but playerId is sent.
-    const host2 = connectClient(port, { token: 'stale-token', playerId: hostPid });
+    const host2 = connectClient(port, { guestToken: 'stale-token', playerId: hostPid });
     const [newHostSession, stateUpdate] = await Promise.all([
-      waitFor<{ token: string; playerId: string }>(host2, EVENTS.SESSION),
+      waitFor<{ guestToken?: string; playerId: string }>(host2, EVENTS.SESSION),
       waitFor<{ view: { phase: string }; turnStartedAt: number | null }>(host2, EVENTS.STATE_UPDATE),
     ]);
 
@@ -243,9 +243,9 @@ describe('server restart recovery', () => {
     expect(store.sessions.get(adoptedToken)!.socketId).not.toBeNull();
 
     // Guest can also reconnect.
-    const guest2 = connectClient(port, { token: 'another-stale', playerId: guestPid });
+    const guest2 = connectClient(port, { guestToken: 'another-stale', playerId: guestPid });
     const [guestSession2] = await Promise.all([
-      waitFor<{ token: string; playerId: string }>(guest2, EVENTS.SESSION),
+      waitFor<{ guestToken?: string; playerId: string }>(guest2, EVENTS.SESSION),
     ]);
     expect(guestSession2.playerId).toBe(guestPid);
 

@@ -364,14 +364,40 @@ export type DeleteAccountAck =
   | { ok: true }
   | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
 
+export interface AuthSessionView {
+  id: string;
+  current: boolean;
+  userAgent: string;
+  createdAt: string;
+  lastSeenAt: string;
+  expiresAt: string;
+}
+
+export type GetAuthSessionsAck =
+  | { ok: true; sessions: AuthSessionView[] }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
+
+export interface RevokeAuthSessionPayload {
+  sessionId: string;
+}
+
+export type RevokeAuthSessionAck =
+  | { ok: true; revokedCurrent: boolean }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' | 'NOT_FOUND' };
+
+export type RevokeOtherAuthSessionsAck =
+  | { ok: true; revokedCount: number }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
+
 // ---------------------------------------------------------------------------
 // Server → Client pushed events
 // ---------------------------------------------------------------------------
 
 /** Issued once per connection (new or reconnect) with the session identity. */
 export interface SessionPayload {
-  token: string;
   playerId: string;
+  /** Guest runtime reconnect token, only present for anonymous sessions. */
+  guestToken?: string;
   /** True when the connection is bound to a durable (OAuth) account. */
   loggedIn: boolean;
   /** Account display name (only when loggedIn). */
@@ -687,7 +713,10 @@ export const EVENTS = {
   GET_LEADERBOARD: 'get_leaderboard',
   GET_RECENT_PLAYERS: 'get_recent_players',
   GET_BLOCKED_USERS: 'get_blocked_users',
+  GET_AUTH_SESSIONS: 'get_auth_sessions',
   UPDATE_DISPLAY_NAME: 'update_display_name',
+  REVOKE_AUTH_SESSION: 'revoke_auth_session',
+  REVOKE_OTHER_AUTH_SESSIONS: 'revoke_other_auth_sessions',
   DELETE_ACCOUNT: 'delete_account',
 
   // Social / invitations (Client → Server)

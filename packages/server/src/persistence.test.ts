@@ -22,9 +22,9 @@ import { EVENTS } from './protocol.js';
 // Helpers (mirrors the handlers.test.ts harness)
 // ---------------------------------------------------------------------------
 
-function connectClient(port: number, token?: string): ClientSocket {
+function connectClient(port: number, guestToken?: string): ClientSocket {
   return ioClient(`http://localhost:${port}`, {
-    auth: token !== undefined ? { token } : {},
+    auth: guestToken !== undefined ? { guestToken } : {},
     autoConnect: true,
     reconnection: false,
   });
@@ -108,8 +108,8 @@ describe('DB persistence write-through', () => {
     const guest = connectClient(port);
 
     const [hostSession, guestSession] = await Promise.all([
-      waitFor<{ token: string; playerId: string }>(host, EVENTS.SESSION),
-      waitFor<{ token: string; playerId: string }>(guest, EVENTS.SESSION),
+      waitFor<{ guestToken?: string; playerId: string }>(host, EVENTS.SESSION),
+      waitFor<{ guestToken?: string; playerId: string }>(guest, EVENTS.SESSION),
     ]);
 
     try {
@@ -217,8 +217,8 @@ describe('DB persistence write-through', () => {
     const host = connectClient(port);
     const guest = connectClient(port);
     const [, guestSession] = await Promise.all([
-      waitFor<{ token: string; playerId: string }>(host, EVENTS.SESSION),
-      waitFor<{ token: string; playerId: string }>(guest, EVENTS.SESSION),
+      waitFor<{ guestToken?: string; playerId: string }>(host, EVENTS.SESSION),
+      waitFor<{ guestToken?: string; playerId: string }>(guest, EVENTS.SESSION),
     ]);
 
     try {
