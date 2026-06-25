@@ -364,6 +364,27 @@ export type DeleteAccountAck =
   | { ok: true }
   | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
 
+/**
+ * Ack for download_my_data (GDPR/CCPA right to access).
+ * - logged-in account → full account data export (userId, displayName, email,
+ *   exportedAt, stats, games)
+ * - guest → NOT_LOGGED_IN
+ * - no persistence / DB error → UNAVAILABLE
+ */
+export type DownloadMyDataAck =
+  | {
+      ok: true;
+      data: {
+        userId: string;
+        displayName: string | null;
+        email: string | null;
+        exportedAt: string; // ISO timestamp
+        stats: PlayerStatsView | null;
+        games: GameHistoryEntry[];
+      };
+    }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
+
 export interface AuthSessionView {
   id: string;
   current: boolean;
@@ -718,6 +739,7 @@ export const EVENTS = {
   REVOKE_AUTH_SESSION: 'revoke_auth_session',
   REVOKE_OTHER_AUTH_SESSIONS: 'revoke_other_auth_sessions',
   DELETE_ACCOUNT: 'delete_account',
+  DOWNLOAD_MY_DATA: 'download_my_data',
 
   // Social / invitations (Client → Server)
   INVITE_PLAYER: 'invite_player',

@@ -758,6 +758,9 @@ interface ProfilePanelProps {
   showDeleteConfirm: boolean;
   deleteLoading: boolean;
   deleteError: string | null;
+  downloadLoading: boolean;
+  downloadError: string | null;
+  onDownloadMyData: () => void;
   onSaveName: () => void;
   onCancelEdit: () => void;
   onOpenEdit: () => void;
@@ -778,6 +781,7 @@ function ProfilePanel({
   account, progression, loggedIn, editingName, editNameValue, editNameBusy, editNameError, editInputRef,
   blockedOpen, blockedUsers, blockedLoading, blockedError,
   showDeleteConfirm, deleteLoading, deleteError,
+  downloadLoading, downloadError, onDownloadMyData,
   onSaveName, onCancelEdit, onOpenEdit, onEditNameChange, onEditNameKeyDown,
   onBlockedToggle, onUnblock, onDeleteAccountClick, onDeleteAccountConfirm, onDeleteAccountCancel,
   onLogout, onGoogleLogin, onSetScreen, onClose,
@@ -934,6 +938,19 @@ function ProfilePanel({
               )}
             </div>
 
+            {/* Download my data */}
+            <div className="lobby__data-export-section">
+              <button
+                type="button"
+                className="lobby__data-export-btn"
+                onClick={onDownloadMyData}
+                disabled={downloadLoading}
+              >
+                {downloadLoading ? 'Exporting...' : 'Download My Data'}
+              </button>
+              {downloadError && <p className="lobby__data-export-error">{downloadError}</p>}
+            </div>
+
             {/* Delete account */}
             <div className="lobby__delete-section">
               {!showDeleteConfirm ? (
@@ -1043,7 +1060,7 @@ export function LobbyScreen(): React.ReactNode {
   const {
     createRoom, joinRoom, account, loginWithGoogle, logout, setScreen,
     updateDisplayName, guestName, recentPlayers, invitePlayer,
-    getBlockedUsers, unblockUser, deleteAccount,
+    getBlockedUsers, unblockUser, deleteAccount, downloadMyData,
     requestMyStats, requestLeaderboard, progression,
   } = useGame();
   const loggedIn = account?.loggedIn ?? false;
@@ -1076,6 +1093,10 @@ export function LobbyScreen(): React.ReactNode {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Download my data state
+  const [downloadLoading, setDownloadLoading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   // New overlay state
   const [profileOpen, setProfileOpen] = useState(false);
@@ -1174,6 +1195,32 @@ export function LobbyScreen(): React.ReactNode {
       setDeleteError('Already logged out.');
     } else {
       setDeleteError('Server unavailable, try again.');
+    }
+  }
+
+  async function handleDownloadMyData(): Promise<void> {
+    setDownloadLoading(true);
+    setDownloadError(null);
+    try {
+      const ack = await downloadMyData();
+      if (!ack.ok) {
+        setDownloadError('Could not export data. Please try again.');
+        return;
+      }
+      const blob = new Blob([JSON.stringify(ack.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ganatri-my-data.json';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+    } catch {
+      setDownloadError('Export failed. Please try again.');
+    } finally {
+      setDownloadLoading(false);
     }
   }
 
@@ -1336,6 +1383,9 @@ export function LobbyScreen(): React.ReactNode {
           showDeleteConfirm={showDeleteConfirm}
           deleteLoading={deleteLoading}
           deleteError={deleteError}
+          downloadLoading={downloadLoading}
+          downloadError={downloadError}
+          onDownloadMyData={() => void handleDownloadMyData()}
           onSaveName={() => void handleSaveName()}
           onCancelEdit={cancelEditName}
           onOpenEdit={openEditName}

@@ -1392,6 +1392,44 @@
 
 /* ── Delete account section ───────────────────────────────────── */
 
+.lobby__data-export-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.lobby__data-export-btn {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 6px;
+  color: rgba(255,255,255,0.7);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0.45rem 0.9rem;
+  width: 100%;
+  text-align: left;
+  transition: border-color 0.15s, color 0.15s;
+  min-height: unset;
+  height: auto;
+  box-shadow: none;
+  text-shadow: none;
+  background-image: none;
+}
+.lobby__data-export-btn:hover:not(:disabled) {
+  border-color: rgba(255,255,255,0.5);
+  color: #fff;
+  filter: none;
+  box-shadow: none;
+}
+.lobby__data-export-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.lobby__data-export-error {
+  color: #f87171;
+  font-size: 0.8rem;
+  margin-top: 0.35rem;
+}
+
 .lobby__delete-section {
   margin-top: 16px;
   padding-top: 12px;

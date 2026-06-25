@@ -424,6 +424,7 @@ export const EVENTS = {
   REVOKE_AUTH_SESSION: 'revoke_auth_session',
   REVOKE_OTHER_AUTH_SESSIONS: 'revoke_other_auth_sessions',
   DELETE_ACCOUNT: 'delete_account',
+  DOWNLOAD_MY_DATA: 'download_my_data',
 
   // Social / invitations (Client → Server)
   INVITE_PLAYER: 'invite_player',
@@ -597,4 +598,8 @@ export type AdminExportDataAck =
 
 export type DeleteAccountAck =
   | { ok: true }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
+
+export type DownloadMyDataAck =
+  | { ok: true; data: { userId: string; displayName: string | null; email: string | null; exportedAt: string; stats: PlayerStatsView | null; games: GameHistoryEntry[] } }
   | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
