@@ -10,6 +10,7 @@
  */
 
 export { getDb, ping, closeDb } from './db';
+export { runMigrations } from './migrate';
 export type { Database } from './db';
 
 export {

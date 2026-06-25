@@ -29,6 +29,20 @@
       "when": 1782134400000,
       "tag": "0003_user_blocks",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1782220800000,
+      "tag": "0004_nullable_room_host",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782307200000,
+      "tag": "0005_phase9_scoring_progression",
+      "breakpoints": true
     }
   ]
 }

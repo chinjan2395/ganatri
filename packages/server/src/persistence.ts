@@ -256,7 +256,11 @@ export function recordGameEnd(
       const previousProgressionByUserId: Record<string, PlayerProgression | undefined> = {};
       for (const player of players) {
         if (!player.userId) continue;
-        previousProgressionByUserId[player.userId] = (await p.getPlayerProgression(player.userId)) ?? undefined;
+        try {
+          previousProgressionByUserId[player.userId] = (await p.getPlayerProgression(player.userId)) ?? undefined;
+        } catch (err) {
+          console.error(`[persistence] getPlayerProgression failed for ${player.userId}:`, err);
+        }
       }
 
       const scoredPlayers = scoreFinishedGame({

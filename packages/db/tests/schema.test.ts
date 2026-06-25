@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { GameEvent } from '@ganatri/engine';
-import { createTestDb, readMigrationSql, type TestDb } from './helpers/pglite';
+import { createTestDb, migrationPaths, readMigrationSql, type TestDb } from './helpers/pglite';
 import { gameEventTypeEnum, roomStatusEnum } from '../src/schema';
 
 /**
@@ -218,5 +220,17 @@ describe('enum-drift guard', () => {
       .split(',')
       .map((s) => s.trim().replace(/^'|'$/g, ''));
     expect(sqlLabels).toEqual([...roomStatusEnum.enumValues]);
+  });
+
+  it('drizzle journal lists every migration sql file', () => {
+    const sqlTags = migrationPaths()
+      .map((p) => p.split('/').pop()!.replace('.sql', ''))
+      .sort();
+    const journalPath = join(__dirname, '..', 'drizzle', 'meta', '_journal.json');
+    const journal = JSON.parse(readFileSync(journalPath, 'utf8')) as {
+      entries: Array<{ tag: string }>;
+    };
+    const journalTags = journal.entries.map((e) => e.tag).sort();
+    expect(journalTags).toEqual(sqlTags);
   });
 });

@@ -5,11 +5,22 @@
  * Server factory is in createApp.ts so tests can spin it up on a random port.
  */
 
+import { runMigrations } from '@ganatri/db';
 import { createApp } from './createApp.js';
 
-const app = createApp();
 const port = Number(process.env['PORT'] ?? 4000);
 
-app.listen(port).then((boundPort) => {
+void (async () => {
+  try {
+    await runMigrations();
+  } catch (err) {
+    console.error('[migrate] failed to apply database migrations:', err);
+  }
+
+  const app = createApp();
+  const boundPort = await app.listen(port);
   console.log(`Ganatri server listening on 0.0.0.0:${boundPort}`);
+})().catch((err: unknown) => {
+  console.error('[server] startup failed:', err);
+  process.exit(1);
 });
