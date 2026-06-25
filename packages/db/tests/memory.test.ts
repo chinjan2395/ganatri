@@ -437,9 +437,9 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
   }
 
   it('week window returns only games from the last 7 days', async () => {
-    // "3 days ago" (2026-06-17) is within 7 days; "10 days ago" (2026-06-10) is not.
-    const recentEnded = new Date('2026-06-17T12:00:00Z');
-    const oldEnded = new Date('2026-06-10T12:00:00Z');
+    const now = Date.now();
+    const recentEnded = new Date(now - 3 * 24 * 60 * 60 * 1000);
+    const oldEnded = new Date(now - 10 * 24 * 60 * 60 * 1000);
 
     const userId = h.newUserId();
     await repo.upsertUser({ id: userId, displayName: 'Windowed', isGuest: false });
@@ -448,7 +448,7 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
     const room = await repo.recordRoomCreated({ roomCode: 'WNDW01', hostUserId: hostId });
 
     // Game 1: ended 3 days ago (in window).
-    const g1 = await repo.recordGameStarted({ roomId: room.id, seed: 's1', seatingOrder: [userId, hostId], startedAt: new Date('2026-06-17T11:00:00Z') });
+    const g1 = await repo.recordGameStarted({ roomId: room.id, seed: 's1', seatingOrder: [userId, hostId], startedAt: new Date(recentEnded.getTime() - 60 * 60 * 1000) });
     await repo.recordGameFinished({
       gameId: g1.id,
       endedAt: recentEnded,
@@ -461,7 +461,7 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
     });
 
     // Game 2: ended 10 days ago (outside week window).
-    const g2 = await repo.recordGameStarted({ roomId: room.id, seed: 's2', seatingOrder: [userId, hostId], startedAt: new Date('2026-06-10T11:00:00Z') });
+    const g2 = await repo.recordGameStarted({ roomId: room.id, seed: 's2', seatingOrder: [userId, hostId], startedAt: new Date(oldEnded.getTime() - 60 * 60 * 1000) });
     await repo.recordGameFinished({
       gameId: g2.id,
       endedAt: oldEnded,
@@ -482,8 +482,7 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
   });
 
   it('month window is wider than week window', async () => {
-    // "20 days ago" (2026-05-31) is within 30 days but NOT within 7 days.
-    const mediumEnded = new Date('2026-05-31T12:00:00Z');
+    const mediumEnded = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000);
 
     const userId = h.newUserId();
     await repo.upsertUser({ id: userId, displayName: 'Monthly', isGuest: false });
@@ -491,7 +490,7 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
     await repo.ensureGuest(hostId, 'host');
     const room = await repo.recordRoomCreated({ roomCode: 'MNTH01', hostUserId: hostId });
 
-    const g = await repo.recordGameStarted({ roomId: room.id, seed: 'sm', seatingOrder: [userId, hostId], startedAt: new Date('2026-05-31T11:00:00Z') });
+    const g = await repo.recordGameStarted({ roomId: room.id, seed: 'sm', seatingOrder: [userId, hostId], startedAt: new Date(mediumEnded.getTime() - 60 * 60 * 1000) });
     await repo.recordGameFinished({
       gameId: g.id,
       endedAt: mediumEnded,
@@ -514,8 +513,7 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
   });
 
   it('window returns empty when no games are in range', async () => {
-    // "40 days ago" (2026-05-11) is outside both week and month windows.
-    const oldEnded = new Date('2026-05-11T12:00:00Z');
+    const oldEnded = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000);
     await seedGameForUser('OldPlayer', 'WIN', oldEnded);
 
     const weekBoard = await repo.getLeaderboard(20, 0, 'week');
@@ -526,15 +524,14 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
   });
 
   it('getMyLeaderboardRank with week window returns rank 1 for a user with a recent game', async () => {
-    // "3 days ago" (2026-06-17) is within 7 days.
-    const recentEnded = new Date('2026-06-17T12:00:00Z');
+    const recentEnded = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
     const userId = h.newUserId();
     await repo.upsertUser({ id: userId, displayName: 'WeekRanker', isGuest: false });
     const hostId = h.newUserId();
     await repo.ensureGuest(hostId, 'host');
     const room = await repo.recordRoomCreated({ roomCode: 'WKRK01', hostUserId: hostId });
 
-    const g = await repo.recordGameStarted({ roomId: room.id, seed: 'wr', seatingOrder: [userId, hostId], startedAt: new Date('2026-06-17T11:00:00Z') });
+    const g = await repo.recordGameStarted({ roomId: room.id, seed: 'wr', seatingOrder: [userId, hostId], startedAt: new Date(recentEnded.getTime() - 60 * 60 * 1000) });
     await repo.recordGameFinished({
       gameId: g.id,
       endedAt: recentEnded,
@@ -555,8 +552,7 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
   });
 
   it('getMyLeaderboardRank with week window returns null when only old games exist', async () => {
-    // Game ended 10 days ago — outside the 7-day window.
-    const oldEnded = new Date('2026-06-10T12:00:00Z');
+    const oldEnded = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
     const userId = await seedGameForUser('OldRanker', 'WIN', oldEnded);
 
     const rank = await repo.getMyLeaderboardRank(userId, 'week');
@@ -564,8 +560,7 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
   });
 
   it('week window excludes abandoned games', async () => {
-    // Seed a non-guest user with a recent game (3 days ago) that is abandoned.
-    const recentEnded = new Date('2026-06-17T12:00:00Z');
+    const recentEnded = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
     const userId = h.newUserId();
     await repo.upsertUser({ id: userId, displayName: 'AbandonedPlayer', isGuest: false });
     const hostId = h.newUserId();
@@ -576,7 +571,7 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
       roomId: room.id,
       seed: 'sabd',
       seatingOrder: [userId, hostId],
-      startedAt: new Date('2026-06-17T11:00:00Z'),
+      startedAt: new Date(recentEnded.getTime() - 60 * 60 * 1000),
     });
     await repo.recordGameFinished({
       gameId: g.id,

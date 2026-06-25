@@ -52,6 +52,25 @@ export const gameEventTypeEnum = pgEnum('game_event_type', [
 
 export type RoomStatusValue = (typeof roomStatusEnum.enumValues)[number];
 export type GameEventTypeValue = (typeof gameEventTypeEnum.enumValues)[number];
+export const scoreLedgerKindEnum = pgEnum('score_ledger_kind', [
+  'MATCH_SCORE',
+  'RANKED_RATING',
+  'XP',
+]);
+export const scoreLedgerReasonEnum = pgEnum('score_ledger_reason', [
+  'CAPTURE_CARD',
+  'SAME_RANK_BONUS',
+  'TABLE_CLEAR',
+  'CUT',
+  'PLACEMENT_BONUS',
+  'GHOST_BONUS',
+  'RANKED_PLACEMENT',
+  'ABANDON_PENALTY',
+  'XP_MATCH_BASE',
+  'XP_MATCH_SCORE',
+]);
+export type ScoreLedgerKindValue = (typeof scoreLedgerKindEnum.enumValues)[number];
+export type ScoreLedgerReasonValue = (typeof scoreLedgerReasonEnum.enumValues)[number];
 
 // ---------------------------------------------------------------------------
 // Users
@@ -219,6 +238,9 @@ export const gamePlayers = pgTable(
     wasCut: boolean('was_cut').notNull().default(false),
     captureCount: integer('capture_count').notNull().default(0),
     result: varchar('result', { length: 20 }), // 'WIN', 'LOSS', 'ABANDONED', etc.
+    matchScore: integer('match_score'),
+    xpEarned: integer('xp_earned'),
+    rankedRatingDelta: integer('ranked_rating_delta'),
   },
   (table) => {
     return {
@@ -285,6 +307,9 @@ export const playerStats = pgTable(
     longestWinStreak: integer('longest_win_streak').notNull().default(0),
     currentWinStreak: integer('current_win_streak').notNull().default(0),
     sumFinishPositions: integer('sum_finish_positions').notNull().default(0),
+    highestMatchScore: integer('highest_match_score').notNull().default(0),
+    totalMatchScore: integer('total_match_score').notNull().default(0),
+    ghostFinishes: integer('ghost_finishes').notNull().default(0),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -292,6 +317,67 @@ export const playerStats = pgTable(
   (table) => {
     return {
       userIdIdx: uniqueIndex('player_stats_user_id_idx').on(table.userId),
+    };
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Player Progression (durable ranking + XP progression)
+// ---------------------------------------------------------------------------
+
+export const playerProgression = pgTable(
+  'player_progression',
+  {
+    userId: uuid('user_id')
+      .primaryKey()
+      .references(() => users.id),
+    rankedRating: integer('ranked_rating').notNull().default(0),
+    totalXp: integer('total_xp').notNull().default(0),
+    level: integer('level').notNull().default(1),
+    highestMatchScore: integer('highest_match_score').notNull().default(0),
+    totalMatchScore: integer('total_match_score').notNull().default(0),
+    ghostFinishes: integer('ghost_finishes').notNull().default(0),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => {
+    return {
+      userIdIdx: uniqueIndex('player_progression_user_id_idx').on(table.userId),
+    };
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Score Ledger (append-only scoring audit trail)
+// ---------------------------------------------------------------------------
+
+export const scoreLedger = pgTable(
+  'score_ledger',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    gameId: uuid('game_id')
+      .notNull()
+      .references(() => games.id),
+    kind: scoreLedgerKindEnum('kind').notNull(),
+    reason: scoreLedgerReasonEnum('reason').notNull(),
+    delta: integer('delta').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    metaJson: jsonb('meta_json'),
+  },
+  (table) => {
+    return {
+      userIdIdx: index('score_ledger_user_id_idx').on(table.userId),
+      gameIdIdx: index('score_ledger_game_id_idx').on(table.gameId),
+      userIdCreatedAtIdx: index('score_ledger_user_id_created_at_idx').on(
+        table.userId,
+        table.createdAt
+      ),
     };
   }
 );

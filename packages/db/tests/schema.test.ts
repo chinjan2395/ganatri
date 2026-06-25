@@ -33,10 +33,10 @@ describe('schema migration', () => {
     const res = await t.pglite.query<{ count: string }>(
       `select count(*)::text as count from information_schema.tables where table_schema = 'public'`
     );
-    expect(Number(res.rows[0]!.count)).toBe(9);
+    expect(Number(res.rows[0]!.count)).toBe(11);
   });
 
-  it('creates all 9 tables', async () => {
+  it('creates all 11 tables', async () => {
     const res = await t.pglite.query<{ table_name: string }>(
       `select table_name from information_schema.tables where table_schema = 'public' order by table_name`
     );
@@ -47,8 +47,10 @@ describe('schema migration', () => {
       'game_players',
       'games',
       'oauth_accounts',
+      'player_progression',
       'player_stats',
       'rooms',
+      'score_ledger',
       'user_blocks',
       'users',
     ]);
@@ -79,6 +81,10 @@ describe('schema migration', () => {
       'auth_sessions_user_id_idx',
       'game_events_ts_idx',
       'games_abandoned_ended_at_idx',
+      'player_progression_user_id_idx',
+      'score_ledger_user_id_idx',
+      'score_ledger_game_id_idx',
+      'score_ledger_user_id_created_at_idx',
       // Phase 8: social blocks.
       'user_blocks_blocked_id_idx',
     ]) {
@@ -128,6 +134,60 @@ describe('schema migration', () => {
     expect(res.rows[0]!.data_type).toBe('integer');
     expect(res.rows[0]!.is_nullable).toBe('NO');
     expect(res.rows[0]!.column_default).toBe('0');
+  });
+
+  it('phase 9 scoring columns and tables exist with expected defaults', async () => {
+    const gamePlayerCols = await t.pglite.query<{ column_name: string }>(
+      `SELECT column_name
+       FROM information_schema.columns
+       WHERE table_name = 'game_players'
+         AND column_name IN ('match_score', 'xp_earned', 'ranked_rating_delta')
+       ORDER BY column_name`
+    );
+    expect(gamePlayerCols.rows.map((r) => r.column_name)).toEqual([
+      'match_score',
+      'ranked_rating_delta',
+      'xp_earned',
+    ]);
+
+    const progressionCols = await t.pglite.query<{
+      column_name: string;
+      column_default: string | null;
+    }>(
+      `SELECT column_name, column_default
+       FROM information_schema.columns
+       WHERE table_name = 'player_progression'
+       ORDER BY ordinal_position`
+    );
+    expect(progressionCols.rows.map((r) => r.column_name)).toEqual([
+      'user_id',
+      'ranked_rating',
+      'total_xp',
+      'level',
+      'highest_match_score',
+      'total_match_score',
+      'ghost_finishes',
+      'updated_at',
+    ]);
+    expect(
+      progressionCols.rows.find((r) => r.column_name === 'level')?.column_default
+    ).toBe('1');
+
+    const statsCols = await t.pglite.query<{
+      column_name: string;
+      column_default: string | null;
+    }>(
+      `SELECT column_name, column_default
+       FROM information_schema.columns
+       WHERE table_name = 'player_stats'
+         AND column_name IN ('highest_match_score', 'total_match_score', 'ghost_finishes')
+       ORDER BY column_name`
+    );
+    expect(statsCols.rows).toEqual([
+      { column_name: 'ghost_finishes', column_default: '0' },
+      { column_name: 'highest_match_score', column_default: '0' },
+      { column_name: 'total_match_score', column_default: '0' },
+    ]);
   });
 });
 

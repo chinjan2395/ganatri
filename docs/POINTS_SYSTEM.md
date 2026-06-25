@@ -494,3 +494,15 @@ Calculated from Match Score.
 > Ranked Rating measures competitiveness.
 >
 > XP rewards long-term progression.
+
+---
+
+# Authoritative Inputs Appendix
+
+- Capture-card points use final `state.part1.capturePiles[player].length`, which already includes the leftover sweep awarded at `PART1_ENDED`.
+- Same-rank bonus uses server `CAPTURED` events and is awarded once per capture move when the played card's rank appears more than once inside `event.cards`.
+- Table-clear bonus uses the authoritative Part 1 event stream and is awarded when a `CAPTURED` move reduces the replayed table size to `0`.
+- Cut bonus uses authoritative `CUT` events only.
+- Placement bonus uses final `state.rankings` plus total player count.
+- Ghost bonus uses zero Part 1 captures plus membership in the initial safe set emitted immediately after `PART1_ENDED`.
+- Abandonment penalty applies only to ranked rating and never changes Match Score or XP.

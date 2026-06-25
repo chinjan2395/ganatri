@@ -155,6 +155,9 @@ export interface SeedPlayerOpts {
   result?: string | null;
   captureCount?: number;
   wasCut?: boolean;
+  matchScore?: number | null;
+  xpEarned?: number | null;
+  rankedRatingDelta?: number | null;
 }
 
 export async function seedGamePlayer(
@@ -171,6 +174,9 @@ export async function seedGamePlayer(
     result: opts.result ?? null,
     captureCount: opts.captureCount ?? 0,
     wasCut: opts.wasCut ?? false,
+    matchScore: opts.matchScore ?? null,
+    xpEarned: opts.xpEarned ?? null,
+    rankedRatingDelta: opts.rankedRatingDelta ?? null,
   });
 }
 
