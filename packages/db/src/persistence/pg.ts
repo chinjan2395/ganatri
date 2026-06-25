@@ -27,6 +27,7 @@ import type {
   AdminUserStats,
   ApplyGameScoringInput,
   AppendEventInput,
+  AuthSessionRow,
   BlockedUserEntry,
   CoPlayerEntry,
   CreateAuthSessionInput,
@@ -48,6 +49,7 @@ import type {
   RankedLeaderboardEntry,
   RecordGameFinishedInput,
   RecordGameStartedInput,
+  ResolvedAuthSession,
   RoomRow,
   RoomStatus,
   ScoreHistoryEntry,
@@ -235,18 +237,19 @@ export class PgPersistence implements GamePersistence {
     });
   }
 
-  async createAuthSession(input: CreateAuthSessionInput): Promise<void> {
-    await this.db.insert(authSessions).values({
+  async createAuthSession(input: CreateAuthSessionInput): Promise<AuthSessionRow> {
+    const rows = await this.db.insert(authSessions).values({
       userId: input.userId,
       tokenHash: input.tokenHash,
       expiresAt: input.expiresAt,
       userAgent: input.userAgent ?? null,
-    });
+    }).returning();
+    return rows[0]!;
   }
 
-  async getUserBySessionTokenHash(tokenHash: string): Promise<UserRow | null> {
+  async getAuthSessionByTokenHash(tokenHash: string): Promise<ResolvedAuthSession | null> {
     const rows = await this.db
-      .select({ user: users })
+      .select({ session: authSessions, user: users })
       .from(authSessions)
       .innerJoin(users, eq(authSessions.userId, users.id))
       .where(
@@ -257,7 +260,39 @@ export class PgPersistence implements GamePersistence {
         )
       )
       .limit(1);
-    return rows[0]?.user ?? null;
+    return rows[0] ?? null;
+  }
+
+  async touchAuthSession(tokenHash: string, expiresAt: Date): Promise<AuthSessionRow | null> {
+    const rows = await this.db
+      .update(authSessions)
+      .set({
+        lastSeenAt: new Date(),
+        expiresAt,
+      })
+      .where(
+        and(
+          eq(authSessions.tokenHash, tokenHash),
+          eq(authSessions.revoked, false),
+          sql`${authSessions.expiresAt} > now()`
+        )
+      )
+      .returning();
+    return rows[0] ?? null;
+  }
+
+  async listAuthSessions(userId: string): Promise<AuthSessionRow[]> {
+    return this.db
+      .select()
+      .from(authSessions)
+      .where(
+        and(
+          eq(authSessions.userId, userId),
+          eq(authSessions.revoked, false),
+          sql`${authSessions.expiresAt} > now()`
+        )
+      )
+      .orderBy(desc(authSessions.lastSeenAt), desc(authSessions.createdAt));
   }
 
   async revokeAuthSession(tokenHash: string): Promise<void> {
@@ -265,6 +300,36 @@ export class PgPersistence implements GamePersistence {
       .update(authSessions)
       .set({ revoked: true })
       .where(eq(authSessions.tokenHash, tokenHash));
+  }
+
+  async revokeAuthSessionById(userId: string, sessionId: string): Promise<void> {
+    await this.db
+      .update(authSessions)
+      .set({ revoked: true })
+      .where(
+        and(
+          eq(authSessions.userId, userId),
+          eq(authSessions.id, sessionId),
+          eq(authSessions.revoked, false),
+          sql`${authSessions.expiresAt} > now()`
+        )
+      );
+  }
+
+  async revokeOtherAuthSessions(userId: string, currentSessionId: string): Promise<number> {
+    const revoked = await this.db
+      .update(authSessions)
+      .set({ revoked: true })
+      .where(
+        and(
+          eq(authSessions.userId, userId),
+          eq(authSessions.revoked, false),
+          sql`${authSessions.expiresAt} > now()`,
+          sql`${authSessions.id} <> ${currentSessionId}`
+        )
+      )
+      .returning({ id: authSessions.id });
+    return revoked.length;
   }
 
   // History -----------------------------------------------------------------

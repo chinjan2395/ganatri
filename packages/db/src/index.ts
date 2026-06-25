@@ -44,6 +44,7 @@ export type {
   GamePersistence,
   UserRow,
   UserBlockRow,
+  ResolvedAuthSession,
   NewUser,
   OAuthAccountRow,
   AuthSessionRow,

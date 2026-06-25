@@ -240,8 +240,8 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
       tokenHash: 'valid'.padEnd(64, '0'),
       expiresAt: new Date(Date.now() + 60_000),
     });
-    const found = await repo.getUserBySessionTokenHash('valid'.padEnd(64, '0'));
-    expect(found!.id).toBe(user.id);
+    const found = await repo.getAuthSessionByTokenHash('valid'.padEnd(64, '0'));
+    expect(found?.user.id).toBe(user.id);
 
     await repo.createAuthSession({
       userId: user.id,
@@ -249,11 +249,11 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
       expiresAt: new Date(Date.now() - 1_000),
     });
     expect(
-      await repo.getUserBySessionTokenHash('expired'.padEnd(64, '0'))
+      await repo.getAuthSessionByTokenHash('expired'.padEnd(64, '0'))
     ).toBeNull();
 
     await repo.revokeAuthSession('valid'.padEnd(64, '0'));
-    expect(await repo.getUserBySessionTokenHash('valid'.padEnd(64, '0'))).toBeNull();
+    expect(await repo.getAuthSessionByTokenHash('valid'.padEnd(64, '0'))).toBeNull();
   });
 
   // History -----------------------------------------------------------------

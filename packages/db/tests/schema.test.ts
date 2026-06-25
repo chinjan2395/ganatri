@@ -94,6 +94,22 @@ describe('schema migration', () => {
     }
   });
 
+  it('auth_sessions has last_seen_at as a NOT NULL timestamptz column', async () => {
+    const res = await t.pglite.query<{
+      data_type: string;
+      is_nullable: string;
+      column_default: string | null;
+    }>(
+      `SELECT data_type, is_nullable, column_default
+       FROM information_schema.columns
+       WHERE table_name = 'auth_sessions' AND column_name = 'last_seen_at'`
+    );
+    expect(res.rows.length).toBe(1);
+    expect(res.rows[0]!.data_type).toBe('timestamp with time zone');
+    expect(res.rows[0]!.is_nullable).toBe('NO');
+    expect(res.rows[0]!.column_default).toBe('now()');
+  });
+
   it('user_blocks table has expected columns with correct types', async () => {
     const res = await t.pglite.query<{
       column_name: string;

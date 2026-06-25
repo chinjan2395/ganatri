@@ -98,8 +98,8 @@ describe('auth (pg)', () => {
       expiresAt: new Date(Date.now() + 60_000),
       userAgent: 'vitest',
     });
-    const found = await t.repo.getUserBySessionTokenHash('a'.repeat(64));
-    expect(found!.id).toBe(user.id);
+    const found = await t.repo.getAuthSessionByTokenHash('a'.repeat(64));
+    expect(found?.user.id).toBe(user.id);
   });
 
   it('returns null for an expired session', async () => {
@@ -114,7 +114,7 @@ describe('auth (pg)', () => {
       tokenHash: 'b'.repeat(64),
       expiresAt: new Date(Date.now() - 1_000),
     });
-    expect(await t.repo.getUserBySessionTokenHash('b'.repeat(64))).toBeNull();
+    expect(await t.repo.getAuthSessionByTokenHash('b'.repeat(64))).toBeNull();
   });
 
   it('returns null for a revoked session', async () => {
@@ -130,7 +130,7 @@ describe('auth (pg)', () => {
       expiresAt: new Date(Date.now() + 60_000),
     });
     await t.repo.revokeAuthSession('c'.repeat(64));
-    expect(await t.repo.getUserBySessionTokenHash('c'.repeat(64))).toBeNull();
+    expect(await t.repo.getAuthSessionByTokenHash('c'.repeat(64))).toBeNull();
   });
 
   it('revokeAuthSession is a no-op for an unknown token hash', async () => {
@@ -138,6 +138,40 @@ describe('auth (pg)', () => {
   });
 
   it('returns null for an unknown token hash', async () => {
-    expect(await t.repo.getUserBySessionTokenHash('f'.repeat(64))).toBeNull();
+    expect(await t.repo.getAuthSessionByTokenHash('f'.repeat(64))).toBeNull();
+  });
+
+  it('touches, lists, and revokes sessions by id', async () => {
+    const user = await t.repo.upsertOAuthUser({
+      provider: 'google',
+      providerUserId: 'g-manage',
+      email: 'manage@example.com',
+      displayName: 'Manage Me',
+    });
+    const current = await t.repo.createAuthSession({
+      userId: user.id,
+      tokenHash: '1'.repeat(64),
+      expiresAt: new Date(Date.now() + 1_000),
+      userAgent: 'Current Device',
+    });
+    const other = await t.repo.createAuthSession({
+      userId: user.id,
+      tokenHash: '2'.repeat(64),
+      expiresAt: new Date(Date.now() + 60_000),
+      userAgent: 'Other Device',
+    });
+
+    const touched = await t.repo.touchAuthSession('1'.repeat(64), new Date(Date.now() + 120_000));
+    expect(touched).not.toBeNull();
+    expect(touched!.expiresAt.getTime()).toBeGreaterThan(current.expiresAt.getTime());
+
+    const listed = await t.repo.listAuthSessions(user.id);
+    expect(listed.map((session) => session.id).sort()).toEqual([current.id, other.id].sort());
+
+    const revokedOthers = await t.repo.revokeOtherAuthSessions(user.id, current.id);
+    expect(revokedOthers).toBe(1);
+
+    await t.repo.revokeAuthSessionById(user.id, current.id);
+    expect(await t.repo.getAuthSessionByTokenHash('1'.repeat(64))).toBeNull();
   });
 });

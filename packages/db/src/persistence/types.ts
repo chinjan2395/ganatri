@@ -131,6 +131,11 @@ export interface CreateAuthSessionInput {
   userAgent?: string | null;
 }
 
+export interface ResolvedAuthSession {
+  session: AuthSessionRow;
+  user: UserRow;
+}
+
 // ---------------------------------------------------------------------------
 // Game history (list + score-card detail)
 // ---------------------------------------------------------------------------
@@ -316,16 +321,28 @@ export interface GamePersistence {
   upsertOAuthUser(input: UpsertOAuthUserInput): Promise<UserRow>;
 
   /** Create a durable auth session row. */
-  createAuthSession(input: CreateAuthSessionInput): Promise<void>;
+  createAuthSession(input: CreateAuthSessionInput): Promise<AuthSessionRow>;
 
   /**
-   * Look up the user owning a session token hash, but only when the matching
-   * session is not revoked and has not expired. Returns null otherwise.
+   * Look up the active auth session + owning user for a token hash. Returns
+   * null when the session is revoked, expired, or unknown.
    */
-  getUserBySessionTokenHash(tokenHash: string): Promise<UserRow | null>;
+  getAuthSessionByTokenHash(tokenHash: string): Promise<ResolvedAuthSession | null>;
+
+  /** Refresh an auth session's activity timestamps / expiry. */
+  touchAuthSession(tokenHash: string, expiresAt: Date): Promise<AuthSessionRow | null>;
+
+  /** List the user's active sessions, newest activity first. */
+  listAuthSessions(userId: string): Promise<AuthSessionRow[]>;
 
   /** Mark a session revoked (no-op if the token hash is unknown). */
   revokeAuthSession(tokenHash: string): Promise<void>;
+
+  /** Revoke one of the user's active sessions by id. No-op if not found. */
+  revokeAuthSessionById(userId: string, sessionId: string): Promise<void>;
+
+  /** Revoke every active session for the user except the current session. */
+  revokeOtherAuthSessions(userId: string, currentSessionId: string): Promise<number>;
 
   // History -----------------------------------------------------------------
 
