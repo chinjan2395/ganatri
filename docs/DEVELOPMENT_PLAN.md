@@ -1,5 +1,7 @@
 # Ganatri — Phasewise Development Plan
 
+Last updated: 2026-06-25 (Phase 9g Scoring UI — LobbyScreen progression widget: replaced plain-text Level/Rating/XP line with gold LVL badge, XP progress bar, and rating pill. XP math (levelStartXp, xpForLevel, progress) computed inline via IIFE inside JSX. 8 new CSS classes added to LobbyScreen.css. Build green, zero TS errors.)
+
 Last updated: 2026-06-26 (Phase DS Design System Package architecture — `docs/DESIGN_SYSTEM_ARCHITECTURE.md` created; Phase DS added to development plan with 16 tasks across 5 sub-phases A–E; design system architecture covers `packages/ds` package scaffold, Storybook setup, design token extraction, component file convention, story format, complete component inventory, golden rule + ESLint enforcement, migration path, and two-tool philosophy.)
 
 Last updated: 2026-06-25 (RoomScreen premium felt background: pure CSS diamond weave + vignette + SVG noise grain + inline SVG crest watermark via `RoomFeltBackdrop` — no background image asset. `RoomScreen.tsx` + `RoomScreen.css`. Build green.)
@@ -157,7 +159,7 @@ All 458 tests passing (153 engine + 114 server + 191 db).
 `- [ ] **Fix leaderboard pagination off-by-one** — packages/server handlers.ts; offset should be page*limit. Acceptance: new server test covers page 2.`
 
 <!-- PRIORITY_TODO:START -->
-- [ ] **Phase 9g: Scoring UI integration** — Wire persisted scoring data into existing screens. LobbyScreen (profile level/XP/rating), HistoryScreen (per-game matchScore/xpEarned/rankedRatingDelta), StatsScreen (lifetime stats: highestMatchScore, totalMatchScore, ghostFinishes). All score data already persists in DB; just wire the reads. Acceptance: responsive, no recomputation, 458 tests pass.
+- [x] **Phase 9g: Scoring UI integration** — LobbyScreen progression widget (level badge, XP bar, rating pill) complete. HistoryScreen and StatsScreen were already showing scoring data correctly. Build green, 458 tests pass. (done 2026-06-25)
 - [x] **Remove hint text and disable text selection in in-hand card area** — `packages/web/src/screens/GameScreen.tsx` (or equivalent game-screen component) + its CSS. Acceptance: no "Waiting for players" or similar hint strings appear inside the hand card section, and tapping/clicking a card never triggers browser text-selection (add `user-select: none` to the hand container). (done 2026-06-22)
 - [x] **Phase 8a: DB layer — co-player query + user_blocks schema** — `packages/db` (schema.ts, new migration `0003_user_blocks.sql`, persistence/types.ts, persistence/pg.ts, persistence/memory.ts, tests/). Add `user_blocks` table (blockerId+blockedId composite PK, FK→users, index on blockedId). Add to `GamePersistence`: `getFrequentCoPlayers(userId, limit?)`, `blockUser`, `unblockUser`, `getBlockedUserIds`, `isBlocked`. Implement in both Pg+Memory impls. Acceptance: drift-guard updated; ~10 new contract tests; all 133 existing db tests pass. (done 2026-06-22)
 - [x] **Phase 8b: Server — get_recent_players event** — `packages/server` (protocol.ts, handlers.ts, test file). Add `GET_RECENT_PLAYERS` event + `CoPlayerView`/`GetRecentPlayersAck` types. Handler: NOT_LOGGED_IN guard, call `getFrequentCoPlayers`, enrich each entry with `isOnline` (check `store.playerIndex` → live socketId). Acceptance: 3 new server tests (guest→NOT_LOGGED_IN, no-persistence→UNAVAILABLE, happy path with isOnline); 63→66 server tests.
@@ -709,7 +711,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 **Goal:** Add a server-authoritative scoring system based on [POINTS_SYSTEM.md](/Users/chinjanpatel/Documents/ganatri/docs/POINTS_SYSTEM.md): placement still determines the winner, but each match now also produces (1) a per-match **Match Score**, (2) a persistent **Ranked Rating** delta, and (3) persistent **XP / level progression** for logged-in players.
 
-**Status:** ⬜ Not started
+**Status:** 🟡 In progress — 9a–9g complete; 9h (admin/export/analytics) pending
 
 ### Architecture decisions
 
@@ -817,10 +819,10 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Lobby/profile: show level, XP progress bar, ranked rating | ⬜ | Existing Rewards affordance can become the entry point |
-| Add progression panel or Rewards screen | ⬜ | Minimal v1 can live inside `LobbyScreen`; dedicated screen is cleaner if scope permits |
-| HistoryScreen: show stored match score / XP / rating delta per match | ⬜ | Expand current scorecards instead of creating a disconnected scoring UI |
-| StatsScreen: add lifetime scoring metrics | ⬜ | `highestMatchScore`, `totalMatchScore`, `ghostFinishes`, maybe average match score |
+| Lobby/profile: show level, XP progress bar, ranked rating | ✅ | Gold LVL badge + horizontal XP bar + rating pill; XP math inline |
+| Add progression panel or Rewards screen | ⬜ | Minimal v1 lives inside `LobbyScreen`; dedicated screen for later |
+| HistoryScreen: show stored match score / XP / rating delta per match | ✅ | Already showing Score/XP/Rating delta per row and per-player scorecard |
+| StatsScreen: add lifetime scoring metrics | ✅ | Already showing highestMatchScore, avgMatchScore, ghostFinishes, totalMatchScore |
 | Leaderboard follow-up: decide if/when to pivot from wins leaderboard to rating leaderboard | ⬜ | Recommended v1: keep existing wins leaderboard and add a future rated board instead of breaking current UX |
 
 ### 9h — Admin, exports, analytics, and rollout safety

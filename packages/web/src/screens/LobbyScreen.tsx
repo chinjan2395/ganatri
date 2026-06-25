@@ -866,11 +866,31 @@ function ProfilePanel({
                   </button>
                 </div>
               )}
-              {progression && (
-                <p className="lobby__profile-guest-msg">
-                  Level {progression.level} · Rating {progression.rankedRating} · XP {progression.totalXp}
-                </p>
-              )}
+              {progression && (() => {
+                const levelStartXp = (progression.level - 1) ** 2 * 25;
+                const nextLevelXp = progression.level ** 2 * 25;
+                const xpInLevel = progression.totalXp - levelStartXp;
+                const xpForLevel = nextLevelXp - levelStartXp;
+                const progress = xpForLevel > 0 ? xpInLevel / xpForLevel : 1;
+                return (
+                  <div className="lobby__progression">
+                    <div className="lobby__progression-badges">
+                      <span className="lobby__level-badge">LVL {progression.level}</span>
+                      <span className="lobby__rating-badge">Rating {progression.rankedRating}</span>
+                    </div>
+                    <div
+                      className="lobby__xp-bar-wrap"
+                      aria-label={`XP: ${xpInLevel} of ${xpForLevel}`}
+                    >
+                      <div
+                        className="lobby__xp-bar"
+                        style={{ width: `${Math.round(progress * 100)}%` }}
+                      />
+                    </div>
+                    <div className="lobby__xp-label">{xpInLevel} / {xpForLevel} XP to next level</div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Nav links */}
