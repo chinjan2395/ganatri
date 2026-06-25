@@ -714,6 +714,9 @@ function RoomDetailsSidebar({
   return (
     <aside className="room__details-sidebar">
       <h3 className="room__details-heading">ROOM DETAILS</h3>
+      <div className="room__details-logo-wrap">
+        <img src={logo} alt="Ganatri" className="room__details-logo" />
+      </div>
       <div className="room__details-rows">
         <div className="room__details-row">
           <span className="room__details-icon" aria-hidden="true">
