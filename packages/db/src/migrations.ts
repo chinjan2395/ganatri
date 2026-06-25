@@ -3,28 +3,27 @@
  */
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { sql } from 'drizzle-orm';
 import type { Database } from './db';
 
-const require = createRequire(import.meta.url);
-
-/** Resolve the drizzle SQL folder for both local dev and deployed monorepos. */
+/**
+ * Resolve the drizzle SQL folder without import.meta so this module typechecks
+ * when pulled in by packages/server (module: CommonJS) during Render builds.
+ */
 export function resolveMigrationsFolder(): string {
-  const fromSrc = join(dirname(fileURLToPath(import.meta.url)), '..', 'drizzle');
-  if (existsSync(fromSrc)) return fromSrc;
+  const cwd = process.cwd();
+  const candidates = [
+    join(cwd, '..', 'db', 'drizzle'),           // cwd = packages/server
+    join(cwd, 'packages', 'db', 'drizzle'),     // cwd = monorepo root
+    join(cwd, 'drizzle'),                       // cwd = packages/db
+  ];
 
-  try {
-    const pkgJson = require.resolve('@ganatri/db/package.json');
-    const fromPkg = join(dirname(pkgJson), 'drizzle');
-    if (existsSync(fromPkg)) return fromPkg;
-  } catch {
-    // package.json subpath may be unavailable in workspace dev; src path is enough.
+  for (const dir of candidates) {
+    if (existsSync(dir)) return dir;
   }
 
-  throw new Error(`migrations folder not found (tried ${fromSrc})`);
+  throw new Error(`migrations folder not found (cwd=${cwd}, tried ${candidates.join(', ')})`);
 }
 
 /** All generated migration SQL files, sorted by filename (apply order). */
