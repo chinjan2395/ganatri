@@ -234,7 +234,7 @@ describe('server restart recovery', () => {
     // The session playerId is preserved from the ghost.
     expect(newHostSession.playerId).toBe(hostPid);
     // A new token was issued (the stale one was unknown).
-    expect(newHostSession.token).not.toBe('stale-token');
+    expect(newHostSession.guestToken).not.toBe('stale-token');
     // The game view is for the in-progress game.
     expect(['PART_1', 'PART_2']).toContain(stateUpdate.view.phase);
 

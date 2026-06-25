@@ -212,7 +212,7 @@ describe('Ganatri server', () => {
 
     const [, hostSession] = await Promise.all([
       waitFor(guest, EVENTS.SESSION),
-      waitFor<{ token: string; playerId: string }>(host, EVENTS.SESSION),
+      waitFor<{ guestToken?: string; playerId: string }>(host, EVENTS.SESSION),
     ]);
 
     try {
@@ -558,8 +558,8 @@ describe('Ganatri server', () => {
     const host = connectClient(port);
     const guest = connectClient(port);
     const [hostSession, guestSession] = await Promise.all([
-      waitFor<{ token: string; playerId: string }>(host, EVENTS.SESSION),
-      waitFor<{ token: string; playerId: string }>(guest, EVENTS.SESSION),
+      waitFor<{ guestToken?: string; playerId: string }>(host, EVENTS.SESSION),
+      waitFor<{ guestToken?: string; playerId: string }>(guest, EVENTS.SESSION),
     ]);
 
     try {
@@ -619,8 +619,8 @@ describe('Ganatri server', () => {
     const guest = connectClient(port);
 
     const [hostSession, guestSession] = await Promise.all([
-      waitFor<{ token: string; playerId: string }>(host, EVENTS.SESSION),
-      waitFor<{ token: string; playerId: string }>(guest, EVENTS.SESSION),
+      waitFor<{ guestToken?: string; playerId: string }>(host, EVENTS.SESSION),
+      waitFor<{ guestToken?: string; playerId: string }>(guest, EVENTS.SESSION),
     ]);
 
     try {
@@ -797,7 +797,7 @@ describe('Ganatri server', () => {
     const guest = connectClient(port);
     const [, guestSession] = await Promise.all([
       waitFor(host, EVENTS.SESSION),
-      waitFor<{ token: string; playerId: string }>(guest, EVENTS.SESSION),
+      waitFor<{ guestToken?: string; playerId: string }>(guest, EVENTS.SESSION),
     ]);
 
     try {
@@ -887,8 +887,8 @@ describe('Ganatri server', () => {
     const guest = connectClient(port);
 
     const [hostSession, guestSession] = await Promise.all([
-      waitFor<{ token: string; playerId: string }>(host, EVENTS.SESSION),
-      waitFor<{ token: string; playerId: string }>(guest, EVENTS.SESSION),
+      waitFor<{ guestToken?: string; playerId: string }>(host, EVENTS.SESSION),
+      waitFor<{ guestToken?: string; playerId: string }>(guest, EVENTS.SESSION),
     ]);
 
     try {
@@ -991,8 +991,8 @@ describe('Ganatri server', () => {
     const guest = connectClient(port);
 
     const [hostSession, guestSession] = await Promise.all([
-      waitFor<{ token: string; playerId: string }>(host, EVENTS.SESSION),
-      waitFor<{ token: string; playerId: string }>(guest, EVENTS.SESSION),
+      waitFor<{ guestToken?: string; playerId: string }>(host, EVENTS.SESSION),
+      waitFor<{ guestToken?: string; playerId: string }>(guest, EVENTS.SESSION),
     ]);
 
     try {
