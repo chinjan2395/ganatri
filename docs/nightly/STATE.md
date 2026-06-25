@@ -10,10 +10,10 @@
 > (Current Phase → next NOT_STARTED/IN_PROGRESS item) apply.
 
 ## Current Phase
-Phase 6 — Persistence, Accounts, Statistics & Analytics
+Phase 9 — Scoring, Rating & XP Progression
 
 ## Status
-IN_PROGRESS — Phase 6i data export shipped (2026-06-25). Next: Phase 6j ops hardening or Phase 6c remaining account settings (avatar/OAuth link).  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+IN_PROGRESS — Phase 9a–9f complete (DB schema, server scoring, web base layer merged to main 2026-06-26). Next: Phase 9g (UI integration: lobby/profile/history/stats).  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase 6i Data export (2026-06-25) — `download_my_data` event: server handler (getUserGameHistory + getPlayerStats in parallel, flattenHistoryEntry + mapStatsView), 4 integration tests; web DownloadMyDataAck type + downloadMyData() helper + GameProvider callback + LobbyScreen "Download My Data" button (DOM-append pattern, deferred revokeObjectURL). 458 tests pass (153 engine + 114 server + 191 db).
@@ -46,19 +46,26 @@ small full-stack vertical slices that mirror the history slice.
 Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — skip in nightly runs.
 
 ## Last Run
-- Date: 2026-06-25
-- Outcome: Phase 6i user data export complete — `download_my_data` vertical slice (server + web + 4 integration tests). Code-review fixes applied (type="button", DOM-append anchor, seeded-data test).
-- Branch: nightly/2026-06-25-1721
+- Date: 2026-06-26
+- Outcome: Phase 9a–9f (DB schema + server scoring + web layer) merged to main. Conflicts resolved with design updates (touchAuthSession + updatedAt defensive checks). All 458 tests pass. Ready for Phase 9g.
+- Branch: main (commit 246e518)
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
-Resume Phase 6 remaining work in this order:
-1. **6j: Ops hardening** — DB monitoring, connection-pool sizing, cost alerts. All items in Phase 6j are ⬜ — skip if too broad for a nightly run and document as deferred.
-2. **6c remaining account settings** — Avatar URL edit + OAuth link/unlink (complex; skip if tight).
-3. **Phase 9 scoring/progression follow-ups** — check DEVELOPMENT_PLAN.md Phase 9 section for any remaining items.
 
-Phase 6i data export shipped 2026-06-25 — all 457 tests pass.
+**Phase 9g — Scoring UI Integration (next nightly task):**
+
+Wire persisted scoring data into existing screens. All score data already persists in DB; just wire the reads into UI.
+
+1. **LobbyScreen profile area**: show level badge + XP progress bar + ranked rating (can reuse Rewards panel or add to profile section)
+2. **HistoryScreen scorecards**: expand game rows to show matchScore, xpEarned, rankedRatingDelta per game
+3. **StatsScreen stats grid**: add 4 new stat cards (highestMatchScore, totalMatchScore, ghostFinishes, avgMatchScore)
+4. **LeaderboardScreen** *(optional follow-up)*: keep wins board for v1; pivot to rating board or add separate rating leaderboard in future
+
+Acceptance: All screens display stored scoring without recomputation; responsive on mobile/desktop; all 458 tests pass.
+
+After 9g complete: move to 9h (admin progression summary + export audit trail).
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.
