@@ -1867,7 +1867,7 @@ function mapStatsView(row: PlayerStatsRow): PlayerStatsView {
     totalMatchScore: row.totalMatchScore,
     ghostFinishes: row.ghostFinishes,
     averageMatchScore: row.gamesPlayed > 0 ? row.totalMatchScore / row.gamesPlayed : 0,
-    updatedAt: row.updatedAt.toISOString(),
+    updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : (row.updatedAt ?? null),
   };
 }
 

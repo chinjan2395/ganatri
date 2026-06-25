@@ -11,6 +11,7 @@
 
 export { getDb, ping, closeDb } from './db';
 export { runMigrations } from './migrate';
+export { isPhase9SchemaReady } from './migrations';
 export type { Database } from './db';
 
 export {

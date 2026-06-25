@@ -8,27 +8,15 @@
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
 import { drizzle, type PgliteDatabase } from 'drizzle-orm/pglite';
 import * as schema from '../../src/schema';
 import { PgPersistence } from '../../src/persistence/pg';
 import type { Database } from '../../src/db';
+import { migrationPaths, splitMigrationStatements } from '../../src/migrations';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DRIZZLE_DIR = join(__dirname, '..', '..', 'drizzle');
-
-/** All generated migration SQL files, sorted by filename (apply order). */
-export function migrationPaths(): string[] {
-  const files = readdirSync(DRIZZLE_DIR)
-    .filter((f) => f.endsWith('.sql'))
-    .sort();
-  if (files.length === 0) {
-    throw new Error(`no migration .sql files found in ${DRIZZLE_DIR}`);
-  }
-  return files.map((f) => join(DRIZZLE_DIR, f));
-}
+export { migrationPaths } from '../../src/migrations';
 
 /** Concatenated SQL of every migration, in filename order. */
 export function readMigrationSql(): string {
@@ -50,11 +38,10 @@ export async function createTestDb(): Promise<TestDb> {
   const pglite = new PGlite();
   const db = drizzle(pglite, { schema });
 
-  const sql = readMigrationSql();
-  const statements = sql
-    .split('--> statement-breakpoint')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+  const sql = migrationPaths()
+    .map((p) => readFileSync(p, 'utf8'))
+    .join('\n--> statement-breakpoint\n');
+  const statements = splitMigrationStatements(sql);
   for (const stmt of statements) {
     await pglite.exec(stmt);
   }

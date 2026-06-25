@@ -19,6 +19,7 @@ import {
 } from './config.js';
 import { getGoogleAuthUrl, exchangeCode } from './auth/oauth.js';
 import { getPersistence } from './persistence.js';
+import { isPhase9SchemaReady, getDb } from '@ganatri/db';
 import {
   parseCookies,
   hashToken,
@@ -90,8 +91,30 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
   const path = url.pathname;
 
   if (path === '/health' || path === '/') {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('ok');
+    const p = getPersistence();
+    let dbReady: boolean | null = null;
+    let phase9Ready: boolean | null = null;
+    if (p) {
+      const db = getDb();
+      if (db) {
+        try {
+          phase9Ready = await isPhase9SchemaReady(db);
+          dbReady = true;
+        } catch {
+          dbReady = false;
+        }
+      }
+    }
+    const body = JSON.stringify({
+      ok: dbReady !== false && (phase9Ready === null || phase9Ready),
+      persistence: p ? 'configured' : 'disabled',
+      dbReady,
+      phase9Schema: phase9Ready,
+    });
+    res.writeHead(dbReady === false || phase9Ready === false ? 503 : 200, {
+      'Content-Type': 'application/json',
+    });
+    res.end(body);
     return;
   }
 

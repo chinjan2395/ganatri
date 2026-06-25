@@ -8,17 +8,27 @@
   --admin-diamond-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%23e7c34a' stroke-width='1.2'%3E%3Cpath d='M36 4 L68 36 L36 68 L4 36 Z' opacity='0.22'/%3E%3Cpath d='M36 14 L58 36 L36 58 L14 36 Z' opacity='0.12'/%3E%3C/g%3E%3Cg fill='%23e7c34a' opacity='0.06'%3E%3Cpath d='M36 24 L46 36 L36 48 L26 36 Z'/%3E%3C/g%3E%3C/svg%3E");
 }
 
-/* Base admin backdrop — gradients only; pattern applied via ::before */
+/* Base admin backdrop — match game screen: lighter center, darker corners; pattern via ::before */
 .admin-shell,
 .admin-auth {
   position: relative;
   isolation: isolate;
   background-color: #0a1410;
   background-image:
-    radial-gradient(ellipse 90% 70% at 50% 25%, rgba(27, 107, 58, 0.22) 0%, transparent 60%),
-    radial-gradient(ellipse 80% 50% at 50% 100%, rgba(0, 0, 0, 0.45) 0%, transparent 50%),
-    linear-gradient(165deg, #0e1f16 0%, #0a1410 55%, #08120e 100%);
-  background-size: 100% 100%;
+    radial-gradient(ellipse at 50% 50%, transparent 0%, rgba(0, 0, 0, 0.5) 100%),
+    repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0, 0, 0, 0.15) 3px, rgba(0, 0, 0, 0.15) 6px),
+    repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(0, 0, 0, 0.15) 3px, rgba(0, 0, 0, 0.15) 6px),
+    repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255, 255, 255, 0.03) 2px, rgba(255, 255, 255, 0.03) 4px),
+    repeating-linear-gradient(-45deg, transparent, transparent 2px, rgba(255, 255, 255, 0.03) 2px, rgba(255, 255, 255, 0.03) 4px),
+    radial-gradient(ellipse at 50% 50%, #1a5030, #0a1410);
+  background-size:
+    100% 100%,
+    6px 6px,
+    6px 6px,
+    4px 4px,
+    4px 4px,
+    100% 100%;
+  background-attachment: fixed;
 }
 
 /* Diamond pattern overlay — fixed so it stays visible while content scrolls */
@@ -61,16 +71,6 @@
   opacity: 0.035;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size: 180px 180px;
-}
-
-/* Subtle vignette for depth */
-.admin-main::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background: radial-gradient(ellipse 70% 60% at 50% 45%, transparent 40%, rgba(0, 0, 0, 0.35) 100%);
 }
 
 .admin-main {

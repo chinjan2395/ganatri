@@ -11,10 +11,8 @@ import { createApp } from './createApp.js';
 const port = Number(process.env['PORT'] ?? 4000);
 
 void (async () => {
-  try {
+  if (process.env['DATABASE_URL']) {
     await runMigrations();
-  } catch (err) {
-    console.error('[migrate] failed to apply database migrations:', err);
   }
 
   const app = createApp();
