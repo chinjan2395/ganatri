@@ -164,10 +164,9 @@ describe('GET_LEADERBOARD', () => {
   }
 
   it('returns entries for week window when persistence has data', async () => {
-    // Seed a user with a game that ended 3 days ago (2026-06-17), within the week window.
     const userId = 'u-weektest';
     await persistence.upsertUser({ id: userId, displayName: 'WeekUser', isGuest: false });
-    await seedGameResult(persistence, userId, 'WIN', new Date('2026-06-17T12:00:00Z'));
+    await seedGameResult(persistence, userId, 'WIN', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000));
 
     const client = ioClient(`http://localhost:${port}`, { autoConnect: true, reconnection: false });
     try {
@@ -189,8 +188,7 @@ describe('GET_LEADERBOARD', () => {
   it('passes timeWindow through: month window returns ok response', async () => {
     const userId = 'u-monthtest';
     await persistence.upsertUser({ id: userId, displayName: 'MonthUser', isGuest: false });
-    // Game ended 20 days ago (2026-05-31) — within month, outside week.
-    await seedGameResult(persistence, userId, 'WIN', new Date('2026-05-31T12:00:00Z'));
+    await seedGameResult(persistence, userId, 'WIN', new Date(Date.now() - 20 * 24 * 60 * 60 * 1000));
 
     const client = ioClient(`http://localhost:${port}`, { autoConnect: true, reconnection: false });
     try {

@@ -75,7 +75,7 @@ export interface StartGameAck {
  * On failure, the MoveError is forwarded directly from the engine.
  */
 export type MakeMoveAck =
-  | { ok: true; view: PlayerView; turnStartedAt: number | null }
+  | { ok: true; view: PlayerView; turnStartedAt: number | null; matchScoring?: MatchScoringView[] }
   | { ok: false; error: MoveError; message: string };
 
 export interface RequestStateAck {
@@ -98,6 +98,9 @@ export interface GameHistoryPlayer {
   result: string | null;
   captureCount: number;
   wasCut: boolean;
+  matchScore: number | null;
+  xpEarned: number | null;
+  rankedRatingDelta: number | null;
 }
 
 /**
@@ -129,6 +132,9 @@ export interface GameHistoryEntry {
   };
   /** Every player in the game (including you). */
   players: GameHistoryPlayer[];
+  matchScore: number | null;
+  xpEarned: number | null;
+  rankedRatingDelta: number | null;
 }
 
 /**
@@ -160,8 +166,62 @@ export interface PlayerStatsView {
   currentWinStreak: number;
   longestWinStreak: number;
   avgFinish: number; // sumFinishPositions / gamesPlayed in [1..playerCount]; 0 when gamesPlayed === 0
+  highestMatchScore: number;
+  totalMatchScore: number;
+  ghostFinishes: number;
+  averageMatchScore: number;
   updatedAt: string | null; // ISO string; null when the user has no stats row yet
 }
+
+export interface ScoreBreakdownRowView {
+  reason: 'CAPTURE_CARD' | 'SAME_RANK_BONUS' | 'TABLE_CLEAR' | 'CUT' | 'PLACEMENT_BONUS' | 'GHOST_BONUS' | 'RANKED_PLACEMENT' | 'ABANDON_PENALTY' | 'XP_MATCH_BASE' | 'XP_MATCH_SCORE';
+  delta: number;
+}
+
+export interface MatchScoringView {
+  playerId: string;
+  matchScore: number;
+  xpEarned: number;
+  rankedRatingDelta: number;
+  matchScoreBreakdown: ScoreBreakdownRowView[];
+  ratingBreakdown: ScoreBreakdownRowView[];
+  xpBreakdown: ScoreBreakdownRowView[];
+  progressionAfter?: PlayerProgressionView;
+  ghostFinish: boolean;
+}
+
+export interface PlayerProgressionView {
+  rankedRating: number;
+  totalXp: number;
+  level: number;
+  xpToNextLevel: number;
+  highestMatchScore: number;
+  totalMatchScore: number;
+  ghostFinishes: number;
+  updatedAt: string | null;
+}
+
+export interface ScoreHistoryEntryView {
+  gameId: string;
+  createdAt: string;
+  matchScore: number;
+  xpEarned: number;
+  rankedRatingDelta: number;
+  rows: Array<{
+    kind: 'MATCH_SCORE' | 'RANKED_RATING' | 'XP';
+    reason: ScoreBreakdownRowView['reason'];
+    delta: number;
+    createdAt: string;
+  }>;
+}
+
+export type GetMyProgressionAck =
+  | { ok: true; progression: PlayerProgressionView }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
+
+export type GetMyScoreHistoryAck =
+  | { ok: true; history: ScoreHistoryEntryView[] }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
 
 /**
  * Ack for get_my_stats.
@@ -354,6 +414,7 @@ export interface StateUpdatePayload {
   view: PlayerView;
   turnStartedAt: number | null;
   turnTimeoutMs: number;
+  matchScoring?: MatchScoringView[];
 }
 
 /** Broadcast when a player's socket disconnects. */
@@ -552,6 +613,10 @@ export interface AdminUserStatsView {
   totalPlayTimeMs: number;
   longestWinStreak: number;
   currentWinStreak: number;
+  highestMatchScore: number;
+  totalMatchScore: number;
+  ghostFinishes: number;
+  progression: PlayerProgressionView | null;
   updatedAt: string | null;
 }
 
@@ -571,6 +636,9 @@ export interface ExportGamePlayerView {
   captureCount: number;
   wasCut: boolean;
   result: string | null;
+  matchScore: number | null;
+  xpEarned: number | null;
+  rankedRatingDelta: number | null;
 }
 
 export interface ExportGameView {
@@ -614,6 +682,8 @@ export const EVENTS = {
   REQUEST_STATE: 'request_state',
   REQUEST_HISTORY: 'request_history',
   GET_MY_STATS: 'get_my_stats',
+  GET_MY_PROGRESSION: 'get_my_progression',
+  GET_MY_SCORE_HISTORY: 'get_my_score_history',
   GET_LEADERBOARD: 'get_leaderboard',
   GET_RECENT_PLAYERS: 'get_recent_players',
   GET_BLOCKED_USERS: 'get_blocked_users',
