@@ -1,5 +1,19 @@
 # Ganatri — Phasewise Development Plan
 
+Last updated: 2026-06-26 (Phase DS Design System Package architecture — `docs/DESIGN_SYSTEM_ARCHITECTURE.md` created; Phase DS added to development plan with 16 tasks across 5 sub-phases A–E; design system architecture covers `packages/ds` package scaffold, Storybook setup, design token extraction, component file convention, story format, complete component inventory, golden rule + ESLint enforcement, migration path, and two-tool philosophy.)
+
+Last updated: 2026-06-25 (RoomScreen premium felt background: pure CSS diamond weave + vignette + SVG noise grain + inline SVG crest watermark via `RoomFeltBackdrop` — no background image asset. `RoomScreen.tsx` + `RoomScreen.css`. Build green.)
+
+Last updated: 2026-06-25 (RoomScreen Players status bar + Voice Chat content redesign per `Room_Layout.png`: `PlayerStatusBar` with split Players label/count, gold coin pips, neon-green timer; Voice Chat meta row, participant avatars w/ mic badges + silhouette empties, scroll chevron, reference-style PTT bar. `RoomScreen.tsx` + `RoomScreen.css`. Build green.)
+
+Last updated: 2026-06-25 (RoomScreen unified panel card design: extracted shared `room__panel-card` shell + `room__panel-heading` typography applied to Friends Online, Recent Opponents, Activity, Voice Chat, Players (mobile), and Waiting status cards; status bar + View All buttons aligned to gold-border style. `RoomScreen.tsx` + `RoomScreen.css`. Build green.)
+
+Last updated: 2026-06-25 (RoomScreen Room Details card polish to match `Room_Layout.png`: semi-transparent dark card + gold border; 3-column row layout (icon | gold label | right-aligned value); host avatar as row icon; gold-outlined inline copy button; gear/people/dollar/mic SVG icons; green voice status dot; Copy Code + Share Link buttons with left-aligned SVG icons. `RoomScreen.tsx` + `RoomScreen.css`. Build green.)
+
+Last updated: 2026-06-25 (RoomScreen desktop polish steps 4–7: gold-glow oval table + dealer chip + crown above host seat; desktop voice PTT bar + mic badges on participants; Room Details SVG icons + host avatar + primary Copy/Share buttons; friends avatar gold rings + inline online dots; felt desktop background + CSS footer chips/cards decor. `RoomScreen.tsx` + `RoomScreen.css`. Build green.)
+
+Last updated: 2026-06-25 (RoomScreen desktop layout restructure steps 1–3: flipped `RoomHeaderDesktop` (logo left, flourished ROOM title + 4 PLAYER ROOM badge center, icon Settings/Exit right); moved `ActivityPanel` + `VoiceChatPanel` into new `room__bottom-dock` 2-col grid under table; left column is Room Details only; replaced PLAYERS card with slim `room__status-bar` (Players N/4 + pips | elapsed timer). `RoomScreen.tsx` + `RoomScreen.css`. Build green.)
+
 Last updated: 2026-06-25 (Phase 6i data export complete — full vertical slice: server `DOWNLOAD_MY_DATA` event + `handleDownloadMyData` handler (parallel getUserGameHistory+getPlayerStats, flattenHistoryEntry+mapStatsView reuse, null stats→null), 4 integration tests (download-data.test.ts); web DownloadMyDataAck type + downloadMyData() helper + GameProvider callback + LobbyScreen "Download My Data" button (type="button", DOM-append anchor, deferred revokeObjectURL). Code-review fixes applied. All 457 tests pass (153 engine + 114 server + 191 db). Build green.)
 
 Last updated: 2026-06-25 (Phase 6i data export — server layer complete: `DOWNLOAD_MY_DATA: 'download_my_data'` added to `EVENTS` + `DownloadMyDataAck` type in `packages/server/src/protocol.ts`; `handleDownloadMyData` in `handlers.ts` (NOT_LOGGED_IN/UNAVAILABLE guards, parallel `Promise.all([getUserGameHistory, getPlayerStats])`, flattenHistoryEntry reuse, null stats → null in export not zeroStatsView); registered in `registerSocketEvents`; 3 integration tests in `download-data.test.ts`. Server: 110→113 tests. All 455 tests pass (153 engine + 113 server + 191 db). Build green.)
@@ -281,6 +295,8 @@ All 458 tests passing (153 engine + 114 server + 191 db).
 | `RoomScreen` — waiting room, player list, start button                                                                                                                                          | ✅      | `src/screens/RoomScreen.tsx`                                                                                                        |
 | RoomScreen: show player names (not shortId)                                                                                                                                                     | ✅      | Uses `playerNames` from context; fallback to `shortId(pid)`                                                                         |
 | RoomScreen: responsive casino redesign — `RoomHeaderMobile` (sticky, back/copy/menu), `RoomHeaderDesktop` (logo + ROOM XXXX + settings/exit), `OvalTable` (circular avatar seats with YOU glow + host crown + speaking ring), `VoiceChatPanel` (desktop participant grid + mobile controls), `ActivityPanel` (ACTIVITY/CHAT tabs + join/leave log), `RoomDetailsSidebar` (desktop left: room code/mode/host/voice rows + copy+share buttons), `FriendsOnlineSidebar` (desktop right: online friends + recent opponents + Invite rows), elapsed timer, 4-pip player count, mobile action row (Invite Friends / Share Link), waiting status block, Leave Room danger button, host footer | ✅ | Full rewrite of `RoomScreen.tsx` + `RoomScreen.css`; mobile-first 900px breakpoint; `useIsDesktop` hook; `playerAvatarUrls` from context; build green (0 TS errors). |
+| RoomScreen: desktop layout restructure (ref mockup steps 1–3) — header flip, bottom dock (Activity + Voice), slim status bar, left col details-only | ✅ | `RoomScreen.tsx` + `RoomScreen.css`; desktop-only; mobile unchanged; build green. |
+| RoomScreen: desktop polish (ref mockup steps 4–7) — table gold rim + dealer chip, voice PTT controls, sidebar/details polish, footer decoration asset | ✅ | Gold oval table, dealer D chip, crown reposition, desktop PTT + mic badges, details icons/host avatar/button hierarchy, invite gold rings, felt bg + CSS footer decor; build green. |
 | `GameScreen` — top bar, table stage, sidebar                                                                                                                                                    | ✅      | `src/screens/GameScreen.tsx`                                                                                                        |
 | GameScreen flat-table redesign — opponents top row (turn order), flat full-width board, own seat above hand                                                                                     | ✅      | Replaced oval `.table-felt`/rim seats with `.game__players` + `.game__board`; `Boards.css` `.table-center` → `.game__board`         |
 | GameScreen full-bleed felt + floating-avatar restyle — felt on `.game`, de-framed `.game__board`, all players (you centred) as borderless floating avatars in one row, OpponentSeat status line | ✅      | `orderedOpponents` → `orderedPlayers` (you at centre); removed `.game__you-seat`; `OpponentSeat` name/avatar/status/chips, no panel |
@@ -838,6 +854,85 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 ---
 
+## Phase DS — Design System Package (`packages/ds`)
+
+**Goal:** Create a shared `packages/ds` monorepo package that is the single source of truth for every reusable UI component. All components are developed and approved in Storybook before being consumed by `packages/web`. No standalone components may be introduced inside `packages/web/src/screens/` after this package exists.
+
+**Architecture doc:** `docs/DESIGN_SYSTEM_ARCHITECTURE.md` — read it before starting any task in this phase. It covers the full directory structure, design token strategy, component convention, story format, ESLint enforcement, migration path, and acceptance criteria.
+
+**Status:** ⬜ Not started
+
+### Two-tool philosophy
+- **Storybook** (runs inside `packages/ds`) — component workbench: isolation, controls, a11y audit, visual regression.
+- **`/design` route** (in `packages/web`) — product showroom: how components compose in the real app shell. After this phase it only imports from `@ganatri/ds`, never defines components.
+
+### DS-A — Package scaffold
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Create `packages/ds/` with `package.json`, `tsconfig.json`, `vite.config.ts` | ⬜ | `name: "@ganatri/ds"`, workspace package |
+| Install Storybook `@storybook/react-vite` + `addon-essentials` + `addon-a11y` | ⬜ | `npx storybook@latest init` inside `packages/ds` |
+| Create `.storybook/main.ts` + `.storybook/preview.ts` with dark default background | ⬜ | preview imports `src/tokens/index.css` globally |
+| Create `src/tokens/index.css` with all design tokens extracted from scattered CSS files | ⬜ | Tokens: `--gold`, `--gold-rim`, `--gold-2`, `--glow-gold`, `--safe`, `--danger`, `--panel`, `--panel-2`, `--text`, `--text-dim`, `--font-display`, `--chip-*`, `--red-suit`, `--black-suit`, etc. |
+| Create `src/index.ts` barrel export | ⬜ | Empty initially; components added as they are migrated |
+| Wire `@ganatri/ds: workspace:*` into `packages/web/package.json` | ⬜ | Run `npm install` at workspace root to link; confirm import resolves |
+| Add `packages/ds` to workspace root `package.json` `workspaces` array | ⬜ | |
+
+### DS-B — Migrate existing primitives
+
+Migrate the 9 components from `packages/web/src/design-system/DesignSystemPrimitives.tsx` into `packages/ds`. Delete `DesignSystemPrimitives.tsx` once it is empty.
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Migrate `DsButton` → `Button` | ⬜ | Props: `label`, `tone ('primary'\|'secondary'\|'danger'\|'ghost')`, `compact`, `disabled`; ≥6 stories |
+| Migrate `DsBadge` → `Badge` | ⬜ | Props: `label`, `tone ('default'\|'success'\|'warning'\|'danger'\|'info')`; ≥5 stories |
+| Migrate `DsCard` → `Card` | ⬜ | Props: `children`; stories: default, with content |
+| Migrate `DsField` → `Field` | ⬜ | Props: `label`, `value`, `icon?`; stories: with/without icon |
+| Migrate `DsListRow` → `ListRow` | ⬜ | Props: `title`, `subtitle`, `trailing?: ReactNode`; stories: with/without trailing |
+| Migrate `DsPageHeader` → `PageHeader` | ⬜ | Props: `title`, `subtitle?` |
+| Migrate `DsSection` → `Section` | ⬜ | Props: `title`, `children` |
+| Migrate `DsStat` → `Stat` | ⬜ | Props: `label`, `value`, `delta?` |
+| Migrate `DsTabs` → `Tabs` | ⬜ | Props: `items: string[]`, `active: string`, `onSelect?: (item: string) => void` |
+| Migrate `DsAlert` → `Alert` | ⬜ | Props: `tone`, `title`, `description` |
+| Update all `packages/web` imports from `DesignSystemPrimitives` → `@ganatri/ds` | ⬜ | Grep for the import path and update; confirm build green |
+| Delete `packages/web/src/design-system/DesignSystemPrimitives.tsx` | ⬜ | Only after all imports updated |
+
+### DS-C — Extract room components
+
+Migrate reusable sub-components from `RoomScreen.tsx` into `packages/ds`. Each component must be made static (no React hooks from the web app).
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Extract `RoomOvalTable` | ⬜ | Props: `seats: SeatData[]`; contains `RoomSeatSlot` children |
+| Extract `RoomSeatSlot` | ⬜ | Props: `name`, `isYou`, `isHost`, `isSpeaking`, `avatarUrl?`, `isEmpty`; renders crown + YOU badge + glow ring |
+| Extract `RoomHeaderDesktop` | ⬜ | Props: `roomCode`, `playerCount`, `maxPlayers`; logo img + flourish + gold title |
+| Extract `RoomHeaderMobile` | ⬜ | Props: `roomCode`, `onBack`, `onMenu`; sticky bar |
+| Extract `RoomDetailsSidebar` | ⬜ | Props: `roomCode`, `gameMode`, `maxPlayers`, `entryFee`, `hostName`, `voiceEnabled` |
+| Extract `RoomActivityPanel` | ⬜ | Props: `entries: ActivityEntry[]`, `activeTab`, `onTabChange` |
+| Extract `RoomFriendsPanel` | ⬜ | Props: `friends: FriendRow[]` |
+| Extract `RoomFooterBar` | ⬜ | No required props — suits/tagline/decorative chips |
+| Extract `RoomPipRow` | ⬜ | Props: `filled: number`, `max: number` |
+| Update `RoomScreen.tsx` to import all extracted components from `@ganatri/ds` | ⬜ | Remove inline sub-component definitions; pass live data as props |
+
+### DS-D — Update `/design` showroom
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Update `DesignSystemScreen.tsx` to import DS components from `@ganatri/ds` | ⬜ | Replace all inline JSX component definitions + `room__*` class usage with DS imports |
+| Remove `import './RoomScreen.css'` from `DesignSystemScreen.tsx` | ⬜ | The showroom must not depend on screen-level CSS; all needed styles live in DS component CSS files |
+| Confirm all 13 sidebar sections render correctly with DS components | ⬜ | Run `npm run dev` and visual-check each section |
+
+### DS-E — ESLint enforcement + CI gate
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| Add `no-restricted-imports` ESLint rule in `packages/web` | ⬜ | Block cross-screen imports; require `@ganatri/ds` for shared UI |
+| Add convention comment at top of every `*Screen.tsx` | ⬜ | `// SCREEN SHELL: no reusable component definitions here.` |
+| Confirm `npm run lint` passes in `packages/web` | ⬜ | |
+| Add `npm run lint` to CI pipeline | ⬜ | Gate merges on lint + type-check passing |
+
+---
+
 ## Deferred (out of v1 scope)
 
 
@@ -870,4 +965,5 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | Phase 7 — Improvements       | ⬜ Backlog identified; not yet started (27 tasks across 7 sub-phases 7a–7g). **Deprioritized below Phase 8.** |
 | Phase 8 — Social (Co-players & Invitations) | ✅ Complete (all 8a–8h shipped; 387 total tests) |
 | Phase 9 — Scoring / Rating / XP Progression | ⬜ Planned from `docs/POINTS_SYSTEM.md`: server-authoritative Match Score + Ranked Rating + XP/level progression, durable progression tables + score ledger, end-screen scoring recap, lobby/profile/history integration, admin/export follow-up. |
+| Phase DS — Design System Package (`packages/ds`) | ⬜ Not started. Architecture doc: `docs/DESIGN_SYSTEM_ARCHITECTURE.md`. 5 sub-phases: DS-A scaffold, DS-B migrate 9 primitives, DS-C extract room components, DS-D update showroom, DS-E ESLint + CI gate. |
 | Phase 6i — Account deletion (right to erasure) | ✅ Complete (full stack: DB + server + web; 441 total tests) |
