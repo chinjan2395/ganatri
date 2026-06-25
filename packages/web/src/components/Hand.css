@@ -92,3 +92,52 @@
   color: var(--text-dim);
   justify-content: center;
 }
+
+/* ── Stacked rows mode (hand > 10 cards) ──────────────────────────────────── */
+.hand--stacked {
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  padding: 10px 8px 6px;
+  width: 100%;
+}
+
+.hand__stack-row {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  max-width: 100%;
+}
+
+/* Each card peeks by --card-stack-peek; overlap = card-w minus that peek */
+.hand__stack-row .hand__slot {
+  margin-left: calc(-1 * (var(--card-w) - var(--card-stack-peek, 22px)));
+  transition: transform 0.16s ease, z-index 0s;
+}
+
+.hand__stack-row .hand__slot:first-child {
+  margin-left: 0;
+}
+
+.hand__stack-row .hand__slot:hover,
+.hand__stack-row .hand__slot:focus-within {
+  transform: translateY(var(--card-stack-hover-lift, -14px));
+  z-index: 20;
+  position: relative;
+}
+
+.hand__stack-row .hand__slot:has(.card--selected) {
+  transform: translateY(calc(var(--card-stack-hover-lift, -14px) - 4px));
+  z-index: 21;
+  position: relative;
+}
+
+@media (min-width: 768px) {
+  .game__hand-float .hand--fan .hand__fan-inner {
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.45));
+  }
+
+  .game__hand-float .hand--fan .hand__slot:hover,
+  .game__hand-float .hand--fan .hand__slot:focus-within {
+    transform: translateY(-18px);
+  }
+}

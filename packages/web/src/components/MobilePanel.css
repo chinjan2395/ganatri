@@ -1,0 +1,165 @@
+.mobile-panel {
+  width: var(--sidebar-mobile-w, 64px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 4px;
+  flex-shrink: 0;
+}
+
+/* ── Deck section ── */
+.mpanel__deck {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.mpanel__card-back {
+  width: 28px;
+  height: 39px;
+  border-radius: 4px;
+  background: repeating-linear-gradient(
+    45deg,
+    #2a4f8f,
+    #2a4f8f 4px,
+    #23427a 4px,
+    #23427a 8px
+  );
+  border: 1.5px solid rgba(231, 195, 74, 0.6);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.4),
+    0 3px 6px rgba(0, 0, 0, 0.45);
+  position: relative;
+}
+
+.mpanel__card-back::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 2px;
+  border: 1px solid rgba(231, 195, 74, 0.45);
+  background: radial-gradient(circle at 50% 50%, rgba(231, 195, 74, 0.2), transparent 60%);
+}
+
+.mpanel__label {
+  font-family: var(--font-display);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: var(--gold-rim);
+  text-transform: uppercase;
+}
+
+.mpanel__count {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold-rim);
+  line-height: 1;
+}
+
+/* ── Auto arrange toggle ── */
+.mpanel__toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: rgba(10, 20, 14, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 5px 6px;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.mpanel__toggle:active { opacity: 0.8; }
+
+.mpanel__toggle-label {
+  font-family: var(--font-display);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.mpanel__toggle-pill {
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-dim);
+}
+
+.mpanel__toggle-pill--on {
+  background: rgba(92, 210, 138, 0.25);
+  color: #6ed49a;
+  border: 1px solid rgba(92, 210, 138, 0.4);
+}
+
+/* ── Sort button ── */
+.mpanel__sort-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+  background: rgba(10, 20, 14, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 5px 6px;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-dim);
+  transition: background 0.15s;
+}
+.mpanel__sort-btn:active { opacity: 0.8; }
+
+.mpanel__sort-icon {
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* ── Cuts counter ── */
+.mpanel__cuts {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+/* ── Claim Capture button ── */
+.mpanel__claim {
+  width: 100%;
+  background: rgba(10, 20, 14, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 6px 4px;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-dim);
+  line-height: 1.3;
+  text-align: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.mpanel__claim--active {
+  background: rgba(231, 195, 74, 0.15);
+  border-color: rgba(231, 195, 74, 0.5);
+  color: var(--gold-rim);
+}
+
+.mpanel__claim:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}

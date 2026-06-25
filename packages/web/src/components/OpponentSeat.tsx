@@ -17,6 +17,7 @@ export interface OpponentSeatProps {
   disconnected: boolean;
   /** Condensed style for the top-row opponent seats. */
   compact?: boolean;
+  showFan?: boolean;
 }
 
 function shortId(id: PlayerId): string {
@@ -31,7 +32,7 @@ function hueFor(id: PlayerId): number {
 }
 
 export const OpponentSeat = memo(function OpponentSeat(props: OpponentSeatProps): React.ReactNode {
-  const { playerId, displayName, avatarUrl, isYou, handCount, captureCount, isTurn, isSafe, safeRank, disconnected, compact } =
+  const { playerId, displayName, avatarUrl, isYou, handCount, captureCount, isTurn, isSafe, safeRank, disconnected, compact, showFan } =
     props;
   const classes = ['seat'];
   if (isYou) classes.push('seat--you');
@@ -39,13 +40,21 @@ export const OpponentSeat = memo(function OpponentSeat(props: OpponentSeatProps)
   if (isSafe) classes.push('seat--safe');
   if (disconnected) classes.push('seat--disconnected');
   if (compact) classes.push('seat--compact');
+  if (showFan) classes.push('seat--with-fan');
 
   const label = displayName || shortId(playerId);
-  const showCaptures = captureCount !== undefined && captureCount > 0;
+  const showCaptures = captureCount !== undefined;
   const avatarStyle = { '--seat-hue': hueFor(playerId) } as React.CSSProperties;
 
   return (
     <div className={classes.join(' ')}>
+      {showFan && (
+        <div className="seat__fan" aria-hidden="true">
+          <div className="seat__fan-card" />
+          <div className="seat__fan-card" />
+          <div className="seat__fan-card" />
+        </div>
+      )}
       <span className="seat__name" title={label}>
         {label}
       </span>
@@ -83,9 +92,7 @@ export const OpponentSeat = memo(function OpponentSeat(props: OpponentSeatProps)
             </span>
             {showCaptures && (
               <span className="seat__stat seat__stat--capture" title="Captured cards">
-                <span className="seat__stat-icon" aria-hidden>
-                  ⬡
-                </span>
+                <span className="seat__stat-icon" aria-hidden>📦</span>
                 <span className="seat__stat-val">{captureCount}</span>
               </span>
             )}

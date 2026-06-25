@@ -363,6 +363,56 @@
   padding: 2px 6px;
 }
 
+/* ── Card fan decoration behind opponent avatar ── */
+.seat--with-fan {
+  position: relative;
+}
+
+.seat__fan {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.seat__fan-card {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  width: 20px;
+  height: 28px;
+  border-radius: 3px;
+  background: repeating-linear-gradient(
+    45deg,
+    #2a4f8f,
+    #2a4f8f 3px,
+    #23427a 3px,
+    #23427a 6px
+  );
+  border: 1px solid rgba(231, 195, 74, 0.45);
+  transform-origin: bottom center;
+  opacity: 0.8;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.seat__fan-card:nth-child(1) {
+  transform: translateX(-50%) rotate(-22deg) translateY(4px);
+}
+
+.seat__fan-card:nth-child(2) {
+  transform: translateX(-50%) rotate(-11deg) translateY(2px);
+}
+
+.seat__fan-card:nth-child(3) {
+  transform: translateX(-50%) rotate(0deg);
+}
+
+/* Make seat content sit above the fan */
+.seat--with-fan > *:not(.seat__fan) {
+  position: relative;
+  z-index: 1;
+}
+
 /* Very small devices */
 @media (max-width: 375px) {
   .seat--compact {

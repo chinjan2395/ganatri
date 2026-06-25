@@ -1,0 +1,128 @@
+.dplayer-bar {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .dplayer-bar {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    gap: 12px;
+    flex-shrink: 0;
+    padding: 10px 16px;
+    margin: 0 12px;
+    border-radius: 12px;
+    background:
+      linear-gradient(180deg, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0.2) 100%),
+      repeating-linear-gradient(
+        45deg,
+        rgba(255, 255, 255, 0.02) 0px,
+        rgba(255, 255, 255, 0.02) 1px,
+        transparent 1px,
+        transparent 8px
+      );
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .dplayer-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 160px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    background: rgba(12, 22, 16, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .dplayer-card--turn {
+    border-color: rgba(231, 195, 74, 0.55);
+    box-shadow:
+      0 0 0 1px rgba(231, 195, 74, 0.25),
+      0 0 20px rgba(231, 195, 74, 0.2),
+      inset 0 0 24px rgba(231, 195, 74, 0.06);
+  }
+
+  .dplayer-card--you.dplayer-card--turn {
+    border-color: rgba(231, 195, 74, 0.7);
+    box-shadow:
+      0 0 0 1px rgba(231, 195, 74, 0.4),
+      0 0 28px rgba(231, 195, 74, 0.35),
+      inset 0 0 28px rgba(231, 195, 74, 0.08);
+  }
+
+  .dplayer-card--offline {
+    opacity: 0.5;
+  }
+
+  .dplayer-card__avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(74, 144, 226, 0.28);
+    border: 2px solid rgba(74, 144, 226, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .dplayer-card--you .dplayer-card__avatar {
+    border-color: var(--gold);
+    box-shadow: 0 0 12px rgba(231, 195, 74, 0.4);
+  }
+
+  .dplayer-card__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .dplayer-card__initials {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 800;
+    color: #fff;
+  }
+
+  .dplayer-card__meta {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .dplayer-card__name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .dplayer-card__you {
+    color: var(--gold-rim);
+    font-weight: 700;
+  }
+
+  .dplayer-card__offline-tag {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--danger);
+  }
+
+  .dplayer-card__score {
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--gold-rim);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}
