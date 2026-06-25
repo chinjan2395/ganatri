@@ -35,6 +35,7 @@ import type {
   RankedLeaderboardEntry,
   RecordGameFinishedInput,
   RecordGameStartedInput,
+  ResolvedAuthSession,
   RoomRow,
   RoomStatus,
   ScoreHistoryEntry,
@@ -236,23 +237,26 @@ export class MemoryPersistence implements GamePersistence {
     this.oauthAccounts.set(row.id, row);
   }
 
-  async createAuthSession(input: CreateAuthSessionInput): Promise<void> {
+  async createAuthSession(input: CreateAuthSessionInput): Promise<AuthSessionRow> {
     if (!this.users.has(input.userId)) {
       throw new Error(`FK violation: user ${input.userId} not found`);
     }
+    const now = new Date();
     const row: AuthSessionRow = {
       id: newId('sess'),
       userId: input.userId,
       tokenHash: input.tokenHash,
-      createdAt: new Date(),
+      createdAt: now,
+      lastSeenAt: now,
       expiresAt: input.expiresAt,
       revoked: false,
       userAgent: input.userAgent ?? null,
     };
     this.authSessions.set(row.id, row);
+    return row;
   }
 
-  async getUserBySessionTokenHash(tokenHash: string): Promise<UserRow | null> {
+  async getAuthSessionByTokenHash(tokenHash: string): Promise<ResolvedAuthSession | null> {
     const now = Date.now();
     const session = [...this.authSessions.values()].find(
       (s) =>
@@ -261,7 +265,32 @@ export class MemoryPersistence implements GamePersistence {
         s.expiresAt.getTime() > now
     );
     if (!session) return null;
-    return this.users.get(session.userId) ?? null;
+    const user = this.users.get(session.userId);
+    if (!user) return null;
+    return { session, user };
+  }
+
+  async touchAuthSession(tokenHash: string, expiresAt: Date): Promise<AuthSessionRow | null> {
+    const now = Date.now();
+    for (const [id, s] of this.authSessions) {
+      if (s.tokenHash === tokenHash && !s.revoked && s.expiresAt.getTime() > now) {
+        const updated = { ...s, lastSeenAt: new Date(), expiresAt };
+        this.authSessions.set(id, updated);
+        return updated;
+      }
+    }
+    return null;
+  }
+
+  async listAuthSessions(userId: string): Promise<AuthSessionRow[]> {
+    const now = Date.now();
+    return [...this.authSessions.values()]
+      .filter((s) => s.userId === userId && !s.revoked && s.expiresAt.getTime() > now)
+      .sort((a, b) => {
+        const lastSeenDelta = b.lastSeenAt.getTime() - a.lastSeenAt.getTime();
+        if (lastSeenDelta !== 0) return lastSeenDelta;
+        return b.createdAt.getTime() - a.createdAt.getTime();
+      });
   }
 
   async revokeAuthSession(tokenHash: string): Promise<void> {
@@ -270,6 +299,29 @@ export class MemoryPersistence implements GamePersistence {
         this.authSessions.set(id, { ...s, revoked: true });
       }
     }
+  }
+
+  async revokeAuthSessionById(userId: string, sessionId: string): Promise<void> {
+    const session = this.authSessions.get(sessionId);
+    if (!session || session.userId !== userId || session.revoked) return;
+    this.authSessions.set(sessionId, { ...session, revoked: true });
+  }
+
+  async revokeOtherAuthSessions(userId: string, currentSessionId: string): Promise<number> {
+    let count = 0;
+    const now = Date.now();
+    for (const [id, s] of this.authSessions) {
+      if (
+        s.userId === userId
+        && id !== currentSessionId
+        && !s.revoked
+        && s.expiresAt.getTime() > now
+      ) {
+        this.authSessions.set(id, { ...s, revoked: true });
+        count += 1;
+      }
+    }
+    return count;
   }
 
   // History -----------------------------------------------------------------

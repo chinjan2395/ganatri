@@ -13,7 +13,7 @@
 Phase 6 — Persistence, Accounts, Statistics & Analytics
 
 ## Status
-NOT_STARTED — Next nightly work should resume remaining Phase 6 items, starting with user data export (6i).  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+NOT_STARTED — Next nightly work should resume remaining Phase 6 items, starting with user data export (6i). Auth session management (6c) shipped 2026-06-25.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase 1 — Rules Engine (153 tests passing)
@@ -34,6 +34,7 @@ NOT_STARTED — Next nightly work should resume remaining Phase 6 items, startin
 - [x] Phase 6h KPI charts (2026-06-23) — `getAdminKpiStats` DB + server + web `KpiSection` bar chart
 - [x] Phase 6h User Management (2026-06-23) — `searchUsers`/`adminGetUserStats` DB + server (`ADMIN_SEARCH_USERS`/`ADMIN_GET_USER_STATS` events) + web `UserManagementSection` in AdminScreen
 - [x] Phase 6i Account Deletion (2026-06-23) — `deleteUser(userId)` in GamePersistence (DB + 6 contract tests); `DELETE_ACCOUNT` event + `handleDeleteAccount` handler (silentLeaveRoom + DB delete + session→guest + SESSION re-emit, 3 integration tests); web `deleteAccount()` helper + ProfilePanel danger button + inline confirm flow. Schema: `rooms.hostUserId` made nullable + migration `0004_nullable_room_host.sql`. 441 tests pass (153 engine + 102 server + 186 db).
+- [x] Phase 6c Active session management (2026-06-25) — DB `last_seen_at` + list/touch/revoke session methods; server `GET_AUTH_SESSIONS`/`REVOKE_AUTH_SESSION`/`REVOKE_OTHER_AUTH_SESSIONS`, sliding expiry, OAuth httpOnly cookie + `/auth/bootstrap`, `guestToken` rename; web `SessionsScreen` device management UI. 452 tests pass (153 engine + 108 server + 191 db).
 
 ## Sequencing Note
 STATE.md was previously stale (claimed only 6a complete). It has been reconciled with
@@ -44,9 +45,9 @@ small full-stack vertical slices that mirror the history slice.
 Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — skip in nightly runs.
 
 ## Last Run
-- Date: 2026-06-23
-- Outcome: Priority queue updated by human request to remove Phase 9 from next-task consideration; nightly should resume remaining Phase 6 work instead of blocking on scoring.
-- Branch/PR: nightly/2026-06-23-2020
+- Date: 2026-06-25
+- Outcome: Phase 6c active session management shipped manually (DB + server + web vertical slice).
+- Branch/PR: feat/auth-session-management
 
 ## Blockers / Needs Human Input
 _(none)_
@@ -55,6 +56,6 @@ _(none)_
 Resume Phase 6 remaining work in this order:
 1. **6i: User data export (GDPR/right to access)** — Let a logged-in user download their own account data (history, stats). Separate from the admin export already done. Server event `download_my_data`, handler that calls `getUserGameHistory` + `getPlayerStats`, returns JSON blob or acks it directly. Web: button in LobbyScreen profile panel or a new screen.
 2. **6j: Ops hardening** — DB monitoring, connection-pool sizing, cost alerts.
-3. **6c remaining account settings** — Avatar URL edit + OAuth link/unlink (complex; skip if tight).
+3. **6c remaining account settings** — Avatar URL edit + OAuth link/unlink (complex; skip if tight). Active session management ✅ (2026-06-25).
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.

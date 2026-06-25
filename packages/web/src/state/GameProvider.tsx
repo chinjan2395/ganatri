@@ -22,7 +22,12 @@ import {
   requestLeaderboard as netRequestLeaderboard,
   loginWithGoogle as netLoginWithGoogle,
   logout as netLogout,
-  setToken,
+  clearGuestToken,
+  clearRuntimeSessionStorage,
+  getAuthSessions as netGetAuthSessions,
+  revokeAuthSession as netRevokeAuthSession,
+  revokeOtherAuthSessions as netRevokeOtherAuthSessions,
+  setGuestToken,
   setPlayerId,
   socket,
   startGame as netStartGame,
@@ -67,11 +72,14 @@ import {
   type UnblockUserAck,
   type GetBlockedUsersAck,
   type DeleteAccountAck,
+  type GetAuthSessionsAck,
+  type RevokeAuthSessionAck,
+  type RevokeOtherAuthSessionsAck,
 } from '../protocol';
 
 export interface SessionInfo {
-  token: string;
   playerId: string;
+  guestToken?: string;
 }
 
 export interface AccountInfo {
@@ -120,8 +128,8 @@ export interface GameContextValue {
   startGame: () => Promise<StartGameAck>;
   makeMove: (move: Move) => Promise<boolean>;
   /** Lightweight in-app navigation for non-game screens (e.g. history). */
-  screen: 'main' | 'history' | 'stats' | 'leaderboard';
-  setScreen: (screen: 'main' | 'history' | 'stats' | 'leaderboard') => void;
+  screen: 'main' | 'history' | 'stats' | 'leaderboard' | 'sessions';
+  setScreen: (screen: 'main' | 'history' | 'stats' | 'leaderboard' | 'sessions') => void;
   requestHistory: () => Promise<RequestHistoryAck>;
   requestMyStats: () => Promise<GetMyStatsAck>;
   getMyProgression: () => Promise<GetMyProgressionAck>;
@@ -135,6 +143,9 @@ export interface GameContextValue {
   blockUser: (targetUserId: string) => Promise<BlockUserAck>;
   unblockUser: (targetUserId: string) => Promise<UnblockUserAck>;
   getBlockedUsers: () => Promise<GetBlockedUsersAck>;
+  getAuthSessions: () => Promise<GetAuthSessionsAck>;
+  revokeAuthSession: (sessionId: string) => Promise<RevokeAuthSessionAck>;
+  revokeOtherAuthSessions: () => Promise<RevokeOtherAuthSessionsAck>;
   deleteAccount: () => Promise<DeleteAccountAck>;
   refreshRecentPlayers: () => Promise<void>;
 }
@@ -145,7 +156,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
   const [connected, setConnected] = useState(socket.connected);
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [account, setAccount] = useState<AccountInfo | null>(null);
-  const [screen, setScreen] = useState<'main' | 'history' | 'stats' | 'leaderboard'>('main');
+  const [screen, setScreen] = useState<'main' | 'history' | 'stats' | 'leaderboard' | 'sessions'>('main');
   const [room, setRoom] = useState<RoomUpdatePayload | null>(null);
   const [view, setView] = useState<PlayerView | null>(null);
   const [turnStartedAt, setTurnStartedAt] = useState<number | null>(null);
@@ -184,9 +195,16 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       setConnected(false);
     }
     function onSession(payload: SessionPayload): void {
-      setToken(payload.token);
+      if (payload.loggedIn) {
+        clearGuestToken();
+      } else if (payload.guestToken) {
+        setGuestToken(payload.guestToken);
+      }
       setPlayerId(payload.playerId);
-      setSession({ token: payload.token, playerId: payload.playerId });
+      setSession({
+        playerId: payload.playerId,
+        ...(payload.guestToken ? { guestToken: payload.guestToken } : {}),
+      });
       setAccount({
         loggedIn: payload.loggedIn,
         displayName: payload.displayName,
@@ -387,7 +405,27 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
   const blockUser = useCallback((targetUserId: string) => netBlockUser(targetUserId), []);
   const unblockUser = useCallback((targetUserId: string) => netUnblockUser(targetUserId), []);
   const getBlockedUsers = useCallback(() => netGetBlockedUsers(), []);
-  const deleteAccount = useCallback(() => netDeleteAccount(), []);
+  const getAuthSessions = useCallback(() => netGetAuthSessions(), []);
+  const revokeAuthSession = useCallback(
+    async (sessionId: string): Promise<RevokeAuthSessionAck> => {
+      const ack = await netRevokeAuthSession(sessionId);
+      if (ack.ok && ack.revokedCurrent) {
+        netLogout();
+      }
+      return ack;
+    },
+    [],
+  );
+  const revokeOtherAuthSessions = useCallback(() => netRevokeOtherAuthSessions(), []);
+  const deleteAccount = useCallback(async (): Promise<DeleteAccountAck> => {
+    const ack = await netDeleteAccount();
+    if (ack.ok) {
+      clearRuntimeSessionStorage();
+      setScreen('main');
+      socket.disconnect().connect();
+    }
+    return ack;
+  }, []);
   const refreshRecentPlayers = useCallback(async () => {
     const ack = await netRequestRecentPlayers();
     if (ack.ok) setRecentPlayers(ack.players);
@@ -476,6 +514,9 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       blockUser,
       unblockUser,
       getBlockedUsers,
+      getAuthSessions,
+      revokeAuthSession,
+      revokeOtherAuthSessions,
       deleteAccount,
       refreshRecentPlayers,
     }),
@@ -521,6 +562,9 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       blockUser,
       unblockUser,
       getBlockedUsers,
+      getAuthSessions,
+      revokeAuthSession,
+      revokeOtherAuthSessions,
       deleteAccount,
       refreshRecentPlayers,
     ],

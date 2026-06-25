@@ -7,6 +7,7 @@ import { AdminScreen } from './screens/AdminScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
 import { StatsScreen } from './screens/StatsScreen';
 import { LeaderboardScreen } from './screens/LeaderboardScreen';
+import { SessionsScreen } from './screens/SessionsScreen';
 import { Toast } from './components/Toast';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { InviteToast } from './components/InviteToast';
@@ -45,6 +46,8 @@ export function App(): React.ReactNode {
     screen = <StatsScreen />;
   } else if (navScreen === 'leaderboard') {
     screen = <LeaderboardScreen />;
+  } else if (navScreen === 'sessions') {
+    screen = <SessionsScreen />;
   } else if (navScreen === 'history') {
     screen = <HistoryScreen />;
   } else {

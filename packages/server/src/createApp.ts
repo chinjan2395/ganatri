@@ -73,6 +73,30 @@ function redirect(res: ServerResponse, location: string, setCookies: string[] = 
   res.end();
 }
 
+function json(
+  res: ServerResponse,
+  status: number,
+  body: unknown,
+  setCookies: string[] = [],
+): void {
+  if (setCookies.length > 0) res.setHeader('Set-Cookie', setCookies);
+  res.writeHead(status, {
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-store',
+  });
+  res.end(JSON.stringify(body));
+}
+
+async function readJsonBody(req: IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  const raw = Buffer.concat(chunks).toString('utf8').trim();
+  if (!raw) return null;
+  return JSON.parse(raw) as unknown;
+}
+
 // ---------------------------------------------------------------------------
 // HTTP route handling
 // ---------------------------------------------------------------------------
@@ -139,6 +163,11 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     return;
   }
 
+  if (path === '/auth/bootstrap') {
+    await handleAuthBootstrap(req, res);
+    return;
+  }
+
   if (path === '/auth/logout') {
     await handleLogout(req, res);
     return;
@@ -146,6 +175,80 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
 
   res.writeHead(404, { 'Content-Type': 'text/plain' });
   res.end('not found');
+}
+
+async function handleAuthBootstrap(
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  if (req.method !== 'POST') {
+    res.writeHead(405, { 'Content-Type': 'text/plain' });
+    res.end('method not allowed');
+    return;
+  }
+
+  const p = getPersistence();
+  const cookies = parseCookies(req.headers.cookie);
+  const cookieToken = cookies[SESSION_COOKIE_NAME];
+  if (p && cookieToken) {
+    const tokenHash = hashToken(cookieToken);
+    const resolved = await p.getAuthSessionByTokenHash(tokenHash);
+    if (resolved) {
+      await p.touchAuthSession(
+        tokenHash,
+        new Date(Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000),
+      );
+      json(res, 200, { kind: 'auth' });
+      return;
+    }
+  }
+
+  let legacyToken: string | undefined;
+  try {
+    const body = await readJsonBody(req);
+    if (typeof body === 'object' && body !== null) {
+      const raw = (body as Record<string, unknown>)['legacyToken'];
+      if (typeof raw === 'string' && raw) legacyToken = raw;
+    }
+  } catch {
+    json(res, 400, { kind: 'none' });
+    return;
+  }
+
+  if (!legacyToken) {
+    json(res, 200, { kind: 'none' });
+    return;
+  }
+
+  if (p) {
+    const tokenHash = hashToken(legacyToken);
+    const resolved = await p.getAuthSessionByTokenHash(tokenHash);
+    if (resolved) {
+      await p.touchAuthSession(
+        tokenHash,
+        new Date(Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000),
+      );
+      json(
+        res,
+        200,
+        { kind: 'auth' },
+        [buildSessionCookie(legacyToken, SESSION_TTL_DAYS, cookiesSecure())],
+      );
+      return;
+    }
+  }
+
+  const guestSession = getSession(legacyToken);
+  if (guestSession) {
+    json(res, 200, {
+      kind: 'guest',
+      guestToken: guestSession.token,
+      playerId: guestSession.playerId,
+    });
+    return;
+  }
+
+  json(res, 200, { kind: 'none' });
 }
 
 async function handleGoogleCallback(
@@ -214,7 +317,8 @@ async function handleGoogleCallback(
       }
     }
 
-    redirect(res, `${webRedirectBase}?auth_token=${encodeURIComponent(token)}`, [
+    redirect(res, webRedirectBase, [
+      buildSessionCookie(token, SESSION_TTL_DAYS, cookiesSecure()),
       buildClearStateCookie(cookiesSecure()),
       buildClearGuestCookie(cookiesSecure()),
     ]);

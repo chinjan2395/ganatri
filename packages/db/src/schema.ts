@@ -142,6 +142,9 @@ export const authSessions = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     revoked: boolean('revoked').notNull().default(false),
     userAgent: varchar('user_agent', { length: 255 }),

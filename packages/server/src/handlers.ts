@@ -47,6 +47,11 @@ import {
   type UpdateDisplayNamePayload,
   type UpdateDisplayNameAck,
   type DeleteAccountAck,
+  type AuthSessionView,
+  type GetAuthSessionsAck,
+  type RevokeAuthSessionPayload,
+  type RevokeAuthSessionAck,
+  type RevokeOtherAuthSessionsAck,
   type CoPlayerView,
   type GetRecentPlayersAck,
   type GetBlockedUsersAck,
@@ -79,6 +84,7 @@ import type {
 } from '@ganatri/db';
 import { getConfig, isAdminEmail, isValidAdminSecret, updateConfig, RETENTION_DAYS } from './config.js';
 import { getIceServers } from './iceConfig.js';
+import { maybeTouchAuthenticatedSession } from './auth/sessionMiddleware.js';
 import {
   type RoomState,
   type SessionState,
@@ -422,27 +428,40 @@ function tryAdoptGhostSession(
   socket: Socket,
   incomingPlayerId?: string,
 ): SessionState | null {
-  const playerId: string | undefined = socket.data.userId ?? incomingPlayerId;
-  if (!playerId) return null;
+  const candidatePlayerIds: string[] = [];
+  if (incomingPlayerId) candidatePlayerIds.push(incomingPlayerId);
+  if (socket.data.userId && socket.data.userId !== incomingPlayerId) {
+    candidatePlayerIds.push(socket.data.userId);
+  }
 
-  const existingToken = store.playerIndex.get(playerId);
-  if (existingToken === undefined) return null;
+  for (const playerId of candidatePlayerIds) {
+    const existingToken = store.playerIndex.get(playerId);
+    if (existingToken === undefined) continue;
 
-  const ghost = store.sessions.get(existingToken);
-  // Only adopt sessions that are genuinely disconnected (socketId === null).
-  // Active sessions (socketId set) are handled via the normal token path.
-  if (!ghost || ghost.socketId !== null) return null;
+    const ghost = store.sessions.get(existingToken);
+    if (!ghost || ghost.socketId !== null) continue;
 
-  // Adopt: replace the temporary ghost token with a real per-socket token.
-  const newToken = uuidv4();
-  store.sessions.delete(existingToken);
-  ghost.token = newToken;
-  ghost.socketId = socket.id;
-  store.sessions.set(newToken, ghost);
-  store.playerIndex.set(playerId, newToken);
-  bindAccount(socket, ghost);
-  socket.emit(EVENTS.SESSION, sessionPayload(ghost));
-  return ghost;
+    const authenticatedUserId = socket.data.userId;
+    if (
+      authenticatedUserId
+      && ghost.userId !== null
+      && ghost.userId !== authenticatedUserId
+    ) {
+      continue;
+    }
+
+    const newToken = uuidv4();
+    store.sessions.delete(existingToken);
+    ghost.token = newToken;
+    ghost.socketId = socket.id;
+    store.sessions.set(newToken, ghost);
+    store.playerIndex.set(ghost.playerId, newToken);
+    bindAccount(socket, ghost);
+    socket.emit(EVENTS.SESSION, sessionPayload(ghost));
+    return ghost;
+  }
+
+  return null;
 }
 
 /**
@@ -473,14 +492,14 @@ export function scheduleGracePeriodForRecovery(
 
 function handleConnection(io: Server, socket: Socket): void {
   // Resolve or create session.
-  const incomingToken = socket.handshake.auth['token'] as string | undefined;
+  const incomingGuestToken = socket.handshake.auth['guestToken'] as string | undefined;
   // playerId sent from client localStorage — used to adopt ghost sessions after
   // a server restart when the old token is no longer in the store.
   const incomingPlayerId = socket.handshake.auth['playerId'] as string | undefined;
   let session: SessionState;
 
-  if (incomingToken !== undefined && incomingToken !== '') {
-    const existing = getSession(incomingToken);
+  if (incomingGuestToken !== undefined && incomingGuestToken !== '') {
+    const existing = getSession(incomingGuestToken);
     if (existing !== undefined) {
       // Normal reconnect: token found in store.
       session = existing;
@@ -567,8 +586,8 @@ function issueNewSession(socket: Socket): SessionState {
 
 /** Build the SESSION payload, including account fields when logged in. */
 function sessionPayload(session: SessionState): {
-  token: string;
   playerId: string;
+  guestToken?: string;
   loggedIn: boolean;
   displayName?: string;
   email?: string;
@@ -577,7 +596,6 @@ function sessionPayload(session: SessionState): {
 } {
   if (session.userId !== null && session.account !== null) {
     return {
-      token: session.token,
       playerId: session.playerId,
       loggedIn: true,
       displayName: session.account.displayName,
@@ -586,8 +604,8 @@ function sessionPayload(session: SessionState): {
     };
   }
   return {
-    token: session.token,
     playerId: session.playerId,
+    guestToken: session.token,
     loggedIn: false,
     ...(session.name ? { name: session.name } : {}),
   };
@@ -728,7 +746,10 @@ export function __resetPendingInvitesForTests(): void {
 }
 
 function registerSocketEvents(io: Server, socket: Socket, session: SessionState): void {
+  const touchAuthSession = (): void => maybeTouchAuthenticatedSession(socket);
+
   socket.on(EVENTS.CREATE_ROOM, (payloadOrAck: unknown, maybeAck?: (res: CreateRoomAck) => void) => {
+    touchAuthSession();
     // Support both (payload, ack) and legacy (ack) call forms.
     let ack: (res: CreateRoomAck) => void;
     let name = '';
@@ -747,6 +768,7 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
   });
 
   socket.on(EVENTS.JOIN_ROOM, (payload: unknown, ack: (res: JoinRoomAck) => void) => {
+    touchAuthSession();
     if (typeof ack !== 'function') return;
     if (!isJoinRoomPayload(payload)) {
       ack({ ok: false, error: 'NOT_FOUND' });
@@ -759,16 +781,19 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
   });
 
   socket.on(EVENTS.LEAVE_ROOM, (ack: (res: LeaveRoomAck) => void) => {
+    touchAuthSession();
     if (typeof ack !== 'function') return;
     handleLeaveRoom(socket, session, ack);
   });
 
   socket.on(EVENTS.START_GAME, (ack: (res: StartGameAck) => void) => {
+    touchAuthSession();
     if (typeof ack !== 'function') return;
     handleStartGame(session, ack);
   });
 
   socket.on(EVENTS.MAKE_MOVE, (payload: unknown, ack: (res: MakeMoveAck) => void) => {
+    touchAuthSession();
     if (typeof ack !== 'function') return;
 
     // Rate-limit: debounce rapid double-submits.
@@ -788,61 +813,73 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
   });
 
   socket.on(EVENTS.REQUEST_STATE, (ack: (res: RequestStateAck) => void) => {
+    touchAuthSession();
     if (typeof ack !== 'function') return;
     handleRequestState(session, ack);
   });
 
   socket.on(EVENTS.REQUEST_HISTORY, (ack: (res: RequestHistoryAck) => void) => {
+    touchAuthSession();
     if (typeof ack !== 'function') return;
     void handleRequestHistory(session, ack);
   });
 
   socket.on(EVENTS.GET_RECENT_PLAYERS, (ack: (res: GetRecentPlayersAck) => void) => {
+    touchAuthSession();
     if (typeof ack !== 'function') return;
     void handleGetRecentPlayers(session, ack);
   });
 
   socket.on(EVENTS.GET_BLOCKED_USERS, (ack: (res: GetBlockedUsersAck) => void) => {
+    touchAuthSession();
     if (typeof ack !== 'function') return;
     void handleGetBlockedUsers(session, ack);
   });
 
   socket.on(EVENTS.INVITE_PLAYER, (payload: unknown, ack: (res: InvitePlayerAck) => void) => {
+    touchAuthSession();
     if (typeof ack !== 'function') return;
     void handleInvitePlayer(socket, session, payload, ack);
   });
 
   socket.on(EVENTS.RESPOND_TO_INVITE, (payload: unknown, ack: (res: RespondToInviteAck) => void) => {
+    touchAuthSession();
     if (typeof ack !== 'function') return;
     void handleRespondToInvite(socket, session, payload, ack);
   });
 
   socket.on(EVENTS.BLOCK_USER, (payload: unknown, ack: (res: BlockUserAck) => void) => {
+    touchAuthSession();
     if (typeof ack !== 'function') return;
     void handleBlockUser(session, payload, ack);
   });
 
   socket.on(EVENTS.UNBLOCK_USER, (payload: unknown, ack: (res: UnblockUserAck) => void) => {
+    touchAuthSession();
     if (typeof ack !== 'function') return;
     void handleUnblockUser(session, payload, ack);
   });
 
   socket.on(EVENTS.GET_MY_STATS, (ack: (res: GetMyStatsAck) => void) => {
+    touchAuthSession();
     if (typeof ack !== 'function') return;
     void handleGetMyStats(session, ack);
   });
 
   socket.on(EVENTS.GET_MY_PROGRESSION, (ack: (res: GetMyProgressionAck) => void) => {
+    touchAuthSession();
     if (typeof ack !== 'function') return;
     void handleGetMyProgression(session, ack);
   });
 
   socket.on(EVENTS.GET_MY_SCORE_HISTORY, (ack: (res: GetMyScoreHistoryAck) => void) => {
+    touchAuthSession();
     if (typeof ack !== 'function') return;
     void handleGetMyScoreHistory(session, ack);
   });
 
   socket.on(EVENTS.GET_LEADERBOARD, (reqOrAck: GetLeaderboardRequest | ((res: GetLeaderboardAck) => void), maybeAck?: (res: GetLeaderboardAck) => void) => {
+    touchAuthSession();
     // Support both: emit(event, payload, ack) and legacy emit(event, ack).
     let req: GetLeaderboardRequest;
     let ack: (res: GetLeaderboardAck) => void;
@@ -858,11 +895,31 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
   });
 
   socket.on(EVENTS.UPDATE_DISPLAY_NAME, (payload: unknown, ack: (res: UpdateDisplayNameAck) => void) => {
+    touchAuthSession();
     if (typeof ack !== 'function') return;
     void handleUpdateDisplayName(socket, session, payload, ack).catch(console.error);
   });
 
+  socket.on(EVENTS.GET_AUTH_SESSIONS, (ack: (res: GetAuthSessionsAck) => void) => {
+    touchAuthSession();
+    if (typeof ack !== 'function') return;
+    void handleGetAuthSessions(socket, session, ack).catch(console.error);
+  });
+
+  socket.on(EVENTS.REVOKE_AUTH_SESSION, (payload: unknown, ack: (res: RevokeAuthSessionAck) => void) => {
+    touchAuthSession();
+    if (typeof ack !== 'function') return;
+    void handleRevokeAuthSession(socket, session, payload, ack).catch(console.error);
+  });
+
+  socket.on(EVENTS.REVOKE_OTHER_AUTH_SESSIONS, (ack: (res: RevokeOtherAuthSessionsAck) => void) => {
+    touchAuthSession();
+    if (typeof ack !== 'function') return;
+    void handleRevokeOtherAuthSessions(socket, session, ack).catch(console.error);
+  });
+
   socket.on(EVENTS.DELETE_ACCOUNT, (ack: (res: DeleteAccountAck) => void) => {
+    touchAuthSession();
     if (typeof ack !== 'function') return;
     void handleDeleteAccount(socket, session, ack).catch(console.error);
   });
@@ -2006,6 +2063,139 @@ async function handleUpdateDisplayName(
   socket.emit(EVENTS.SESSION, sessionPayload(session));
 
   ack({ ok: true, displayName: sanitized });
+}
+
+function authSessionView(
+  authSession: {
+    id: string;
+    userAgent: string | null;
+    createdAt: Date;
+    lastSeenAt: Date;
+    expiresAt: Date;
+  },
+  currentSessionId: string,
+): AuthSessionView {
+  return {
+    id: authSession.id,
+    current: authSession.id === currentSessionId,
+    userAgent: authSession.userAgent?.trim() || 'Unknown device',
+    createdAt: authSession.createdAt.toISOString(),
+    lastSeenAt: authSession.lastSeenAt.toISOString(),
+    expiresAt: authSession.expiresAt.toISOString(),
+  };
+}
+
+async function handleGetAuthSessions(
+  socket: Socket,
+  session: SessionState,
+  ack: (res: GetAuthSessionsAck) => void,
+): Promise<void> {
+  if (session.userId === null || session.account === null || !socket.data.authSessionId) {
+    ack({ ok: false, error: 'NOT_LOGGED_IN' });
+    return;
+  }
+
+  const p = getPersistence();
+  if (!p) {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+
+  try {
+    const sessions = await p.listAuthSessions(session.userId);
+    ack({
+      ok: true,
+      sessions: sessions.map((authSession) =>
+        authSessionView(authSession, socket.data.authSessionId!),
+      ),
+    });
+  } catch (err) {
+    console.error(`[auth] listAuthSessions failed for ${session.userId}:`, err);
+    ack({ ok: false, error: 'UNAVAILABLE' });
+  }
+}
+
+async function handleRevokeAuthSession(
+  socket: Socket,
+  session: SessionState,
+  payload: unknown,
+  ack: (res: RevokeAuthSessionAck) => void,
+): Promise<void> {
+  if (session.userId === null || session.account === null || !socket.data.authSessionId) {
+    ack({ ok: false, error: 'NOT_LOGGED_IN' });
+    return;
+  }
+  if (
+    typeof payload !== 'object'
+    || payload === null
+    || typeof (payload as Record<string, unknown>)['sessionId'] !== 'string'
+  ) {
+    ack({ ok: false, error: 'NOT_FOUND' });
+    return;
+  }
+
+  const targetSessionId = (payload as RevokeAuthSessionPayload).sessionId;
+  const p = getPersistence();
+  if (!p) {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+
+  try {
+    const sessions = await p.listAuthSessions(session.userId);
+    if (!sessions.some((authSession) => authSession.id === targetSessionId)) {
+      ack({ ok: false, error: 'NOT_FOUND' });
+      return;
+    }
+
+    await p.revokeAuthSessionById(session.userId, targetSessionId);
+    const revokedCurrent = targetSessionId === socket.data.authSessionId;
+
+    if (revokedCurrent) {
+      const revokedUserId = session.userId;
+      session.userId = null;
+      session.account = null;
+      socket.data.authSessionId = undefined;
+      socket.data.authSessionTokenHash = undefined;
+      socket.data.authSessionTouchedAt = undefined;
+      updateSession(session.token, { name: '' });
+      socket.emit(EVENTS.SESSION, sessionPayload(session));
+      socket.broadcast.emit(EVENTS.PLAYER_ONLINE_STATUS, {
+        userId: revokedUserId,
+        isOnline: false,
+      } satisfies PlayerOnlineStatusPayload);
+    }
+
+    ack({ ok: true, revokedCurrent });
+  } catch (err) {
+    console.error(`[auth] revokeAuthSessionById failed for ${session.userId}:`, err);
+    ack({ ok: false, error: 'UNAVAILABLE' });
+  }
+}
+
+async function handleRevokeOtherAuthSessions(
+  socket: Socket,
+  session: SessionState,
+  ack: (res: RevokeOtherAuthSessionsAck) => void,
+): Promise<void> {
+  if (session.userId === null || session.account === null || !socket.data.authSessionId) {
+    ack({ ok: false, error: 'NOT_LOGGED_IN' });
+    return;
+  }
+
+  const p = getPersistence();
+  if (!p) {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+
+  try {
+    const revokedCount = await p.revokeOtherAuthSessions(session.userId, socket.data.authSessionId);
+    ack({ ok: true, revokedCount });
+  } catch (err) {
+    console.error(`[auth] revokeOtherAuthSessions failed for ${session.userId}:`, err);
+    ack({ ok: false, error: 'UNAVAILABLE' });
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,196 @@
+.sess {
+  min-height: 100vh;
+  color: #f5ead3;
+  background:
+    radial-gradient(circle at top, rgba(190, 143, 58, 0.2), transparent 32%),
+    linear-gradient(180deg, #1a1208 0%, #0f0b06 55%, #080603 100%);
+}
+
+.sess__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px 32px 12px;
+}
+
+.sess__header--mobile {
+  padding: 20px 18px 0;
+  align-items: flex-start;
+}
+
+.sess__brand {
+  display: flex;
+  align-items: center;
+}
+
+.sess__logo {
+  width: 124px;
+  height: auto;
+}
+
+.sess__nav {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sess__nav-btn,
+.sess__back-btn {
+  border: 1px solid rgba(232, 201, 145, 0.24);
+  background: rgba(37, 25, 15, 0.76);
+  color: inherit;
+  border-radius: 999px;
+  padding: 10px 16px;
+}
+
+.sess__nav-btn--active {
+  background: linear-gradient(135deg, rgba(211, 162, 71, 0.24), rgba(106, 56, 17, 0.72));
+}
+
+.sess__title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sess__eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.72rem;
+  color: rgba(244, 210, 151, 0.82);
+}
+
+.sess__title,
+.sess__headline,
+.sess__panel-title,
+.sess__section-title {
+  margin: 0;
+}
+
+.sess__main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 24px 18px 56px;
+}
+
+.sess__hero {
+  padding: 28px;
+  border: 1px solid rgba(232, 201, 145, 0.2);
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(43, 28, 16, 0.92), rgba(23, 15, 9, 0.92));
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.28);
+}
+
+.sess__headline {
+  font-size: clamp(1.9rem, 4vw, 3rem);
+  line-height: 1.05;
+  margin-top: 10px;
+}
+
+.sess__summary,
+.sess__panel-copy,
+.sess__account,
+.sess__meta,
+.sess__empty,
+.sess__error {
+  color: rgba(245, 234, 211, 0.76);
+}
+
+.sess__panel {
+  margin-top: 24px;
+  padding: 24px;
+  border-radius: 28px;
+  border: 1px solid rgba(232, 201, 145, 0.18);
+  background: rgba(18, 12, 7, 0.9);
+}
+
+.sess__panel-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.sess__section {
+  margin-top: 22px;
+}
+
+.sess__list {
+  display: grid;
+  gap: 14px;
+}
+
+.sess__card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(232, 201, 145, 0.14);
+  background: rgba(33, 22, 13, 0.82);
+}
+
+.sess__card--current {
+  border-color: rgba(211, 162, 71, 0.34);
+  background: linear-gradient(135deg, rgba(66, 43, 19, 0.9), rgba(28, 18, 10, 0.92));
+}
+
+.sess__card-topline {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.sess__device {
+  font-weight: 700;
+}
+
+.sess__badge {
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(232, 201, 145, 0.18);
+  font-size: 0.8rem;
+}
+
+.sess__badge--current {
+  border-color: rgba(211, 162, 71, 0.3);
+  color: #ffcf7f;
+}
+
+.sess__meta {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  font-size: 0.92rem;
+}
+
+.sess__card-actions {
+  display: flex;
+  align-items: center;
+}
+
+.sess__error {
+  margin-top: 18px;
+  color: #ffb4a3;
+}
+
+@media (max-width: 899px) {
+  .sess__hero,
+  .sess__panel {
+    border-radius: 22px;
+    padding: 20px;
+  }
+
+  .sess__panel-header,
+  .sess__card {
+    grid-template-columns: 1fr;
+  }
+
+  .sess__card-actions {
+    justify-content: flex-start;
+  }
+}

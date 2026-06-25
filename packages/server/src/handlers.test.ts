@@ -23,9 +23,9 @@ import type { legalMoves as LegalMovesFn } from '@ganatri/engine';
 // Helpers
 // ---------------------------------------------------------------------------
 
-function connectClient(port: number, token?: string): ClientSocket {
+function connectClient(port: number, guestToken?: string): ClientSocket {
   return ioClient(`http://localhost:${port}`, {
-    auth: token !== undefined ? { token } : {},
+    auth: guestToken !== undefined ? { guestToken } : {},
     autoConnect: true,
     reconnection: false,
   });
@@ -87,9 +87,9 @@ describe('Ganatri server', () => {
   it('issues a session token on first connect', async () => {
     const client = connectClient(port);
     try {
-      const session = await waitFor<{ token: string; playerId: string }>(client, EVENTS.SESSION);
-      expect(typeof session.token).toBe('string');
-      expect(session.token.length).toBeGreaterThan(0);
+      const session = await waitFor<{ guestToken?: string; playerId: string }>(client, EVENTS.SESSION);
+      expect(typeof session.guestToken).toBe('string');
+      expect(session.guestToken!.length).toBeGreaterThan(0);
       expect(typeof session.playerId).toBe('string');
     } finally {
       client.disconnect();
@@ -98,18 +98,18 @@ describe('Ganatri server', () => {
 
   it('reuses the same playerId on reconnect with stored token', async () => {
     const client1 = connectClient(port);
-    const session1 = await waitFor<{ token: string; playerId: string }>(client1, EVENTS.SESSION);
+    const session1 = await waitFor<{ guestToken?: string; playerId: string }>(client1, EVENTS.SESSION);
     client1.disconnect();
 
     // Brief pause to ensure disconnect is processed.
     await new Promise((r) => setTimeout(r, 100));
 
-    const client2 = connectClient(port, session1.token);
-    const session2 = await waitFor<{ token: string; playerId: string }>(client2, EVENTS.SESSION);
+    const client2 = connectClient(port, session1.guestToken);
+    const session2 = await waitFor<{ guestToken?: string; playerId: string }>(client2, EVENTS.SESSION);
 
     try {
       expect(session2.playerId).toBe(session1.playerId);
-      expect(session2.token).toBe(session1.token);
+      expect(session2.guestToken).toBe(session1.guestToken);
     } finally {
       client2.disconnect();
     }
@@ -138,7 +138,7 @@ describe('Ganatri server', () => {
 
       // Reconnect with the stored token — server emits SESSION with the name.
       const client2 = connectClient(port, token);
-      const restoredSession = await waitFor<{ token: string; playerId: string; loggedIn: boolean; name?: string }>(
+      const restoredSession = await waitFor<{ guestToken?: string; playerId: string; loggedIn: boolean; name?: string }>(
         client2,
         EVENTS.SESSION,
       );
@@ -815,7 +815,7 @@ describe('Ganatri server', () => {
       await disconnectPromise;
 
       // Reconnect with saved token.
-      const guest2 = connectClient(port, guestSession.token);
+      const guest2 = connectClient(port, guestSession.guestToken);
       const reconnectPromise = waitFor<{ playerId: string }>(host, EVENTS.PLAYER_RECONNECTED);
       const statePromise = waitFor<{ view: { phase: string } }>(guest2, EVENTS.STATE_UPDATE);
 
@@ -836,7 +836,7 @@ describe('Ganatri server', () => {
     // room. The seat is held through the grace period; reconnect restores the
     // room view and the shared code stays joinable.
     const host = connectClient(port);
-    const hostSession = await waitFor<{ token: string; playerId: string }>(host, EVENTS.SESSION);
+    const hostSession = await waitFor<{ guestToken?: string; playerId: string }>(host, EVENTS.SESSION);
     const createAck = await emitAck<{ ok: boolean; roomCode: string }>(host, EVENTS.CREATE_ROOM);
     const code = createAck.roomCode;
 
@@ -845,7 +845,7 @@ describe('Ganatri server', () => {
     await new Promise((r) => setTimeout(r, 100));
 
     // Reconnect with the same token within the grace period.
-    const host2 = connectClient(port, hostSession.token);
+    const host2 = connectClient(port, hostSession.guestToken);
     const roomUpdate = await waitFor<{ roomCode: string; players: string[]; phase: string }>(
       host2,
       EVENTS.ROOM_UPDATE,
