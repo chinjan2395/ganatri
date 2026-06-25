@@ -39,6 +39,7 @@ import {
 } from '../protocol';
 
 const LEGACY_TOKEN_KEY = 'ganatri.token';
+const AUTH_SESSION_TOKEN_KEY = 'ganatri.authSessionToken';
 const GUEST_TOKEN_KEY = 'ganatri.guestToken';
 const PLAYER_ID_KEY = 'ganatri.playerId';
 export const SERVER_URL = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:4000';
@@ -48,7 +49,34 @@ function syncSocketAuth(): void {
     ...socket.auth as object,
     guestToken: getGuestToken() ?? undefined,
     playerId: getPlayerId() ?? undefined,
+    authSessionToken: getAuthSessionToken() ?? undefined,
   };
+}
+
+export function getAuthSessionToken(): string | null {
+  return sessionStorage.getItem(AUTH_SESSION_TOKEN_KEY);
+}
+
+export function setAuthSessionToken(token: string): void {
+  sessionStorage.setItem(AUTH_SESSION_TOKEN_KEY, token);
+  syncSocketAuth();
+}
+
+export function clearAuthSessionToken(): void {
+  sessionStorage.removeItem(AUTH_SESSION_TOKEN_KEY);
+  syncSocketAuth();
+}
+
+/** Capture the post-OAuth token from the URL before bootstrap runs. */
+export function captureAuthTokenFromUrl(): void {
+  const params = new URLSearchParams(window.location.search);
+  const authToken = params.get('auth_token');
+  if (!authToken) return;
+
+  setAuthSessionToken(authToken);
+  localStorage.setItem(LEGACY_TOKEN_KEY, authToken);
+  const nextUrl = `${window.location.pathname}${window.location.hash}`;
+  window.history.replaceState(null, '', nextUrl);
 }
 
 export function getLegacyToken(): string | null {
@@ -91,6 +119,7 @@ export function clearRuntimeSessionStorage(): void {
   localStorage.removeItem(GUEST_TOKEN_KEY);
   localStorage.removeItem(PLAYER_ID_KEY);
   localStorage.removeItem(LEGACY_TOKEN_KEY);
+  clearAuthSessionToken();
   syncSocketAuth();
 }
 
@@ -100,18 +129,14 @@ type BootstrapResponse =
   | { kind: 'none' };
 
 export async function bootstrapAuth(): Promise<void> {
-  const legacyToken = getLegacyToken();
-  if (!legacyToken) {
-    syncSocketAuth();
-    return;
-  }
+  const legacyToken = getLegacyToken() ?? getAuthSessionToken();
 
   try {
     const response = await fetch(`${SERVER_URL}/auth/bootstrap`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ legacyToken }),
+      body: JSON.stringify(legacyToken ? { legacyToken } : {}),
     });
     if (!response.ok) {
       syncSocketAuth();
@@ -128,11 +153,14 @@ export async function bootstrapAuth(): Promise<void> {
       setGuestToken(payload.guestToken);
       setPlayerId(payload.playerId);
       clearLegacyToken();
+      clearAuthSessionToken();
       return;
     }
 
     clearLegacyToken();
   } catch {
+    // Keep any authSessionToken so the socket handshake can still authenticate.
+  } finally {
     syncSocketAuth();
   }
 }
@@ -143,6 +171,7 @@ export const socket: Socket = io(SERVER_URL, {
   auth: {
     guestToken: getGuestToken() ?? undefined,
     playerId: getPlayerId() ?? undefined,
+    authSessionToken: getAuthSessionToken() ?? undefined,
   },
   transports: ['websocket', 'polling'],
 });

@@ -317,7 +317,9 @@ async function handleGoogleCallback(
       }
     }
 
-    redirect(res, webRedirectBase, [
+    const redirectUrl = new URL(webRedirectBase);
+    redirectUrl.searchParams.set('auth_token', token);
+    redirect(res, redirectUrl.toString(), [
       buildSessionCookie(token, SESSION_TTL_DAYS, cookiesSecure()),
       buildClearStateCookie(cookiesSecure()),
       buildClearGuestCookie(cookiesSecure()),

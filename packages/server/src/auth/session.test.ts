@@ -50,9 +50,15 @@ describe('auth/session helpers', () => {
     expect(c.startsWith(`${SESSION_COOKIE_NAME}=tok;`)).toBe(true);
     expect(c).toContain('HttpOnly');
     expect(c).toContain('Secure');
-    expect(c).toContain('SameSite=Lax');
+    expect(c).toContain('SameSite=None');
     expect(c).toContain('Path=/');
     expect(c).toContain(`Max-Age=${30 * 24 * 60 * 60}`);
+  });
+
+  it('buildSessionCookie uses Lax without Secure for local HTTP dev', () => {
+    const c = buildSessionCookie('tok', 30, false);
+    expect(c).toContain('SameSite=Lax');
+    expect(c).not.toContain('Secure');
   });
 
   it('buildClearCookie expires the session cookie immediately', () => {

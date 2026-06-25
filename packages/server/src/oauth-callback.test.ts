@@ -92,7 +92,9 @@ describe('google oauth callback', () => {
     });
 
     expect(response.status).toBe(302);
-    expect(response.headers.location).toBe('http://localhost:5173');
+    const location = response.headers.location;
+    expect(typeof location).toBe('string');
+    expect(location).toMatch(/^http:\/\/localhost:5173\/?\?auth_token=/);
 
     const setCookies = response.headers['set-cookie'];
     expect(Array.isArray(setCookies)).toBe(true);

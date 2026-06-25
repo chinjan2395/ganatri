@@ -92,6 +92,35 @@ describe('durable auth sessions', () => {
     }
   });
 
+  it('authenticates via authSessionToken handshake fallback when cookie is absent', async () => {
+    const user = await persistence.upsertOAuthUser({
+      provider: 'google',
+      providerUserId: 'google-sub-handshake',
+      email: 'handshake@example.com',
+      displayName: 'Handshake User',
+    });
+    const authToken = 'handshake-auth-token';
+    await persistence.createAuthSession({
+      userId: user.id,
+      tokenHash: hashToken(authToken),
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+
+    const client = ioClient(`http://localhost:${port}`, {
+      autoConnect: true,
+      reconnection: false,
+      auth: { authSessionToken: authToken },
+    });
+
+    try {
+      const session = await waitFor<SessionPayload>(client, EVENTS.SESSION);
+      expect(session.loggedIn).toBe(true);
+      expect(session.displayName).toBe('Handshake User');
+    } finally {
+      client.disconnect();
+    }
+  });
+
   it('lists active sessions and rolls expiry on authenticated connect', async () => {
     const user = await persistence.upsertOAuthUser({
       provider: 'google',

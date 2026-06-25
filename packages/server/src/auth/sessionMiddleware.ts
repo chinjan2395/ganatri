@@ -49,7 +49,11 @@ async function resolveSession(socket: Socket): Promise<void> {
     if (!p) return;
 
     const cookies = parseCookies(socket.handshake.headers.cookie);
-    const token = cookies[SESSION_COOKIE_NAME];
+    // Prefer the httpOnly cookie. Fall back to a one-shot authSessionToken sent in
+    // the handshake after OAuth when the web client and API are on different sites.
+    const token =
+      cookies[SESSION_COOKIE_NAME]
+      ?? (socket.handshake.auth['authSessionToken'] as string | undefined);
     if (!token) return;
 
     const tokenHash = hashToken(token);
