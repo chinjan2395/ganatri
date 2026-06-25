@@ -2158,18 +2158,6 @@ button.room__leave-btn:hover:not(:disabled) {
   margin-bottom: 12px;
 }
 
-.room__details-logo-wrap {
-  display: flex;
-  justify-content: center;
-  margin: 0 0 14px;
-}
-
-.room__details-logo {
-  display: block;
-  width: min(100%, 156px);
-  height: auto;
-}
-
 .room__details-rows {
   display: flex;
   flex-direction: column;
