@@ -11,6 +11,8 @@ interface AdminLayoutProps {
   onRefresh: () => void;
   refreshing: boolean;
   children: ReactNode;
+  sidebar?: ReactNode;
+  header?: ReactNode;
 }
 
 export function AdminLayout({
@@ -20,25 +22,31 @@ export function AdminLayout({
   onRefresh,
   refreshing,
   children,
+  sidebar,
+  header,
 }: AdminLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="admin-shell">
-      <AdminSidebar
-        active={activeSection}
-        onNavigate={onNavigate}
-        mobileOpen={mobileOpen}
-        onCloseMobile={() => setMobileOpen(false)}
-      />
-      <div className="admin-main">
-        <AdminHeader
-          activeSection={activeSection}
-          email={email}
-          onRefresh={onRefresh}
-          refreshing={refreshing}
-          onMenuToggle={() => setMobileOpen(o => !o)}
+      {sidebar ?? (
+        <AdminSidebar
+          active={activeSection}
+          onNavigate={onNavigate}
+          mobileOpen={mobileOpen}
+          onCloseMobile={() => setMobileOpen(false)}
         />
+      )}
+      <div className="admin-main">
+        {header ?? (
+          <AdminHeader
+            activeSection={activeSection}
+            email={email}
+            onRefresh={onRefresh}
+            refreshing={refreshing}
+            onMenuToggle={() => setMobileOpen(o => !o)}
+          />
+        )}
         <main className="admin-content">{children}</main>
         <AdminFooter />
       </div>
