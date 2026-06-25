@@ -5,3 +5,4 @@ coverage/
 .DS_Store
 reports/
 *.env
+packages/web/src/references

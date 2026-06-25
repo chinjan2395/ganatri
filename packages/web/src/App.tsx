@@ -8,6 +8,7 @@ import { HistoryScreen } from './screens/HistoryScreen';
 import { StatsScreen } from './screens/StatsScreen';
 import { LeaderboardScreen } from './screens/LeaderboardScreen';
 import { SessionsScreen } from './screens/SessionsScreen';
+import { DesignSystemScreen } from './screens/DesignSystemScreen';
 import { Toast } from './components/Toast';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { InviteToast } from './components/InviteToast';
@@ -18,6 +19,18 @@ export function App(): React.ReactNode {
   }
 
   const { session, room, view, error, clearError, screen: navScreen } = useGame();
+
+  if (window.location.pathname === '/design-system') {
+    return (
+      <VoiceChatProvider>
+        <div className="app-shell">
+          <ConnectionBanner />
+          <DesignSystemScreen />
+          <Toast message={error} onDismiss={clearError} />
+        </div>
+      </VoiceChatProvider>
+    );
+  }
 
   let screen: React.ReactNode;
   if (!session) {
