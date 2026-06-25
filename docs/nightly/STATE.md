@@ -13,9 +13,10 @@
 Phase 6 — Persistence, Accounts, Statistics & Analytics
 
 ## Status
-NOT_STARTED — Next nightly work should resume remaining Phase 6 items, starting with user data export (6i). Auth session management (6c) shipped 2026-06-25.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+IN_PROGRESS — Phase 6i data export shipped (2026-06-25). Next: Phase 6j ops hardening or Phase 6c remaining account settings (avatar/OAuth link).  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
+- [x] Phase 6i Data export (2026-06-25) — `download_my_data` event: server handler (getUserGameHistory + getPlayerStats in parallel, flattenHistoryEntry + mapStatsView), 4 integration tests; web DownloadMyDataAck type + downloadMyData() helper + GameProvider callback + LobbyScreen "Download My Data" button (DOM-append pattern, deferred revokeObjectURL). 458 tests pass (153 engine + 114 server + 191 db).
 - [x] Phase 1 — Rules Engine (153 tests passing)
 - [x] Phase 2 — Server (44 tests passing)
 - [x] Phase 3 — Web Client (all components functional, player names wired)
@@ -46,16 +47,18 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-25
-- Outcome: Phase 6c active session management shipped manually (DB + server + web vertical slice).
-- Branch/PR: feat/auth-session-management
+- Outcome: Phase 6i user data export complete — `download_my_data` vertical slice (server + web + 4 integration tests). Code-review fixes applied (type="button", DOM-append anchor, seeded-data test).
+- Branch: nightly/2026-06-25-1721
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 Resume Phase 6 remaining work in this order:
-1. **6i: User data export (GDPR/right to access)** — Let a logged-in user download their own account data (history, stats). Separate from the admin export already done. Server event `download_my_data`, handler that calls `getUserGameHistory` + `getPlayerStats`, returns JSON blob or acks it directly. Web: button in LobbyScreen profile panel or a new screen.
-2. **6j: Ops hardening** — DB monitoring, connection-pool sizing, cost alerts.
-3. **6c remaining account settings** — Avatar URL edit + OAuth link/unlink (complex; skip if tight). Active session management ✅ (2026-06-25).
+1. **6j: Ops hardening** — DB monitoring, connection-pool sizing, cost alerts. All items in Phase 6j are ⬜ — skip if too broad for a nightly run and document as deferred.
+2. **6c remaining account settings** — Avatar URL edit + OAuth link/unlink (complex; skip if tight).
+3. **Phase 9 scoring/progression follow-ups** — check DEVELOPMENT_PLAN.md Phase 9 section for any remaining items.
+
+Phase 6i data export shipped 2026-06-25 — all 457 tests pass.
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.

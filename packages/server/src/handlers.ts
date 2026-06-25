@@ -47,6 +47,7 @@ import {
   type UpdateDisplayNamePayload,
   type UpdateDisplayNameAck,
   type DeleteAccountAck,
+  type DownloadMyDataAck,
   type AuthSessionView,
   type GetAuthSessionsAck,
   type RevokeAuthSessionPayload,
@@ -922,6 +923,12 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
     touchAuthSession();
     if (typeof ack !== 'function') return;
     void handleDeleteAccount(socket, session, ack).catch(console.error);
+  });
+
+  socket.on(EVENTS.DOWNLOAD_MY_DATA, (ack: (res: DownloadMyDataAck) => void) => {
+    touchAuthSession();
+    if (typeof ack !== 'function') return;
+    void handleDownloadMyData(session, ack).catch(console.error);
   });
 
   // Admin: authenticate
@@ -2243,6 +2250,51 @@ async function handleDeleteAccount(
   socket.emit(EVENTS.SESSION, sessionPayload(session));
 
   ack({ ok: true });
+}
+
+// ---------------------------------------------------------------------------
+// download_my_data (GDPR/CCPA right to access)
+// ---------------------------------------------------------------------------
+
+async function handleDownloadMyData(
+  session: SessionState,
+  ack: (res: DownloadMyDataAck) => void,
+): Promise<void> {
+  // Guard: must be a logged-in account.
+  if (session.userId === null) {
+    ack({ ok: false, error: 'NOT_LOGGED_IN' });
+    return;
+  }
+
+  const p = getPersistence();
+  if (!p) {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+
+  const userId = session.userId;
+
+  try {
+    const [games, statsRow] = await Promise.all([
+      p.getUserGameHistory(userId),
+      p.getPlayerStats(userId),
+    ]);
+
+    ack({
+      ok: true,
+      data: {
+        userId,
+        displayName: session.account?.displayName ?? null,
+        email: session.account?.email ?? null,
+        exportedAt: new Date().toISOString(),
+        stats: statsRow ? mapStatsView(statsRow) : null,
+        games: games.map(flattenHistoryEntry),
+      },
+    });
+  } catch (err) {
+    console.error(`[data-export] download_my_data failed for ${userId}:`, err);
+    ack({ ok: false, error: 'UNAVAILABLE' });
+  }
 }
 
 // ---------------------------------------------------------------------------
