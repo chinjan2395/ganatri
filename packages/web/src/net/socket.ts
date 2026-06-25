@@ -7,8 +7,10 @@ import { io, type Socket } from 'socket.io-client';
 import type { Move } from '@ganatri/engine';
 import {
   EVENTS,
+  type AuthSessionView,
   type CreateRoomAck,
   type CreateRoomPayload,
+  type GetAuthSessionsAck,
   type JoinRoomAck,
   type JoinRoomPayload,
   type LeaveRoomAck,
@@ -26,6 +28,9 @@ import {
   type UpdateDisplayNameAck,
   type GetRecentPlayersAck,
   type InvitePlayerAck,
+  type RevokeAuthSessionAck,
+  type RevokeAuthSessionPayload,
+  type RevokeOtherAuthSessionsAck,
   type RespondToInviteAck,
   type BlockUserAck,
   type UnblockUserAck,
@@ -33,18 +38,39 @@ import {
   type DeleteAccountAck,
 } from '../protocol';
 
-const TOKEN_KEY = 'ganatri.token';
+const LEGACY_TOKEN_KEY = 'ganatri.token';
+const GUEST_TOKEN_KEY = 'ganatri.guestToken';
 const PLAYER_ID_KEY = 'ganatri.playerId';
 export const SERVER_URL = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:4000';
 
-export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+function syncSocketAuth(): void {
+  socket.auth = {
+    ...socket.auth as object,
+    guestToken: getGuestToken() ?? undefined,
+    playerId: getPlayerId() ?? undefined,
+  };
 }
 
-export function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token);
-  // Keep the handshake auth in sync for the next (re)connect.
-  socket.auth = { ...socket.auth as object, token };
+export function getLegacyToken(): string | null {
+  return localStorage.getItem(LEGACY_TOKEN_KEY);
+}
+
+export function clearLegacyToken(): void {
+  localStorage.removeItem(LEGACY_TOKEN_KEY);
+}
+
+export function getGuestToken(): string | null {
+  return localStorage.getItem(GUEST_TOKEN_KEY);
+}
+
+export function setGuestToken(token: string): void {
+  localStorage.setItem(GUEST_TOKEN_KEY, token);
+  syncSocketAuth();
+}
+
+export function clearGuestToken(): void {
+  localStorage.removeItem(GUEST_TOKEN_KEY);
+  syncSocketAuth();
 }
 
 export function getPlayerId(): string | null {
@@ -53,15 +79,69 @@ export function getPlayerId(): string | null {
 
 export function setPlayerId(playerId: string): void {
   localStorage.setItem(PLAYER_ID_KEY, playerId);
-  // Keep the handshake auth in sync so reconnects after restart can find the ghost session.
-  socket.auth = { ...socket.auth as object, playerId };
+  syncSocketAuth();
+}
+
+export function clearPlayerId(): void {
+  localStorage.removeItem(PLAYER_ID_KEY);
+  syncSocketAuth();
+}
+
+export function clearRuntimeSessionStorage(): void {
+  localStorage.removeItem(GUEST_TOKEN_KEY);
+  localStorage.removeItem(PLAYER_ID_KEY);
+  localStorage.removeItem(LEGACY_TOKEN_KEY);
+  syncSocketAuth();
+}
+
+type BootstrapResponse =
+  | { kind: 'auth' }
+  | { kind: 'guest'; guestToken: string; playerId: string }
+  | { kind: 'none' };
+
+export async function bootstrapAuth(): Promise<void> {
+  const legacyToken = getLegacyToken();
+  if (!legacyToken) {
+    syncSocketAuth();
+    return;
+  }
+
+  try {
+    const response = await fetch(`${SERVER_URL}/auth/bootstrap`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ legacyToken }),
+    });
+    if (!response.ok) {
+      syncSocketAuth();
+      return;
+    }
+
+    const payload = await response.json() as BootstrapResponse;
+    if (payload.kind === 'auth') {
+      clearLegacyToken();
+      clearGuestToken();
+      return;
+    }
+    if (payload.kind === 'guest') {
+      setGuestToken(payload.guestToken);
+      setPlayerId(payload.playerId);
+      clearLegacyToken();
+      return;
+    }
+
+    clearLegacyToken();
+  } catch {
+    syncSocketAuth();
+  }
 }
 
 export const socket: Socket = io(SERVER_URL, {
-  autoConnect: true,
+  autoConnect: false,
   withCredentials: true,
   auth: {
-    token: getToken() ?? undefined,
+    guestToken: getGuestToken() ?? undefined,
     playerId: getPlayerId() ?? undefined,
   },
   transports: ['websocket', 'polling'],
@@ -130,15 +210,16 @@ export function requestLeaderboard(timeWindow?: 'week' | 'month'): Promise<GetLe
  *  current guest session token so the server can merge guest stats into
  *  the new registered account (Phase 6c guest→registered upgrade). */
 export function loginWithGoogle(): void {
-  const token = getToken();
-  const url = token
-    ? `${SERVER_URL}/auth/google/login?session_token=${encodeURIComponent(token)}`
+  const guestToken = getGuestToken();
+  const url = guestToken
+    ? `${SERVER_URL}/auth/google/login?session_token=${encodeURIComponent(guestToken)}`
     : `${SERVER_URL}/auth/google/login`;
   window.location.assign(url);
 }
 
 /** Full-page navigation to clear the server session cookie. */
 export function logout(): void {
+  clearRuntimeSessionStorage();
   window.location.assign(`${SERVER_URL}/auth/logout`);
 }
 
@@ -176,6 +257,19 @@ export function unblockUser(targetUserId: string): Promise<UnblockUserAck> {
 
 export function getBlockedUsers(): Promise<GetBlockedUsersAck> {
   return emitAck<GetBlockedUsersAck>(EVENTS.GET_BLOCKED_USERS);
+}
+
+export function getAuthSessions(): Promise<GetAuthSessionsAck> {
+  return emitAck<GetAuthSessionsAck>(EVENTS.GET_AUTH_SESSIONS);
+}
+
+export function revokeAuthSession(sessionId: string): Promise<RevokeAuthSessionAck> {
+  const payload: RevokeAuthSessionPayload = { sessionId };
+  return emitAck<RevokeAuthSessionAck>(EVENTS.REVOKE_AUTH_SESSION, payload);
+}
+
+export function revokeOtherAuthSessions(): Promise<RevokeOtherAuthSessionsAck> {
+  return emitAck<RevokeOtherAuthSessionsAck>(EVENTS.REVOKE_OTHER_AUTH_SESSIONS);
 }
 
 export function deleteAccount(): Promise<DeleteAccountAck> {

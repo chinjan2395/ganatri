@@ -770,7 +770,7 @@ interface ProfilePanelProps {
   onDeleteAccountCancel: () => void;
   onLogout: () => void;
   onGoogleLogin: () => void;
-  onSetScreen: (s: 'history' | 'stats') => void;
+  onSetScreen: (s: 'history' | 'stats' | 'sessions') => void;
   onClose: () => void;
 }
 
@@ -884,6 +884,13 @@ function ProfilePanel({
                 onClick={() => { onSetScreen('stats'); onClose(); }}
               >
                 Stats
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => { onSetScreen('sessions'); onClose(); }}
+              >
+                Sessions
               </button>
               <button type="button" className="secondary" onClick={onLogout}>
                 Log out

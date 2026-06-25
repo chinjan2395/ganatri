@@ -83,7 +83,7 @@ void cardId; // keep import if unused after edits
 
 const ctx = {
   connected: true,
-  session: { token: 'preview', playerId: you },
+  session: { playerId: you, guestToken: 'preview' },
   room: null,
   view,
   turnStartedAt: Date.now(),
