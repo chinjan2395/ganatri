@@ -38,7 +38,7 @@ the next phase-nightly work unit. If the queue is empty, the workflow follows
 the Current Sub-Phase Cursor and the Phase 9 section in `docs/DEVELOPMENT_PLAN.md`.
 
 <!-- PHASE_TODO:START -->
-_(none)_
+- [ ] **add todo that goes to phase 9** - `Phase 9 - review during phase-nightly`. Acceptance: add todo that goes to phase 9
 <!-- PHASE_TODO:END -->
 
 ## Phase Acceptance Checklist
