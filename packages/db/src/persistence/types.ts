@@ -20,6 +20,8 @@ import type {
   gamePlayers,
   gameEvents,
   playerStats,
+  playerProgression,
+  scoreLedger,
   userBlocks,
 } from '../schema';
 
@@ -36,6 +38,8 @@ export type GameRow = typeof games.$inferSelect;
 export type GamePlayerRow = typeof gamePlayers.$inferSelect;
 export type GameEventRow = typeof gameEvents.$inferSelect;
 export type PlayerStatsRow = typeof playerStats.$inferSelect;
+export type PlayerProgressionRow = typeof playerProgression.$inferSelect;
+export type ScoreLedgerRow = typeof scoreLedger.$inferSelect;
 export type UserBlockRow = typeof userBlocks.$inferSelect;
 
 export type RoomStatus = RoomRow['status'];
@@ -140,6 +144,9 @@ export interface GameHistoryPlayer {
   result: string | null;
   captureCount: number;
   wasCut: boolean;
+  matchScore: number | null;
+  xpEarned: number | null;
+  rankedRatingDelta: number | null;
 }
 
 /** One row of a user's game history: the game, their result, and all players. */
@@ -157,6 +164,9 @@ export interface GameHistoryEntry {
   you: GameHistoryPlayer;
   /** Every player in the game, ordered by seatIndex. */
   players: GameHistoryPlayer[];
+  matchScore: number | null;
+  xpEarned: number | null;
+  rankedRatingDelta: number | null;
 }
 
 /** One leaderboard row: a ranked account with its aggregate win record. */
@@ -193,6 +203,83 @@ export interface PlayerStatsDelta {
   /** Absolute value to set (not incremented). */
   currentWinStreak?: number;
   sumFinishPositions?: number;
+  highestMatchScore?: number;
+  totalMatchScore?: number;
+  ghostFinishes?: number;
+}
+
+export type ScoreLedgerKind = ScoreLedgerRow['kind'];
+export type ScoreLedgerReason = ScoreLedgerRow['reason'];
+
+export interface MatchScoreBreakdownRow {
+  kind: ScoreLedgerKind | 'MATCH_SCORE';
+  reason: ScoreLedgerReason;
+  delta: number;
+  meta?: Record<string, unknown> | null;
+}
+
+export interface MatchScoreBreakdown {
+  rows: MatchScoreBreakdownRow[];
+  total: number;
+}
+
+export interface RankedRatingChange {
+  delta: number;
+  breakdown: MatchScoreBreakdownRow[];
+}
+
+export interface XpAward {
+  earned: number;
+  breakdown: MatchScoreBreakdownRow[];
+}
+
+export interface PlayerProgression {
+  userId: string;
+  rankedRating: number;
+  totalXp: number;
+  level: number;
+  highestMatchScore: number;
+  totalMatchScore: number;
+  ghostFinishes: number;
+  updatedAt: Date;
+}
+
+export interface ScoredGamePlayerResult {
+  seatIndex: number;
+  userId: string | null;
+  matchScore: number;
+  xpEarned: number;
+  rankedRatingDelta: number;
+  matchScoreBreakdown: MatchScoreBreakdownRow[];
+  ratingBreakdown: MatchScoreBreakdownRow[];
+  xpBreakdown: MatchScoreBreakdownRow[];
+  ghostFinish: boolean;
+  progressionAfter: PlayerProgression | null;
+}
+
+export interface ScoreLedgerEntry {
+  id: string;
+  userId: string;
+  gameId: string;
+  kind: ScoreLedgerKind;
+  reason: ScoreLedgerReason;
+  delta: number;
+  createdAt: Date;
+  metaJson: Record<string, unknown> | null;
+}
+
+export interface ScoreHistoryEntry {
+  gameId: string;
+  createdAt: Date;
+  matchScore: number;
+  xpEarned: number;
+  rankedRatingDelta: number;
+  rows: ScoreLedgerEntry[];
+}
+
+export interface ApplyGameScoringInput {
+  gameId: string;
+  scoredPlayers: readonly ScoredGamePlayerResult[];
 }
 
 // ---------------------------------------------------------------------------
@@ -299,6 +386,9 @@ export interface GamePersistence {
   upsertPlayerStats(delta: PlayerStatsDelta): Promise<PlayerStatsRow>;
 
   getPlayerStats(userId: string): Promise<PlayerStatsRow | null>;
+  getPlayerProgression(userId: string): Promise<PlayerProgression | null>;
+  getScoreHistory(userId: string, limit?: number, offset?: number): Promise<ScoreHistoryEntry[]>;
+  applyGameScoring(input: ApplyGameScoringInput): Promise<void>;
 
   /**
    * Top accounts by win record, strongest first. Ordering:
@@ -437,6 +527,10 @@ export interface AdminUserStats {
   totalPlayTimeMs: number;
   longestWinStreak: number;
   currentWinStreak: number;
+  highestMatchScore: number;
+  totalMatchScore: number;
+  ghostFinishes: number;
+  progression: PlayerProgression | null;
   updatedAt: string | null; // ISO string from player_stats.updated_at, null when no row
 }
 
@@ -453,6 +547,9 @@ export interface ExportGamePlayer {
   captureCount: number;
   wasCut: boolean;
   result: string | null;
+  matchScore: number | null;
+  xpEarned: number | null;
+  rankedRatingDelta: number | null;
 }
 
 /** One game row for the admin data export. */

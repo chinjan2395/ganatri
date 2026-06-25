@@ -21,8 +21,11 @@ import type {
   AppendEventInput,
   GamePersistence,
   PlayerStatsDelta,
+  PlayerProgression,
 } from '@ganatri/db';
 import type { GameEvent, GameState } from '@ganatri/engine';
+import { getSessionByPlayerId } from './store.js';
+import { scoreFinishedGame } from './scoring.js';
 
 // ---------------------------------------------------------------------------
 // Lazy singleton + test hook
@@ -62,6 +65,10 @@ const eventSeq = new Map<string, number>();
 const eventLog = new Map<string, GameEvent[]>();
 /** roomCode -> game start timestamp (ms). */
 const startedAtMs = new Map<string, number>();
+
+export function getRoomEventLog(roomCode: string): readonly GameEvent[] {
+  return eventLog.get(roomCode) ?? [];
+}
 
 function clearRoom(roomCode: string): void {
   gameIdPromises.delete(roomCode);
@@ -110,12 +117,12 @@ export function recordGameStart(
   seed: number | string,
   namesById: Record<string, string>,
 ): void {
-  const p = getPersistence();
-  if (!p) return;
-
   eventSeq.set(roomCode, 0);
   eventLog.set(roomCode, []);
   startedAtMs.set(roomCode, Date.now());
+
+  const p = getPersistence();
+  if (!p) return;
 
   const promise = (async (): Promise<string | null> => {
     try {
@@ -149,9 +156,13 @@ export function recordGameStart(
 
 /** Append a batch of engine events to the durable log. Fire-and-forget. */
 export function recordEvents(roomCode: string, events: readonly GameEvent[]): void {
+  if (events.length === 0) return;
+
+  const log = eventLog.get(roomCode);
+  if (log) log.push(...events);
+
   const p = getPersistence();
   if (!p) return;
-  if (events.length === 0) return;
 
   void (async (): Promise<void> => {
     try {
@@ -159,9 +170,6 @@ export function recordEvents(roomCode: string, events: readonly GameEvent[]): vo
       if (!gameIdPromise) return;
       const gameId = await gameIdPromise;
       if (!gameId) return;
-
-      const log = eventLog.get(roomCode);
-      if (log) log.push(...events);
 
       let seq = eventSeq.get(roomCode) ?? 0;
       const batch: AppendEventInput[] = events.map((ev) => {
@@ -199,9 +207,6 @@ export function recordGameEnd(
   namesById: Record<string, string>,
   isAbandoned: boolean,
 ): void {
-  const p = getPersistence();
-  if (!p) return;
-
   // Idempotency guard: consume the gameId promise so a second call bails.
   const gameIdPromise = gameIdPromises.get(roomCode);
   if (!gameIdPromise) return;
@@ -210,6 +215,12 @@ export function recordGameEnd(
   const roomId = roomIds.get(roomCode);
   const log = eventLog.get(roomCode) ?? [];
   const startMs = startedAtMs.get(roomCode) ?? Date.now();
+  const p = getPersistence();
+
+  if (!p) {
+    clearRoom(roomCode);
+    return;
+  }
 
   void (async (): Promise<void> => {
     try {
@@ -242,7 +253,24 @@ export function recordGameEnd(
         await p.updateRoomStatus(roomId, isAbandoned ? 'ABANDONED' : 'DONE', new Date());
       }
 
-      await writePlayerStats(p, players, log, state, durationMs, isAbandoned);
+      const previousProgressionByUserId: Record<string, PlayerProgression | undefined> = {};
+      for (const player of players) {
+        if (!player.userId) continue;
+        previousProgressionByUserId[player.userId] = (await p.getPlayerProgression(player.userId)) ?? undefined;
+      }
+
+      const scoredPlayers = scoreFinishedGame({
+        state,
+        events: log,
+        isAbandoned,
+        userIdByPlayerId: Object.fromEntries(
+          state.seating.map((pid) => [pid, getSessionByPlayerId(pid)?.userId ?? null])
+        ),
+        previousProgressionByUserId,
+      });
+
+      await p.applyGameScoring({ gameId, scoredPlayers });
+      await writePlayerStats(p, players, log, state, durationMs, isAbandoned, scoredPlayers);
     } catch (err) {
       console.error(`[persistence] recordGameEnd failed for ${roomCode}:`, err);
     } finally {
@@ -262,6 +290,7 @@ async function writePlayerStats(
   state: GameState,
   durationMs: number,
   isAbandoned: boolean,
+  scoredPlayers: ReturnType<typeof scoreFinishedGame>,
 ): Promise<void> {
   const cuts = mappers.tallyCuts(log);
   const safeSet = new Set(mappers.mapSafeOrder(state.part2));
@@ -284,6 +313,7 @@ async function writePlayerStats(
       console.error(`[persistence] getPlayerStats failed for ${userId}:`, err);
     }
 
+    const scored = scoredPlayers.find((entry) => entry.seatIndex === player.seatIndex);
     const delta: PlayerStatsDelta = {
       userId,
       gamesPlayed: 1,
@@ -298,6 +328,9 @@ async function writePlayerStats(
       currentWinStreak,
       longestWinStreak,
       sumFinishPositions: isAbandoned ? 0 : (player.finalRank ?? 0),
+      highestMatchScore: scored?.matchScore ?? 0,
+      totalMatchScore: scored?.matchScore ?? 0,
+      ghostFinishes: scored?.ghostFinish ? 1 : 0,
     };
 
     try {

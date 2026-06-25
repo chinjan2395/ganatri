@@ -8,7 +8,7 @@
 import type { Server, Socket } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
 import { applyMove, createGame, legalMoves, viewFor } from '@ganatri/engine';
-import type { GameEvent, Move, MoveResult } from '@ganatri/engine';
+import type { GameEvent, GameState, Move, MoveResult } from '@ganatri/engine';
 
 import {
   type AdminAuthPayload,
@@ -34,7 +34,13 @@ import {
   type RequestHistoryAck,
   type GameHistoryEntry as WireGameHistoryEntry,
   type GetMyStatsAck,
+  type GetMyProgressionAck,
+  type GetMyScoreHistoryAck,
   type PlayerStatsView,
+  type PlayerProgressionView,
+  type ScoreHistoryEntryView,
+  type MatchScoringView,
+  type ScoreBreakdownRowView,
   type GetLeaderboardAck,
   type GetLeaderboardRequest,
   type LeaderboardEntryView,
@@ -66,6 +72,7 @@ import {
 } from './protocol.js';
 import type {
   GameHistoryEntry as DbGameHistoryEntry,
+  PlayerProgression,
   PlayerStatsRow,
   LeaderboardEntry,
   CoPlayerEntry,
@@ -85,7 +92,8 @@ import {
 } from './store.js';
 import type { GameTransport } from './transport.js';
 import { SocketTransport } from './socketTransport.js';
-import { recordGameStart, recordEvents, recordGameEnd, getPersistence } from './persistence.js';
+import { recordGameStart, recordEvents, recordGameEnd, getPersistence, getRoomEventLog } from './persistence.js';
+import { computeMatchScoringSnapshot, scoreFinishedGame } from './scoring.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -136,6 +144,72 @@ function namesFor(seating: readonly string[]): Record<string, string> {
   const out: Record<string, string> = {};
   for (const pid of seating) out[pid] = getSessionByPlayerId(pid)?.name || pid;
   return out;
+}
+
+function progressionViewOf(progression: PlayerProgression | null): PlayerProgressionView {
+  const base = progression ?? {
+    userId: '',
+    rankedRating: 0,
+    totalXp: 0,
+    level: 1,
+    highestMatchScore: 0,
+    totalMatchScore: 0,
+    ghostFinishes: 0,
+    updatedAt: new Date(0),
+  };
+  const nextLevel = base.level + 1;
+  const xpForNext = (nextLevel - 1) * (nextLevel - 1) * 25;
+  return {
+    rankedRating: base.rankedRating,
+    totalXp: base.totalXp,
+    level: base.level,
+    xpToNextLevel: Math.max(0, xpForNext - base.totalXp),
+    highestMatchScore: base.highestMatchScore,
+    totalMatchScore: base.totalMatchScore,
+    ghostFinishes: base.ghostFinishes,
+    updatedAt: progression ? progression.updatedAt.toISOString() : null,
+  };
+}
+
+function toBreakdownView(rows: ReadonlyArray<{ reason: ScoreBreakdownRowView['reason']; delta: number }>): ScoreBreakdownRowView[] {
+  return rows.map((row) => ({ reason: row.reason, delta: row.delta }));
+}
+
+function matchScoringForState(roomCode: string, state: GameState, isAbandoned = false): MatchScoringView[] {
+  const events = getRoomEventLog(roomCode);
+  if (state.phase === 'GAME_OVER') {
+    const scored = scoreFinishedGame({
+      state,
+      events,
+      isAbandoned,
+      userIdByPlayerId: Object.fromEntries(
+        state.seating.map((pid: string) => [pid, getSessionByPlayerId(pid)?.userId ?? null])
+      ),
+      previousProgressionByUserId: {},
+    });
+    return scored.map((entry) => ({
+      playerId: state.seating[entry.seatIndex] as string,
+      matchScore: entry.matchScore,
+      xpEarned: entry.xpEarned,
+      rankedRatingDelta: entry.rankedRatingDelta,
+      matchScoreBreakdown: toBreakdownView(entry.matchScoreBreakdown),
+      ratingBreakdown: toBreakdownView(entry.ratingBreakdown),
+      xpBreakdown: toBreakdownView(entry.xpBreakdown),
+      ghostFinish: entry.ghostFinish,
+    }));
+  }
+
+  const snapshot = computeMatchScoringSnapshot(state, events);
+  return state.seating.map((playerId) => ({
+    playerId,
+    matchScore: snapshot.totals[playerId] ?? 0,
+    xpEarned: 10 + (snapshot.totals[playerId] ?? 0),
+    rankedRatingDelta: 0,
+    matchScoreBreakdown: [],
+    ratingBreakdown: [],
+    xpBreakdown: [],
+    ghostFinish: false,
+  }));
 }
 
 function clearTurnTimer(room: RoomState): void {
@@ -215,6 +289,7 @@ function applyAutoMove(roomCode: string, playerId: string, t: GameTransport, rea
       view: viewFor(result.state, pid),
       turnStartedAt: nextTurnStartedAt,
       turnTimeoutMs: getConfig().turnTimeoutMs,
+      matchScoring: matchScoringForState(roomCode, result.state),
     });
   }
 
@@ -552,6 +627,7 @@ function handleReconnect(socket: Socket, session: SessionState): void {
           view: viewFor(room.gameState, playerId),
           turnStartedAt: room.turnStartedAt,
           turnTimeoutMs: getConfig().turnTimeoutMs,
+          matchScoring: matchScoringForState(roomCode, room.gameState),
         });
       }
     } else {
@@ -754,6 +830,16 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
   socket.on(EVENTS.GET_MY_STATS, (ack: (res: GetMyStatsAck) => void) => {
     if (typeof ack !== 'function') return;
     void handleGetMyStats(session, ack);
+  });
+
+  socket.on(EVENTS.GET_MY_PROGRESSION, (ack: (res: GetMyProgressionAck) => void) => {
+    if (typeof ack !== 'function') return;
+    void handleGetMyProgression(session, ack);
+  });
+
+  socket.on(EVENTS.GET_MY_SCORE_HISTORY, (ack: (res: GetMyScoreHistoryAck) => void) => {
+    if (typeof ack !== 'function') return;
+    void handleGetMyScoreHistory(session, ack);
   });
 
   socket.on(EVENTS.GET_LEADERBOARD, (reqOrAck: GetLeaderboardRequest | ((res: GetLeaderboardAck) => void), maybeAck?: (res: GetLeaderboardAck) => void) => {
@@ -1016,6 +1102,7 @@ function handleJoinRoom(
           view: viewFor(room.gameState, session.playerId),
           turnStartedAt: room.turnStartedAt,
           turnTimeoutMs: getConfig().turnTimeoutMs,
+          matchScoring: matchScoringForState(roomCode, room.gameState),
         });
       }
       ack({ ok: true });
@@ -1427,6 +1514,7 @@ function handleStartGame(session: SessionState, ack: (res: StartGameAck) => void
       view: viewFor(gameState, pid),
       turnStartedAt: room.turnStartedAt,
       turnTimeoutMs: getConfig().turnTimeoutMs,
+      matchScoring: matchScoringForState(roomCode, gameState),
     });
   }
 
@@ -1497,11 +1585,17 @@ function handleMakeMove(session: SessionState, move: Move, ack: (res: MakeMoveAc
       view: viewFor(result.state, pid),
       turnStartedAt: room.turnStartedAt,
       turnTimeoutMs: getConfig().turnTimeoutMs,
+      matchScoring: matchScoringForState(roomCode, result.state),
     });
   }
 
   // Ack the mover with their redacted view.
-  ack({ ok: true, view: viewFor(result.state, playerId), turnStartedAt: room.turnStartedAt });
+  ack({
+    ok: true,
+    view: viewFor(result.state, playerId),
+    turnStartedAt: room.turnStartedAt,
+    matchScoring: matchScoringForState(roomCode, result.state),
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -1584,7 +1678,13 @@ function flattenHistoryEntry(e: DbGameHistoryEntry): WireGameHistoryEntry {
       result: pl.result,
       captureCount: pl.captureCount,
       wasCut: pl.wasCut,
+      matchScore: pl.matchScore,
+      xpEarned: pl.xpEarned,
+      rankedRatingDelta: pl.rankedRatingDelta,
     })),
+    matchScore: e.matchScore,
+    xpEarned: e.xpEarned,
+    rankedRatingDelta: e.rankedRatingDelta,
   };
 }
 
@@ -1690,6 +1790,63 @@ async function handleGetMyStats(
   }
 }
 
+async function handleGetMyProgression(
+  session: SessionState,
+  ack: (res: GetMyProgressionAck) => void,
+): Promise<void> {
+  if (session.userId === null) {
+    ack({ ok: false, error: 'NOT_LOGGED_IN' });
+    return;
+  }
+  const p = getPersistence();
+  if (!p) {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+  try {
+    const progression = await p.getPlayerProgression(session.userId);
+    ack({ ok: true, progression: progressionViewOf(progression) });
+  } catch (err) {
+    console.error(`[progression] getPlayerProgression failed for ${session.userId}:`, err);
+    ack({ ok: false, error: 'UNAVAILABLE' });
+  }
+}
+
+async function handleGetMyScoreHistory(
+  session: SessionState,
+  ack: (res: GetMyScoreHistoryAck) => void,
+): Promise<void> {
+  if (session.userId === null) {
+    ack({ ok: false, error: 'NOT_LOGGED_IN' });
+    return;
+  }
+  const p = getPersistence();
+  if (!p) {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+  try {
+    const history = await p.getScoreHistory(session.userId);
+    const wire: ScoreHistoryEntryView[] = history.map((entry) => ({
+      gameId: entry.gameId,
+      createdAt: entry.createdAt.toISOString(),
+      matchScore: entry.matchScore,
+      xpEarned: entry.xpEarned,
+      rankedRatingDelta: entry.rankedRatingDelta,
+      rows: entry.rows.map((row) => ({
+        kind: row.kind,
+        reason: row.reason,
+        delta: row.delta,
+        createdAt: row.createdAt.toISOString(),
+      })),
+    }));
+    ack({ ok: true, history: wire });
+  } catch (err) {
+    console.error(`[progression] getScoreHistory failed for ${session.userId}:`, err);
+    ack({ ok: false, error: 'UNAVAILABLE' });
+  }
+}
+
 /** Map a DB stats row to the FLAT wire shape (Date → ISO string, derive winRate). */
 function mapStatsView(row: PlayerStatsRow): PlayerStatsView {
   return {
@@ -1706,6 +1863,10 @@ function mapStatsView(row: PlayerStatsRow): PlayerStatsView {
     currentWinStreak: row.currentWinStreak,
     longestWinStreak: row.longestWinStreak,
     avgFinish: (row.gamesPlayed - row.gamesAbandoned) > 0 ? row.sumFinishPositions / (row.gamesPlayed - row.gamesAbandoned) : 0,
+    highestMatchScore: row.highestMatchScore,
+    totalMatchScore: row.totalMatchScore,
+    ghostFinishes: row.ghostFinishes,
+    averageMatchScore: row.gamesPlayed > 0 ? row.totalMatchScore / row.gamesPlayed : 0,
     updatedAt: row.updatedAt.toISOString(),
   };
 }
@@ -1780,6 +1941,10 @@ function zeroStatsView(): PlayerStatsView {
     currentWinStreak: 0,
     longestWinStreak: 0,
     avgFinish: 0,
+    highestMatchScore: 0,
+    totalMatchScore: 0,
+    ghostFinishes: 0,
+    averageMatchScore: 0,
     updatedAt: null,
   };
 }
@@ -2004,6 +2169,10 @@ async function handleAdminGetUserStats(
       totalPlayTimeMs: result.totalPlayTimeMs,
       longestWinStreak: result.longestWinStreak,
       currentWinStreak: result.currentWinStreak,
+      highestMatchScore: result.highestMatchScore,
+      totalMatchScore: result.totalMatchScore,
+      ghostFinishes: result.ghostFinishes,
+      progression: result.progression ? progressionViewOf(result.progression) : null,
       updatedAt: result.updatedAt,
     };
     ack({ ok: true, stats });
@@ -2051,6 +2220,9 @@ async function handleAdminExportData(
         captureCount: p.captureCount,
         wasCut: p.wasCut,
         result: p.result,
+        matchScore: p.matchScore,
+        xpEarned: p.xpEarned,
+        rankedRatingDelta: p.rankedRatingDelta,
       })),
     }));
     ack({ ok: true, games });

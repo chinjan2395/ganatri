@@ -744,6 +744,7 @@ function MobileBottomNav({ activeTab, onTab }: MobileBottomNavProps): React.Reac
 
 interface ProfilePanelProps {
   account: ReturnType<typeof useGame>['account'];
+  progression: ReturnType<typeof useGame>['progression'];
   loggedIn: boolean;
   editingName: boolean;
   editNameValue: string;
@@ -774,7 +775,7 @@ interface ProfilePanelProps {
 }
 
 function ProfilePanel({
-  account, loggedIn, editingName, editNameValue, editNameBusy, editNameError, editInputRef,
+  account, progression, loggedIn, editingName, editNameValue, editNameBusy, editNameError, editInputRef,
   blockedOpen, blockedUsers, blockedLoading, blockedError,
   showDeleteConfirm, deleteLoading, deleteError,
   onSaveName, onCancelEdit, onOpenEdit, onEditNameChange, onEditNameKeyDown,
@@ -860,6 +861,11 @@ function ProfilePanel({
                     Edit
                   </button>
                 </div>
+              )}
+              {progression && (
+                <p className="lobby__profile-guest-msg">
+                  Level {progression.level} · Rating {progression.rankedRating} · XP {progression.totalXp}
+                </p>
               )}
             </div>
 
@@ -1031,7 +1037,7 @@ export function LobbyScreen(): React.ReactNode {
     createRoom, joinRoom, account, loginWithGoogle, logout, setScreen,
     updateDisplayName, guestName, recentPlayers, invitePlayer,
     getBlockedUsers, unblockUser, deleteAccount,
-    requestMyStats, requestLeaderboard,
+    requestMyStats, requestLeaderboard, progression,
   } = useGame();
   const loggedIn = account?.loggedIn ?? false;
   const isDesktop = useIsDesktop();
@@ -1309,6 +1315,7 @@ export function LobbyScreen(): React.ReactNode {
       {profileOpen && (
         <ProfilePanel
           account={account}
+          progression={progression}
           loggedIn={loggedIn}
           editingName={editingName}
           editNameValue={editNameValue}

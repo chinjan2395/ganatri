@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import type { PlayerId } from '@ganatri/engine';
 import type { AccountInfo } from '../state/GameProvider';
+import type { MatchScoringView, PlayerProgressionView } from '../protocol';
 import logo from '../assets/ganatri-logo.png';
 import './EndScreen.css';
 
@@ -10,6 +11,8 @@ export interface EndScreenProps {
   isHost: boolean;
   playerNames: Readonly<Record<string, string>>;
   account?: AccountInfo | null;
+  scoring?: MatchScoringView[];
+  progression?: PlayerProgressionView | null;
   onPlayAgain: () => void;
   onLeave: () => void;
 }
@@ -18,10 +21,11 @@ function shortId(id: PlayerId): string {
   return id.length <= 6 ? id : id.slice(0, 6);
 }
 
-export function EndScreen({ rankings, you, isHost, playerNames, account, onPlayAgain, onLeave }: EndScreenProps): React.ReactNode {
+export function EndScreen({ rankings, you, isHost, playerNames, account, scoring = [], progression, onPlayAgain, onLeave }: EndScreenProps): React.ReactNode {
   const order = rankings ?? [];
   const loserIndex = order.length > 0 ? order.length - 1 : -1;
   const winner = order[0];
+  const myScoring = scoring.find((entry) => entry.playerId === you);
 
   const nameFor = (pid: PlayerId): string => {
     if (pid === you && account?.loggedIn && account.displayName) {
@@ -49,6 +53,22 @@ export function EndScreen({ rankings, you, isHost, playerNames, account, onPlayA
           </div>
           <div className="end__winner-label">Winner</div>
         </motion.div>
+      )}
+
+      {myScoring && (
+        <div className="end__summary">
+          <p className="muted">
+            Score {myScoring.matchScore} · XP +{myScoring.xpEarned} · Rating {myScoring.rankedRatingDelta >= 0 ? '+' : ''}{myScoring.rankedRatingDelta}
+          </p>
+          {progression && account?.loggedIn && (
+            <p className="muted">
+              Level {progression.level} · Rating {progression.rankedRating} · XP {progression.totalXp}
+            </p>
+          )}
+          {!account?.loggedIn && (
+            <p className="muted">Create an account to keep XP and rating.</p>
+          )}
+        </div>
       )}
 
       {order.length === 0 ? (

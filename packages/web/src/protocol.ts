@@ -48,7 +48,7 @@ export interface StartGameAck {
   error?: 'NOT_HOST' | 'NOT_ENOUGH_PLAYERS';
 }
 export type MakeMoveAck =
-  | { ok: true; view: PlayerView; turnStartedAt: number | null }
+  | { ok: true; view: PlayerView; turnStartedAt: number | null; matchScoring?: MatchScoringView[] }
   | { ok: false; error: MoveError; message: string };
 export interface RequestStateAck {
   view: PlayerView | null;
@@ -63,6 +63,9 @@ export interface GameHistoryPlayer {
   result: string | null;
   captureCount: number;
   wasCut: boolean;
+  matchScore: number | null;
+  xpEarned: number | null;
+  rankedRatingDelta: number | null;
 }
 
 /** A single completed game in the logged-in player's history. */
@@ -86,6 +89,9 @@ export interface GameHistoryEntry {
   };
   /** Every player in the game (including you). */
   players: GameHistoryPlayer[];
+  matchScore: number | null;
+  xpEarned: number | null;
+  rankedRatingDelta: number | null;
 }
 
 export type RequestHistoryAck =
@@ -106,11 +112,65 @@ export interface PlayerStatsView {
   currentWinStreak: number;
   longestWinStreak: number;
   avgFinish: number; // sumFinishPositions / gamesPlayed; 0 when gamesPlayed === 0
+  highestMatchScore: number;
+  totalMatchScore: number;
+  ghostFinishes: number;
+  averageMatchScore: number;
   updatedAt: string | null;
 }
 
 export type GetMyStatsAck =
   | { ok: true; stats: PlayerStatsView }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
+
+export interface ScoreBreakdownRowView {
+  reason: 'CAPTURE_CARD' | 'SAME_RANK_BONUS' | 'TABLE_CLEAR' | 'CUT' | 'PLACEMENT_BONUS' | 'GHOST_BONUS' | 'RANKED_PLACEMENT' | 'ABANDON_PENALTY' | 'XP_MATCH_BASE' | 'XP_MATCH_SCORE';
+  delta: number;
+}
+
+export interface PlayerProgressionView {
+  rankedRating: number;
+  totalXp: number;
+  level: number;
+  xpToNextLevel: number;
+  highestMatchScore: number;
+  totalMatchScore: number;
+  ghostFinishes: number;
+  updatedAt: string | null;
+}
+
+export interface MatchScoringView {
+  playerId: string;
+  matchScore: number;
+  xpEarned: number;
+  rankedRatingDelta: number;
+  matchScoreBreakdown: ScoreBreakdownRowView[];
+  ratingBreakdown: ScoreBreakdownRowView[];
+  xpBreakdown: ScoreBreakdownRowView[];
+  progressionAfter?: PlayerProgressionView;
+  ghostFinish: boolean;
+}
+
+export interface ScoreHistoryEntryView {
+  gameId: string;
+  createdAt: string;
+  matchScore: number;
+  xpEarned: number;
+  rankedRatingDelta: number;
+  rows: Array<{
+    kind: 'MATCH_SCORE' | 'RANKED_RATING' | 'XP';
+    reason: ScoreBreakdownRowView['reason'];
+    delta: number;
+    createdAt: string;
+  }>;
+}
+
+export type GetMyProgressionAck =
+  | { ok: true; progression: PlayerProgressionView }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
+
+export type GetMyScoreHistoryAck =
+  | { ok: true; history: ScoreHistoryEntryView[] }
   | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' };
 
 export interface LeaderboardEntryView {
@@ -242,6 +302,7 @@ export interface StateUpdatePayload {
   view: PlayerView;
   turnStartedAt: number | null;
   turnTimeoutMs: number;
+  matchScoring?: MatchScoringView[];
 }
 export interface PlayerDisconnectedPayload {
   playerId: string;
@@ -327,6 +388,8 @@ export const EVENTS = {
   REQUEST_STATE: 'request_state',
   REQUEST_HISTORY: 'request_history',
   GET_MY_STATS: 'get_my_stats',
+  GET_MY_PROGRESSION: 'get_my_progression',
+  GET_MY_SCORE_HISTORY: 'get_my_score_history',
   GET_LEADERBOARD: 'get_leaderboard',
   GET_RECENT_PLAYERS: 'get_recent_players',
   GET_BLOCKED_USERS: 'get_blocked_users',
@@ -456,6 +519,10 @@ export interface AdminUserStatsView {
   totalPlayTimeMs: number;
   longestWinStreak: number;
   currentWinStreak: number;
+  highestMatchScore: number;
+  totalMatchScore: number;
+  ghostFinishes: number;
+  progression: PlayerProgressionView | null;
   updatedAt: string | null;
 }
 
@@ -477,6 +544,9 @@ export interface ExportGamePlayerView {
   captureCount: number;
   wasCut: boolean;
   result: string | null;
+  matchScore: number | null;
+  xpEarned: number | null;
+  rankedRatingDelta: number | null;
 }
 
 export interface ExportGameView {

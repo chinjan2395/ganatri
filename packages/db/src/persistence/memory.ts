@@ -12,6 +12,7 @@ import { PgPersistence, toHistoryEntry, toLeaderboardEntry } from './pg';
 import type {
   AdminKpiStats,
   AdminUserStats,
+  ApplyGameScoringInput,
   AppendEventInput,
   AuthSessionRow,
   BlockedUserEntry,
@@ -22,6 +23,8 @@ import type {
   GameHistoryEntry,
   GamePersistence,
   GamePlayerRow,
+  PlayerProgression,
+  PlayerProgressionRow,
   GameRow,
   GameWithPlayers,
   LeaderboardEntry,
@@ -34,6 +37,10 @@ import type {
   RecordGameStartedInput,
   RoomRow,
   RoomStatus,
+  ScoreHistoryEntry,
+  ScoreLedgerEntry,
+  ScoreLedgerRow,
+  ScoredGamePlayerResult,
   UpsertOAuthUserInput,
   UserRow,
   UserSearchResult,
@@ -52,6 +59,8 @@ export class MemoryPersistence implements GamePersistence {
   private readonly gamePlayers = new Map<string, GamePlayerRow>();
   private readonly events = new Map<string, GameEventRow>();
   private readonly stats = new Map<string, PlayerStatsRow>();
+  private readonly progression = new Map<string, PlayerProgressionRow>();
+  private readonly scoreLedger = new Map<string, ScoreLedgerRow>();
   private readonly oauthAccounts = new Map<string, OAuthAccountRow>();
   private readonly authSessions = new Map<string, AuthSessionRow>();
   /** Enforces (gameId, seq) uniqueness. */
@@ -420,6 +429,9 @@ export class MemoryPersistence implements GamePersistence {
         wasCut: p.wasCut,
         captureCount: p.captureCount,
         result: p.result,
+        matchScore: existing?.matchScore ?? null,
+        xpEarned: existing?.xpEarned ?? null,
+        rankedRatingDelta: existing?.rankedRatingDelta ?? null,
       };
       this.gamePlayers.set(row.id, row);
       return row;
@@ -495,6 +507,9 @@ export class MemoryPersistence implements GamePersistence {
         longestWinStreak: delta.longestWinStreak ?? 0,
         currentWinStreak: delta.currentWinStreak ?? 0,
         sumFinishPositions: inc(delta.sumFinishPositions),
+        highestMatchScore: delta.highestMatchScore ?? 0,
+        totalMatchScore: inc(delta.totalMatchScore),
+        ghostFinishes: inc(delta.ghostFinishes),
         updatedAt: new Date(),
       };
       this.stats.set(delta.userId, row);
@@ -520,6 +535,12 @@ export class MemoryPersistence implements GamePersistence {
           ? delta.currentWinStreak
           : existing.currentWinStreak,
       sumFinishPositions: existing.sumFinishPositions + inc(delta.sumFinishPositions),
+      highestMatchScore:
+        delta.highestMatchScore !== undefined
+          ? Math.max(existing.highestMatchScore, delta.highestMatchScore)
+          : existing.highestMatchScore,
+      totalMatchScore: existing.totalMatchScore + inc(delta.totalMatchScore),
+      ghostFinishes: existing.ghostFinishes + inc(delta.ghostFinishes),
       updatedAt: new Date(),
     };
     this.stats.set(delta.userId, updated);
@@ -528,6 +549,79 @@ export class MemoryPersistence implements GamePersistence {
 
   async getPlayerStats(userId: string): Promise<PlayerStatsRow | null> {
     return this.stats.get(userId) ?? null;
+  }
+
+  async getPlayerProgression(userId: string): Promise<PlayerProgression | null> {
+    const row = this.progression.get(userId);
+    return row ? toPlayerProgression(row) : null;
+  }
+
+  async getScoreHistory(userId: string, limit = 20, offset = 0): Promise<ScoreHistoryEntry[]> {
+    const rows = [...this.gamePlayers.values()]
+      .filter((row) => row.userId === userId && row.matchScore !== null)
+      .sort((a, b) => {
+        const gameA = this.games.get(a.gameId);
+        const gameB = this.games.get(b.gameId);
+        return (gameB?.endedAt?.getTime() ?? 0) - (gameA?.endedAt?.getTime() ?? 0);
+      })
+      .slice(offset, offset + limit);
+
+    return rows.map((row) => ({
+      gameId: row.gameId,
+      createdAt: this.games.get(row.gameId)?.endedAt ?? new Date(0),
+      matchScore: row.matchScore ?? 0,
+      xpEarned: row.xpEarned ?? 0,
+      rankedRatingDelta: row.rankedRatingDelta ?? 0,
+      rows: [...this.scoreLedger.values()]
+        .filter((entry) => entry.userId === userId && entry.gameId === row.gameId)
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+        .map(toScoreLedgerEntry),
+    }));
+  }
+
+  async applyGameScoring(input: ApplyGameScoringInput): Promise<void> {
+    if ([...this.scoreLedger.values()].some((row) => row.gameId === input.gameId)) return;
+
+    for (const player of input.scoredPlayers) {
+      const gp = [...this.gamePlayers.values()].find(
+        (row) => row.gameId === input.gameId && row.seatIndex === player.seatIndex
+      );
+      if (gp) {
+        this.gamePlayers.set(gp.id, {
+          ...gp,
+          matchScore: player.matchScore,
+          xpEarned: player.xpEarned,
+          rankedRatingDelta: player.rankedRatingDelta,
+        });
+      }
+
+      if (player.userId === null || player.progressionAfter === null) continue;
+
+      this.progression.set(player.userId, {
+        userId: player.userId,
+        rankedRating: player.progressionAfter.rankedRating,
+        totalXp: player.progressionAfter.totalXp,
+        level: player.progressionAfter.level,
+        highestMatchScore: player.progressionAfter.highestMatchScore,
+        totalMatchScore: player.progressionAfter.totalMatchScore,
+        ghostFinishes: player.progressionAfter.ghostFinishes,
+        updatedAt: player.progressionAfter.updatedAt,
+      });
+
+      for (const row of toLedgerRows(input.gameId, player)) {
+        const id = newId('ledger');
+        this.scoreLedger.set(id, {
+          id,
+          userId: row.userId,
+          gameId: row.gameId,
+          kind: row.kind,
+          reason: row.reason,
+          delta: row.delta,
+          createdAt: row.createdAt,
+          metaJson: row.metaJson,
+        });
+      }
+    }
   }
 
   async mergeGuestIntoUser(guestUserId: string, registeredUserId: string): Promise<void> {
@@ -567,6 +661,9 @@ export class MemoryPersistence implements GamePersistence {
           userId: registeredUserId,
           longestWinStreak: mergedLongest,
           currentWinStreak: mergedCurrent,
+          highestMatchScore: guestStats.highestMatchScore,
+          totalMatchScore: guestStats.totalMatchScore,
+          ghostFinishes: guestStats.ghostFinishes,
           updatedAt: new Date(),
         });
       } else {
@@ -584,10 +681,37 @@ export class MemoryPersistence implements GamePersistence {
           longestWinStreak: mergedLongest,
           currentWinStreak: mergedCurrent,
           sumFinishPositions: regStats.sumFinishPositions + guestStats.sumFinishPositions,
+          highestMatchScore: Math.max(regStats.highestMatchScore, guestStats.highestMatchScore),
+          totalMatchScore: regStats.totalMatchScore + guestStats.totalMatchScore,
+          ghostFinishes: regStats.ghostFinishes + guestStats.ghostFinishes,
           updatedAt: new Date(),
         });
       }
       this.stats.delete(guestUserId);
+    }
+
+    const guestProgression = this.progression.get(guestUserId);
+    if (guestProgression) {
+      const regProgression = this.progression.get(registeredUserId);
+      if (!regProgression) {
+        this.progression.set(registeredUserId, {
+          ...guestProgression,
+          userId: registeredUserId,
+          updatedAt: new Date(),
+        });
+      } else {
+        this.progression.set(registeredUserId, {
+          userId: registeredUserId,
+          rankedRating: regProgression.rankedRating + guestProgression.rankedRating,
+          totalXp: regProgression.totalXp + guestProgression.totalXp,
+          level: Math.max(regProgression.level, guestProgression.level),
+          highestMatchScore: Math.max(regProgression.highestMatchScore, guestProgression.highestMatchScore),
+          totalMatchScore: regProgression.totalMatchScore + guestProgression.totalMatchScore,
+          ghostFinishes: regProgression.ghostFinishes + guestProgression.ghostFinishes,
+          updatedAt: new Date(),
+        });
+      }
+      this.progression.delete(guestUserId);
     }
 
     // Remove the guest user
@@ -922,6 +1046,10 @@ export class MemoryPersistence implements GamePersistence {
       totalPlayTimeMs: s?.totalPlayTimeMs ?? 0,
       longestWinStreak: s?.longestWinStreak ?? 0,
       currentWinStreak: s?.currentWinStreak ?? 0,
+      highestMatchScore: s?.highestMatchScore ?? 0,
+      totalMatchScore: s?.totalMatchScore ?? 0,
+      ghostFinishes: s?.ghostFinishes ?? 0,
+      progression: await this.getPlayerProgression(userId),
       updatedAt: s?.updatedAt instanceof Date ? s.updatedAt.toISOString() : null,
     };
   }
@@ -1011,6 +1139,9 @@ export class MemoryPersistence implements GamePersistence {
         captureCount: p.captureCount,
         wasCut: p.wasCut,
         result: p.result,
+        matchScore: p.matchScore,
+        xpEarned: p.xpEarned,
+        rankedRatingDelta: p.rankedRatingDelta,
       }));
       return {
         id: game.id,
@@ -1026,6 +1157,88 @@ export class MemoryPersistence implements GamePersistence {
       };
     });
   }
+}
+
+function toPlayerProgression(row: PlayerProgressionRow): PlayerProgression {
+  return {
+    userId: row.userId,
+    rankedRating: row.rankedRating,
+    totalXp: row.totalXp,
+    level: row.level,
+    highestMatchScore: row.highestMatchScore,
+    totalMatchScore: row.totalMatchScore,
+    ghostFinishes: row.ghostFinishes,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function toScoreLedgerEntry(row: ScoreLedgerRow): ScoreLedgerEntry {
+  return {
+    id: row.id,
+    userId: row.userId,
+    gameId: row.gameId,
+    kind: row.kind,
+    reason: row.reason,
+    delta: row.delta,
+    createdAt: row.createdAt,
+    metaJson: (row.metaJson as Record<string, unknown> | null) ?? null,
+  };
+}
+
+function toLedgerRows(gameId: string, player: ScoredGamePlayerResult): Array<{
+  userId: string;
+  gameId: string;
+  kind: ScoreLedgerRow['kind'];
+  reason: ScoreLedgerRow['reason'];
+  delta: number;
+  createdAt: Date;
+  metaJson: Record<string, unknown> | null;
+}> {
+  if (player.userId === null) return [];
+  const createdAt = player.progressionAfter?.updatedAt ?? new Date();
+  const rows: Array<{
+    userId: string;
+    gameId: string;
+    kind: ScoreLedgerRow['kind'];
+    reason: ScoreLedgerRow['reason'];
+    delta: number;
+    createdAt: Date;
+    metaJson: Record<string, unknown> | null;
+  }> = [];
+  for (const row of player.matchScoreBreakdown) {
+    rows.push({
+      userId: player.userId,
+      gameId,
+      kind: 'MATCH_SCORE',
+      reason: row.reason,
+      delta: row.delta,
+      createdAt,
+      metaJson: (row.meta as Record<string, unknown> | null) ?? null,
+    });
+  }
+  for (const row of player.ratingBreakdown) {
+    rows.push({
+      userId: player.userId,
+      gameId,
+      kind: 'RANKED_RATING',
+      reason: row.reason,
+      delta: row.delta,
+      createdAt,
+      metaJson: (row.meta as Record<string, unknown> | null) ?? null,
+    });
+  }
+  for (const row of player.xpBreakdown) {
+    rows.push({
+      userId: player.userId,
+      gameId,
+      kind: 'XP',
+      reason: row.reason,
+      delta: row.delta,
+      createdAt,
+      metaJson: (row.meta as Record<string, unknown> | null) ?? null,
+    });
+  }
+  return rows;
 }
 
 /**

@@ -15,14 +15,17 @@ import {
   gameEvents,
   gamePlayers,
   oauthAccounts,
+  playerProgression,
   playerStats,
   rooms,
+  scoreLedger,
   userBlocks,
   users,
 } from '../schema';
 import type {
   AdminKpiStats,
   AdminUserStats,
+  ApplyGameScoringInput,
   AppendEventInput,
   BlockedUserEntry,
   CoPlayerEntry,
@@ -34,17 +37,24 @@ import type {
   GameHistoryPlayer,
   GamePersistence,
   GamePlayerRow,
+  PlayerProgression,
   GameRow,
   GameWithPlayers,
   LeaderboardEntry,
   NewUser,
   PlayerStatsDelta,
+  PlayerProgressionRow,
   PlayerStatsRow,
   RankedLeaderboardEntry,
   RecordGameFinishedInput,
   RecordGameStartedInput,
   RoomRow,
   RoomStatus,
+  ScoreHistoryEntry,
+  ScoreLedgerEntry,
+  ScoreLedgerKind,
+  ScoreLedgerReason,
+  ScoredGamePlayerResult,
   UpsertOAuthUserInput,
   UserRow,
   UserSearchResult,
@@ -487,6 +497,9 @@ export class PgPersistence implements GamePersistence {
         longestWinStreak: delta.longestWinStreak ?? 0,
         currentWinStreak: delta.currentWinStreak ?? 0,
         sumFinishPositions: inc(delta.sumFinishPositions),
+        highestMatchScore: delta.highestMatchScore ?? 0,
+        totalMatchScore: inc(delta.totalMatchScore),
+        ghostFinishes: inc(delta.ghostFinishes),
       })
       .onConflictDoUpdate({
         target: playerStats.userId,
@@ -509,6 +522,12 @@ export class PgPersistence implements GamePersistence {
               ? delta.currentWinStreak
               : sql`${playerStats.currentWinStreak}`,
           sumFinishPositions: sql`${playerStats.sumFinishPositions} + ${inc(delta.sumFinishPositions)}`,
+          highestMatchScore:
+            delta.highestMatchScore !== undefined
+              ? sql`greatest(${playerStats.highestMatchScore}, ${delta.highestMatchScore})`
+              : sql`${playerStats.highestMatchScore}`,
+          totalMatchScore: sql`${playerStats.totalMatchScore} + ${inc(delta.totalMatchScore)}`,
+          ghostFinishes: sql`${playerStats.ghostFinishes} + ${inc(delta.ghostFinishes)}`,
           updatedAt: new Date(),
         },
       })
@@ -523,6 +542,114 @@ export class PgPersistence implements GamePersistence {
       .where(eq(playerStats.userId, userId))
       .limit(1);
     return rows[0] ?? null;
+  }
+
+  async getPlayerProgression(userId: string): Promise<PlayerProgression | null> {
+    const rows = await this.db
+      .select()
+      .from(playerProgression)
+      .where(eq(playerProgression.userId, userId))
+      .limit(1);
+    return rows[0] ? toPlayerProgression(rows[0]) : null;
+  }
+
+  async getScoreHistory(userId: string, limit = 20, offset = 0): Promise<ScoreHistoryEntry[]> {
+    const gameRows = await this.db
+      .select({
+        gameId: gamePlayers.gameId,
+        createdAt: games.endedAt,
+        matchScore: gamePlayers.matchScore,
+        xpEarned: gamePlayers.xpEarned,
+        rankedRatingDelta: gamePlayers.rankedRatingDelta,
+      })
+      .from(gamePlayers)
+      .innerJoin(games, eq(gamePlayers.gameId, games.id))
+      .where(eq(gamePlayers.userId, userId))
+      .orderBy(desc(games.endedAt), desc(games.startedAt))
+      .limit(limit)
+      .offset(offset);
+
+    if (gameRows.length === 0) return [];
+
+    const gameIds = gameRows.map((row) => row.gameId);
+    const ledgerRows = await this.db
+      .select()
+      .from(scoreLedger)
+      .where(and(eq(scoreLedger.userId, userId), inArray(scoreLedger.gameId, gameIds)))
+      .orderBy(desc(scoreLedger.createdAt), asc(scoreLedger.kind), asc(scoreLedger.reason));
+
+    const byGame = new Map<string, ScoreLedgerEntry[]>();
+    for (const row of ledgerRows) {
+      const entries = byGame.get(row.gameId);
+      const entry = toScoreLedgerEntry(row);
+      if (entries) entries.push(entry);
+      else byGame.set(row.gameId, [entry]);
+    }
+
+    return gameRows.map((row) => ({
+      gameId: row.gameId,
+      createdAt: row.createdAt ?? new Date(0),
+      matchScore: row.matchScore ?? 0,
+      xpEarned: row.xpEarned ?? 0,
+      rankedRatingDelta: row.rankedRatingDelta ?? 0,
+      rows: byGame.get(row.gameId) ?? [],
+    }));
+  }
+
+  async applyGameScoring(input: ApplyGameScoringInput): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const existingLedger = await tx
+        .select({ id: scoreLedger.id })
+        .from(scoreLedger)
+        .where(eq(scoreLedger.gameId, input.gameId))
+        .limit(1);
+      if (existingLedger.length > 0) return;
+
+      for (const player of input.scoredPlayers) {
+        await tx
+          .update(gamePlayers)
+          .set({
+            matchScore: player.matchScore,
+            xpEarned: player.xpEarned,
+            rankedRatingDelta: player.rankedRatingDelta,
+          })
+          .where(and(eq(gamePlayers.gameId, input.gameId), eq(gamePlayers.seatIndex, player.seatIndex)));
+
+        if (player.userId === null || player.progressionAfter === null) {
+          continue;
+        }
+
+        await tx
+          .insert(playerProgression)
+          .values({
+            userId: player.userId,
+            rankedRating: player.progressionAfter.rankedRating,
+            totalXp: player.progressionAfter.totalXp,
+            level: player.progressionAfter.level,
+            highestMatchScore: player.progressionAfter.highestMatchScore,
+            totalMatchScore: player.progressionAfter.totalMatchScore,
+            ghostFinishes: player.progressionAfter.ghostFinishes,
+            updatedAt: player.progressionAfter.updatedAt,
+          })
+          .onConflictDoUpdate({
+            target: playerProgression.userId,
+            set: {
+              rankedRating: player.progressionAfter.rankedRating,
+              totalXp: player.progressionAfter.totalXp,
+              level: player.progressionAfter.level,
+              highestMatchScore: player.progressionAfter.highestMatchScore,
+              totalMatchScore: player.progressionAfter.totalMatchScore,
+              ghostFinishes: player.progressionAfter.ghostFinishes,
+              updatedAt: player.progressionAfter.updatedAt,
+            },
+          });
+
+        const ledgerRows = toLedgerRows(input.gameId, player);
+        if (ledgerRows.length > 0) {
+          await tx.insert(scoreLedger).values(ledgerRows);
+        }
+      }
+    });
   }
 
   async mergeGuestIntoUser(guestUserId: string, registeredUserId: string): Promise<void> {
@@ -1071,9 +1198,13 @@ export class PgPersistence implements GamePersistence {
         COALESCE(ps.total_play_time_ms, 0)::bigint AS "totalPlayTimeMs",
         COALESCE(ps.longest_win_streak, 0)::int AS "longestWinStreak",
         COALESCE(ps.current_win_streak, 0)::int AS "currentWinStreak",
+        COALESCE(ps.highest_match_score, 0)::int AS "highestMatchScore",
+        COALESCE(ps.total_match_score, 0)::int AS "totalMatchScore",
+        COALESCE(ps.ghost_finishes, 0)::int AS "ghostFinishes",
         ps.updated_at   AS "updatedAt"
       FROM users u
       LEFT JOIN player_stats ps ON ps.user_id = u.id
+      LEFT JOIN player_progression pp ON pp.user_id = u.id
       WHERE u.id = ${userId}
       LIMIT 1
     `);
@@ -1094,6 +1225,9 @@ export class PgPersistence implements GamePersistence {
       totalPlayTimeMs: number | string;
       longestWinStreak: number | string;
       currentWinStreak: number | string;
+      highestMatchScore: number | string;
+      totalMatchScore: number | string;
+      ghostFinishes: number | string;
       updatedAt: Date | string | null;
     } | undefined;
     if (!row) return null;
@@ -1123,6 +1257,10 @@ export class PgPersistence implements GamePersistence {
       totalPlayTimeMs: Number(row.totalPlayTimeMs),
       longestWinStreak: Number(row.longestWinStreak),
       currentWinStreak: Number(row.currentWinStreak),
+      highestMatchScore: Number(row.highestMatchScore),
+      totalMatchScore: Number(row.totalMatchScore),
+      ghostFinishes: Number(row.ghostFinishes),
+      progression: await this.getPlayerProgression(userId),
       updatedAt,
     };
   }
@@ -1178,6 +1316,9 @@ export class PgPersistence implements GamePersistence {
         captureCount: p.captureCount,
         wasCut: p.wasCut,
         result: p.result,
+        matchScore: p.matchScore,
+        xpEarned: p.xpEarned,
+        rankedRatingDelta: p.rankedRatingDelta,
       })),
     }));
   }
@@ -1230,6 +1371,9 @@ export function toHistoryEntry(
     result: p.result,
     captureCount: p.captureCount,
     wasCut: p.wasCut,
+    matchScore: p.matchScore,
+    xpEarned: p.xpEarned,
+    rankedRatingDelta: p.rankedRatingDelta,
   });
   const ordered = [...players].sort((a, b) => a.seatIndex - b.seatIndex);
   const mine = ordered.find((p) => p.userId === userId);
@@ -1250,5 +1394,90 @@ export function toHistoryEntry(
     },
     you: toPlayer(mine),
     players: ordered.map(toPlayer),
+    matchScore: mine.matchScore,
+    xpEarned: mine.xpEarned,
+    rankedRatingDelta: mine.rankedRatingDelta,
   };
+}
+
+function toPlayerProgression(row: PlayerProgressionRow): PlayerProgression {
+  return {
+    userId: row.userId,
+    rankedRating: row.rankedRating,
+    totalXp: row.totalXp,
+    level: row.level,
+    highestMatchScore: row.highestMatchScore,
+    totalMatchScore: row.totalMatchScore,
+    ghostFinishes: row.ghostFinishes,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function toScoreLedgerEntry(row: typeof scoreLedger.$inferSelect): ScoreLedgerEntry {
+  return {
+    id: row.id,
+    userId: row.userId,
+    gameId: row.gameId,
+    kind: row.kind,
+    reason: row.reason,
+    delta: row.delta,
+    createdAt: row.createdAt,
+    metaJson: (row.metaJson as Record<string, unknown> | null) ?? null,
+  };
+}
+
+function toLedgerRows(gameId: string, player: ScoredGamePlayerResult): Array<{
+  userId: string;
+  gameId: string;
+  kind: ScoreLedgerKind;
+  reason: ScoreLedgerReason;
+  delta: number;
+  createdAt: Date;
+  metaJson: Record<string, unknown> | null;
+}> {
+  if (player.userId === null) return [];
+  const createdAt = player.progressionAfter?.updatedAt ?? new Date();
+  const rows: Array<{
+    userId: string;
+    gameId: string;
+    kind: ScoreLedgerKind;
+    reason: ScoreLedgerReason;
+    delta: number;
+    createdAt: Date;
+    metaJson: Record<string, unknown> | null;
+  }> = [];
+  for (const row of player.matchScoreBreakdown) {
+    rows.push({
+      userId: player.userId,
+      gameId,
+      kind: 'MATCH_SCORE',
+      reason: row.reason,
+      delta: row.delta,
+      createdAt,
+      metaJson: (row.meta as Record<string, unknown> | null) ?? null,
+    });
+  }
+  for (const row of player.ratingBreakdown) {
+    rows.push({
+      userId: player.userId,
+      gameId,
+      kind: 'RANKED_RATING',
+      reason: row.reason,
+      delta: row.delta,
+      createdAt,
+      metaJson: (row.meta as Record<string, unknown> | null) ?? null,
+    });
+  }
+  for (const row of player.xpBreakdown) {
+    rows.push({
+      userId: player.userId,
+      gameId,
+      kind: 'XP',
+      reason: row.reason,
+      delta: row.delta,
+      createdAt,
+      metaJson: (row.meta as Record<string, unknown> | null) ?? null,
+    });
+  }
+  return rows;
 }

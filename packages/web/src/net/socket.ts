@@ -17,6 +17,8 @@ import {
   type RequestStateAck,
   type RequestHistoryAck,
   type GetMyStatsAck,
+  type GetMyProgressionAck,
+  type GetMyScoreHistoryAck,
   type GetLeaderboardAck,
   type GetLeaderboardRequest,
   type RequestIceServersAck,
@@ -108,6 +110,14 @@ export function requestHistory(): Promise<RequestHistoryAck> {
 
 export function requestMyStats(): Promise<GetMyStatsAck> {
   return emitAck<GetMyStatsAck>(EVENTS.GET_MY_STATS);
+}
+
+export function getMyProgression(): Promise<GetMyProgressionAck> {
+  return emitAck<GetMyProgressionAck>(EVENTS.GET_MY_PROGRESSION);
+}
+
+export function getMyScoreHistory(): Promise<GetMyScoreHistoryAck> {
+  return emitAck<GetMyScoreHistoryAck>(EVENTS.GET_MY_SCORE_HISTORY);
 }
 
 export function requestLeaderboard(timeWindow?: 'week' | 'month'): Promise<GetLeaderboardAck> {

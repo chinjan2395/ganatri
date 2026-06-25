@@ -309,7 +309,7 @@ function HistoryRow({ entry }: { entry: GameHistoryEntry }): React.ReactNode {
             {entry.playerCount}p · {formatDuration(entry.durationMs)}
           </span>
           <span className="hist__meta-line hist__meta-line--dim">
-            {entry.you.captureCount} captured
+            Score {entry.matchScore ?? 0} · XP +{entry.xpEarned ?? 0} · Rating {(entry.rankedRatingDelta ?? 0) >= 0 ? '+' : ''}{entry.rankedRatingDelta ?? 0}
           </span>
         </div>
         <span className={`hist__chevron${open ? ' hist__chevron--open' : ''}`} aria-hidden="true">
@@ -335,6 +335,7 @@ function HistoryRow({ entry }: { entry: GameHistoryEntry }): React.ReactNode {
                 <span>Rank</span>
                 <span>Captured</span>
                 <span>Cut</span>
+                <span>Score</span>
               </div>
               {[...entry.players]
                 .sort((a, b) => (a.finalRank ?? 99) - (b.finalRank ?? 99))
@@ -353,6 +354,7 @@ function HistoryRow({ entry }: { entry: GameHistoryEntry }): React.ReactNode {
                       <span>{p.finalRank != null ? rankSuffix(p.finalRank) : '—'}</span>
                       <span>{p.captureCount}</span>
                       <span>{p.wasCut ? 'Yes' : '—'}</span>
+                      <span>{p.matchScore ?? 0}</span>
                     </div>
                   );
                 })}
