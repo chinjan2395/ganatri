@@ -53,18 +53,26 @@ function secureFlag(secure: boolean): string {
 }
 
 /**
+ * Cross-origin credentialed requests (web app → API host) require
+ * `SameSite=None; Secure`. Local HTTP dev keeps `Lax` without `Secure`.
+ */
+function sameSiteFlag(secure: boolean): string {
+  return secure ? 'SameSite=None' : 'SameSite=Lax';
+}
+
+/**
  * Build the `Set-Cookie` value for the session cookie.
- * httpOnly, SameSite=Lax, Path=/, Max-Age derived from ttlDays. `Secure` is
- * included unless `secure` is false (local HTTP dev only).
+ * httpOnly, Path=/, Max-Age derived from ttlDays. `Secure` is included unless
+ * `secure` is false (local HTTP dev only).
  */
 export function buildSessionCookie(token: string, ttlDays: number, secure = true): string {
   const maxAge = Math.max(0, Math.floor(ttlDays * 24 * 60 * 60));
-  return `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}; Max-Age=${maxAge}; Path=/; HttpOnly${secureFlag(secure)}; SameSite=Lax`;
+  return `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}; Max-Age=${maxAge}; Path=/; HttpOnly${secureFlag(secure)}; ${sameSiteFlag(secure)}`;
 }
 
 /** Build the `Set-Cookie` value that clears the session cookie. */
 export function buildClearCookie(secure = true): string {
-  return `${SESSION_COOKIE_NAME}=; Max-Age=0; Path=/; HttpOnly${secureFlag(secure)}; SameSite=Lax`;
+  return `${SESSION_COOKIE_NAME}=; Max-Age=0; Path=/; HttpOnly${secureFlag(secure)}; ${sameSiteFlag(secure)}`;
 }
 
 /** Build a short-lived (10 min) httpOnly cookie holding the OAuth CSRF state. */

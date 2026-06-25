@@ -23,6 +23,7 @@ import {
   loginWithGoogle as netLoginWithGoogle,
   logout as netLogout,
   clearGuestToken,
+  clearAuthSessionToken,
   clearRuntimeSessionStorage,
   getAuthSessions as netGetAuthSessions,
   revokeAuthSession as netRevokeAuthSession,
@@ -197,6 +198,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
     function onSession(payload: SessionPayload): void {
       if (payload.loggedIn) {
         clearGuestToken();
+        clearAuthSessionToken();
       } else if (payload.guestToken) {
         setGuestToken(payload.guestToken);
       }
