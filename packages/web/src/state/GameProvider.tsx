@@ -40,6 +40,7 @@ import {
   unblockUser as netUnblockUser,
   getBlockedUsers as netGetBlockedUsers,
   deleteAccount as netDeleteAccount,
+  downloadMyData as netDownloadMyData,
 } from '../net/socket';
 import {
   EVENTS,
@@ -73,6 +74,7 @@ import {
   type UnblockUserAck,
   type GetBlockedUsersAck,
   type DeleteAccountAck,
+  type DownloadMyDataAck,
   type GetAuthSessionsAck,
   type RevokeAuthSessionAck,
   type RevokeOtherAuthSessionsAck,
@@ -148,6 +150,7 @@ export interface GameContextValue {
   revokeAuthSession: (sessionId: string) => Promise<RevokeAuthSessionAck>;
   revokeOtherAuthSessions: () => Promise<RevokeOtherAuthSessionsAck>;
   deleteAccount: () => Promise<DeleteAccountAck>;
+  downloadMyData: () => Promise<DownloadMyDataAck>;
   refreshRecentPlayers: () => Promise<void>;
 }
 
@@ -428,6 +431,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
     }
     return ack;
   }, []);
+  const downloadMyData = useCallback(() => netDownloadMyData(), []);
   const refreshRecentPlayers = useCallback(async () => {
     const ack = await netRequestRecentPlayers();
     if (ack.ok) setRecentPlayers(ack.players);
@@ -520,6 +524,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       revokeAuthSession,
       revokeOtherAuthSessions,
       deleteAccount,
+      downloadMyData,
       refreshRecentPlayers,
     }),
     [
@@ -568,6 +573,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       revokeAuthSession,
       revokeOtherAuthSessions,
       deleteAccount,
+      downloadMyData,
       refreshRecentPlayers,
     ],
   );

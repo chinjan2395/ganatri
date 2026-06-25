@@ -36,6 +36,7 @@ import {
   type UnblockUserAck,
   type GetBlockedUsersAck,
   type DeleteAccountAck,
+  type DownloadMyDataAck,
 } from '../protocol';
 
 const LEGACY_TOKEN_KEY = 'ganatri.token';
@@ -303,4 +304,8 @@ export function revokeOtherAuthSessions(): Promise<RevokeOtherAuthSessionsAck> {
 
 export function deleteAccount(): Promise<DeleteAccountAck> {
   return emitAck<DeleteAccountAck>(EVENTS.DELETE_ACCOUNT);
+}
+
+export function downloadMyData(): Promise<DownloadMyDataAck> {
+  return emitAck<DownloadMyDataAck>(EVENTS.DOWNLOAD_MY_DATA);
 }
