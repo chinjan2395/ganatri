@@ -350,7 +350,9 @@ function SeatSlot({
             exit={{ opacity: 0 }}
           >
             <div className="room__seat-circle room__seat-circle--empty">
-              <span className="room__seat-icon" aria-hidden="true">👤</span>
+              <span className="room__seat-icon" aria-hidden="true">
+                <UserSilhouetteIcon />
+              </span>
             </div>
             <span className="room__seat-waiting-label">
               Waiting for
@@ -815,7 +817,7 @@ function FriendsOnlineSidebar({
 }: FriendsOnlineSidebarProps): React.ReactNode {
   if (!isLoggedIn) {
     return (
-      <aside className="room__right-col">
+      <>
         <section className="room__friends-panel">
           <h3 className="room__friends-heading">FRIENDS ONLINE</h3>
           <p className="room__friends-empty muted">Sign in to invite friends</p>
@@ -824,13 +826,13 @@ function FriendsOnlineSidebar({
           <h3 className="room__friends-heading">RECENT OPPONENTS</h3>
           <p className="room__friends-empty muted">Sign in to see recent opponents</p>
         </section>
-      </aside>
+      </>
     );
   }
 
   if (recentPlayers === null) {
     return (
-      <aside className="room__right-col">
+      <>
         <section className="room__friends-panel">
           <h3 className="room__friends-heading">FRIENDS ONLINE</h3>
           <FriendsPanelSkeleton />
@@ -839,7 +841,7 @@ function FriendsOnlineSidebar({
           <h3 className="room__friends-heading">RECENT OPPONENTS</h3>
           <FriendsPanelSkeleton />
         </section>
-      </aside>
+      </>
     );
   }
   const [states, setStates] = useState<Record<string, 'idle' | 'loading' | 'sent' | string>>(
@@ -928,7 +930,7 @@ function FriendsOnlineSidebar({
   }
 
   return (
-    <aside className="room__right-col">
+    <>
       <section className="room__friends-panel">
         <h3 className="room__friends-heading">FRIENDS ONLINE</h3>
         {onlineFriends.length === 0 ? (
@@ -951,7 +953,7 @@ function FriendsOnlineSidebar({
         )}
         <button className="secondary room__friends-view-all">View All ›</button>
       </section>
-    </aside>
+    </>
   );
 }
 
@@ -1248,7 +1250,7 @@ export function RoomScreen(): React.ReactNode {
         </div>
         <RoomHeaderDesktop roomCode={room.roomCode} onExit={() => void leaveRoom()} />
         <div className="room__desktop-body">
-          {/* LEFT: Room Details only */}
+          {/* LEFT: Room Details */}
           <aside className="room__left-col">
             <RoomDetailsSidebar
               roomCode={room.roomCode}
@@ -1262,13 +1264,12 @@ export function RoomScreen(): React.ReactNode {
             />
           </aside>
 
-          {/* CENTER: table + status bar + bottom dock (activity + voice) */}
+          {/* CENTER: table only */}
           <main className="room__center-col">
             <div className="room__center-stack">
               <div className="room__table-stage">
                 <OvalTable {...sharedTableProps} />
               </div>
-              <PlayerStatusBar playerCount={room.players.length} elapsedSeconds={elapsed} />
               {isHost && canStart && (
                 <button
                   className="room__start-btn room__start--ready"
@@ -1280,30 +1281,37 @@ export function RoomScreen(): React.ReactNode {
               )}
               {err && <div className="room__error">{err}</div>}
             </div>
-            <div className="room__bottom-dock">
-              <ActivityPanel
-                log={activityLog}
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
-              />
-              <VoiceChatPanel
-                voice={voice}
-                players={room.players}
-                playerId={session.playerId}
-                playerNames={playerNames}
-                playerAvatarUrls={playerAvatarUrls}
-                account={account}
-              />
-            </div>
           </main>
 
           {/* RIGHT: Friends Online + Recent Opponents (always shown) */}
-          <FriendsOnlineSidebar
-            recentPlayers={recentPlayers}
-            roomPlayerIds={room.players}
-            invitePlayer={invitePlayer}
-            isLoggedIn={account?.loggedIn ?? false}
-          />
+          <aside className="room__right-col">
+            <FriendsOnlineSidebar
+              recentPlayers={recentPlayers}
+              roomPlayerIds={room.players}
+              invitePlayer={invitePlayer}
+              isLoggedIn={account?.loggedIn ?? false}
+            />
+          </aside>
+
+          <div className="room__lower-panels">
+            <ActivityPanel
+              log={activityLog}
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+            />
+            <section className="room__status-panel room__status-panel--lower">
+              <h3 className="room__friends-heading">PLAYERS</h3>
+              <PlayerStatusBar playerCount={room.players.length} elapsedSeconds={elapsed} />
+            </section>
+            <VoiceChatPanel
+              voice={voice}
+              players={room.players}
+              playerId={session.playerId}
+              playerNames={playerNames}
+              playerAvatarUrls={playerAvatarUrls}
+              account={account}
+            />
+          </div>
         </div>
         <footer className="room__footer-bar">
           <span className="room__footer-suits room__footer-suits--red">♥ ♦</span>
