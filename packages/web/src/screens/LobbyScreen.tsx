@@ -866,11 +866,31 @@ function ProfilePanel({
                   </button>
                 </div>
               )}
-              {progression && (
-                <p className="lobby__profile-guest-msg">
-                  Level {progression.level} · Rating {progression.rankedRating} · XP {progression.totalXp}
-                </p>
-              )}
+              {progression && (() => {
+                const xpRange = (2 * progression.level - 1) * 25;
+                const xpIntoLevel = xpRange - progression.xpToNextLevel;
+                const xpPercent = Math.max(0, Math.min(100, (xpIntoLevel / xpRange) * 100));
+                return (
+                  <div className="lobby__progression">
+                    <div className="lobby__progression-row">
+                      <div className="lobby__level-badge">
+                        <span className="lobby__level-label">LEVEL</span>
+                        <span className="lobby__level-num">{progression.level}</span>
+                      </div>
+                      <div className="lobby__xp-block">
+                        <div className="lobby__xp-bar">
+                          <div
+                            className="lobby__xp-bar-fill"
+                            style={{ width: `${xpPercent}%` }}
+                          />
+                        </div>
+                        <span className="lobby__xp-label">{xpIntoLevel} / {xpRange} XP</span>
+                      </div>
+                    </div>
+                    <p className="lobby__rating-label">Rating: {progression.rankedRating}</p>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Nav links */}

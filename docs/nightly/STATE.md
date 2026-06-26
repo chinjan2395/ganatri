@@ -13,7 +13,7 @@
 Phase 9 — Scoring, Rating & XP Progression
 
 ## Status
-IN_PROGRESS — Phase 9a–9f complete (DB schema, server scoring, web base layer merged to main 2026-06-26). Next: Phase 9g (UI integration: lobby/profile/history/stats).  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+IN_PROGRESS — Phase 9a–9g complete (2026-06-26). Next: Phase 9h (admin progression summary + export audit trail).  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase 6i Data export (2026-06-25) — `download_my_data` event: server handler (getUserGameHistory + getPlayerStats in parallel, flattenHistoryEntry + mapStatsView), 4 integration tests; web DownloadMyDataAck type + downloadMyData() helper + GameProvider callback + LobbyScreen "Download My Data" button (DOM-append pattern, deferred revokeObjectURL). 458 tests pass (153 engine + 114 server + 191 db).
@@ -36,6 +36,7 @@ IN_PROGRESS — Phase 9a–9f complete (DB schema, server scoring, web base laye
 - [x] Phase 6h User Management (2026-06-23) — `searchUsers`/`adminGetUserStats` DB + server (`ADMIN_SEARCH_USERS`/`ADMIN_GET_USER_STATS` events) + web `UserManagementSection` in AdminScreen
 - [x] Phase 6i Account Deletion (2026-06-23) — `deleteUser(userId)` in GamePersistence (DB + 6 contract tests); `DELETE_ACCOUNT` event + `handleDeleteAccount` handler (silentLeaveRoom + DB delete + session→guest + SESSION re-emit, 3 integration tests); web `deleteAccount()` helper + ProfilePanel danger button + inline confirm flow. Schema: `rooms.hostUserId` made nullable + migration `0004_nullable_room_host.sql`. 441 tests pass (153 engine + 102 server + 186 db).
 - [x] Phase 6c Active session management (2026-06-25) — DB `last_seen_at` + list/touch/revoke session methods; server `GET_AUTH_SESSIONS`/`REVOKE_AUTH_SESSION`/`REVOKE_OTHER_AUTH_SESSIONS`, sliding expiry, OAuth httpOnly cookie + `/auth/bootstrap`, `guestToken` rename; web `SessionsScreen` device management UI. 452 tests pass (153 engine + 108 server + 191 db).
+- [x] Phase 9a–9g (2026-06-26) — Full scoring system: DB schema (player_progression, score_ledger, game_players scoring columns), server scoring engine (scoring.ts), server protocol (GET_MY_PROGRESSION, GET_MY_SCORE_HISTORY, end-game MatchScoringView), web protocol mirror + socket helpers, GameProvider progression state, LobbyScreen ProfilePanel level badge + XP bar + rating, HistoryScreen per-game matchScore/xpEarned/rankedRatingDelta, StatsScreen scoring stat cards. 458 tests pass.
 
 ## Sequencing Note
 STATE.md was previously stale (claimed only 6a complete). It has been reconciled with
@@ -47,25 +48,20 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-26
-- Outcome: Phase 9a–9f (DB schema + server scoring + web layer) merged to main. Conflicts resolved with design updates (touchAuthSession + updatedAt defensive checks). All 458 tests pass. Ready for Phase 9g.
-- Branch: main (commit 246e518)
+- Outcome: Phase 9g complete — LobbyScreen ProfilePanel upgraded from plain-text progression to visual level badge + XP progress bar + rating label. HistoryScreen + StatsScreen scoring already wired per 9a–9f. All 458 tests pass. Build green.
+- Branch: nightly/2026-06-26-0504
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-**Phase 9g — Scoring UI Integration (next nightly task):**
+**Phase 9h — Admin Progression Summary + Export Audit Trail (next nightly task):**
 
-Wire persisted scoring data into existing screens. All score data already persists in DB; just wire the reads into UI.
+1. **Admin user detail panel** (`AdminScreen.tsx` / `UserManagementPage.tsx`): when a user is selected in admin user search, show `rankedRating`, `level`, `totalXp`, `highestMatchScore`, and recent score ledger entries in the `UserDetailPanel`.
+2. **Admin export**: extend `exportGamesData` + `admin_export_data` to include per-game `matchScore`, `xpEarned`, `rankedRatingDelta` from `game_players` so exported JSON is audit-friendly.
+3. **Optional KPI follow-up**: average match score by player count in KPI charts — defer if scope is large.
 
-1. **LobbyScreen profile area**: show level badge + XP progress bar + ranked rating (can reuse Rewards panel or add to profile section)
-2. **HistoryScreen scorecards**: expand game rows to show matchScore, xpEarned, rankedRatingDelta per game
-3. **StatsScreen stats grid**: add 4 new stat cards (highestMatchScore, totalMatchScore, ghostFinishes, avgMatchScore)
-4. **LeaderboardScreen** *(optional follow-up)*: keep wins board for v1; pivot to rating board or add separate rating leaderboard in future
-
-Acceptance: All screens display stored scoring without recomputation; responsive on mobile/desktop; all 458 tests pass.
-
-After 9g complete: move to 9h (admin progression summary + export audit trail).
+Acceptance: Admin can view a user's full progression in user detail; export JSON includes scoring fields; all 458 tests pass.
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.
