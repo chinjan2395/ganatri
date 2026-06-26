@@ -89,7 +89,7 @@ export function RoomHeaderDesktop({
           Settings
         </DsButton>
         <DsButton
-          tone="ghost"
+          tone="danger"
           onClick={onExit}
         >
           <ExitIcon />

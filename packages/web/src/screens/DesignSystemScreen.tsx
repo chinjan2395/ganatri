@@ -316,10 +316,18 @@ function ButtonsSection(): ReactNode {
         </div>
       </DsSection>
 
-      <DsSection title="Header Action Buttons — Desktop (Canonical)" description="Settings (outline, disabled) and Exit Room (ghost) buttons shown in the desktop room header's right slot. These are the canonical header button patterns.">
+      <DsSection title="Header Action Buttons — Desktop (Canonical)" description="Settings (outline, disabled) and Exit Room (danger) buttons shown in the desktop room header's right slot. These are the canonical header button patterns.">
         <div className="design-button-row">
           <DsButton label="Settings" tone="outline" disabled />
-          <DsButton label="Exit Room" tone="ghost" />
+          <DsButton tone="danger">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
+                fill="currentColor"
+              />
+            </svg>
+            Exit Room
+          </DsButton>
         </div>
       </DsSection>
 
