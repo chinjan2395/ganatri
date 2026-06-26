@@ -1,0 +1,74 @@
+.room__header-mobile {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  padding-top: max(8px, env(safe-area-inset-top, 0px));
+  background: rgba(10, 26, 16, 0.97);
+  border-bottom: 1px solid rgba(231, 195, 74, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.room__header-back,
+.room__header-icon-btn {
+  background: none;
+  border: none;
+  color: var(--gold);
+  font-size: 18px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: unset;
+  box-shadow: none;
+  background-image: none;
+  text-shadow: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.room__header-back:hover:not(:disabled),
+.room__header-icon-btn:hover:not(:disabled) {
+  background: rgba(231, 195, 74, 0.1);
+  filter: none;
+  box-shadow: none;
+}
+
+.room__header-title-wrap {
+  flex: 1;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.room__header-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.room__header-code {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 3px;
+  line-height: 1.2;
+}
+
+.room__header-actions {
+  display: flex;
+  gap: 4px;
+}

@@ -1,0 +1,32 @@
+/* ─── Colour palette ──────────────────────────────────────────────── */
+:root {
+  --gold:          #e7c34a;
+  --gold-rim:      #c9a227;
+  --gold-2:        #f0d060;
+  --glow-gold:     0 0 18px rgba(231, 195, 74, 0.55);
+
+  --safe:          #22c55e;
+  --danger:        #ef4444;
+  --info:          #3b82f6;
+  --warning:       #f59e0b;
+
+  --red-suit:      #e53e3e;
+  --black-suit:    #e2e8f0;
+
+  --chip-red:      #b91c1c;
+  --chip-blue:     #1d4ed8;
+  --chip-green:    #15803d;
+
+  /* ─── Surfaces ───────────────────────────────────────────────────── */
+  --panel:         rgba(10, 26, 16, 0.85);
+  --panel-2:       rgba(18, 44, 28, 0.75);
+  --border-gold:   rgba(231, 195, 74, 0.18);
+
+  /* ─── Typography ─────────────────────────────────────────────────── */
+  --font-display:  'Cinzel', serif;
+  --font-body:     'Inter', system-ui, sans-serif;
+
+  --text:          #e2e8f0;
+  --text-dim:      rgba(226, 232, 240, 0.55);
+  --text-gold:     #e7c34a;
+}

@@ -1,0 +1,25 @@
+.room__pips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.room__pip {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1.5px solid rgba(231, 195, 74, 0.32);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+}
+
+.room__pip--filled {
+  background: linear-gradient(180deg, var(--gold-rim) 0%, var(--gold) 48%, var(--gold-2) 100%);
+  border-color: var(--gold-2);
+  box-shadow: 0 0 10px rgba(231, 195, 74, 0.55);
+  color: #2a1f00;
+}

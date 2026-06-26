@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { DsButton } from '@ganatri/ds';
 import { useGame } from '../state/GameProvider';
 import { useVoiceChatContext, useVoiceSpeaking } from '../state/VoiceChatProvider';
 import logo from '../assets/ganatri-logo.png';
@@ -996,6 +997,59 @@ function RoomFooterDecor(): React.ReactNode {
 }
 
 // ---------------------------------------------------------------------------
+// Sub-component: RoomCornerDecor (desktop bottom-right cards + chips)
+// ---------------------------------------------------------------------------
+
+function RoomCornerDecor(): React.ReactNode {
+  return (
+    <div className="room__corner-decor" aria-hidden="true">
+      {/* Warm ambient glow beneath the pile */}
+      <div className="room__corner-glow" />
+
+      {/* Chip stack */}
+      <div className="room__corner-chip-pile">
+        {(['red', 'black', 'blue', 'green', 'red', 'blue'] as const).map((color, i) => (
+          <div key={i} className={`room__corner-chip-disc room__corner-chip-disc--${color}`} />
+        ))}
+      </div>
+
+      {/* Card fan — back → back → K♠ → A♥ */}
+      <div className="room__corner-card-fan">
+        {/* Card back 1 */}
+        <div className="room__corner-card room__corner-card--a">
+          <div className="room__corner-card-back" />
+        </div>
+        {/* Card back 2 */}
+        <div className="room__corner-card room__corner-card--b">
+          <div className="room__corner-card-back" />
+        </div>
+        {/* King of Spades */}
+        <div className="room__corner-card room__corner-card--c">
+          <div className="room__corner-card-face">
+            <span className="room__corner-card-rank">K</span>
+            <span className="room__corner-card-suit">♠</span>
+            <span className="room__corner-card-center">♠</span>
+          </div>
+        </div>
+        {/* Ace of Hearts — front */}
+        <div className="room__corner-card room__corner-card--d">
+          <div className="room__corner-card-face room__corner-card-face--red">
+            <span className="room__corner-card-rank">A</span>
+            <span className="room__corner-card-suit">♥</span>
+            <span className="room__corner-card-center">♥</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Gold sparkle stars */}
+      {Array.from({ length: 12 }, (_, i) => (
+        <span key={i} className={`room__corner-sparkle room__corner-sparkle--${i + 1}`} />
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Sub-component: RoomHeaderMobile
 // ---------------------------------------------------------------------------
 
@@ -1095,11 +1149,10 @@ function RoomHeaderDesktop({
         </span>
       </div>
       <div className="room__header-right">
-        <button
-          type="button"
-          className="room__header-settings-btn"
+        <DsButton
+          tone="outline"
           disabled
-          title="Settings coming soon"
+          onClick={() => {}}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path
@@ -1108,8 +1161,11 @@ function RoomHeaderDesktop({
             />
           </svg>
           Settings
-        </button>
-        <button type="button" className="room__header-exit-btn" onClick={onExit}>
+        </DsButton>
+        <DsButton
+          tone="danger"
+          onClick={onExit}
+        >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path
               d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
@@ -1117,7 +1173,7 @@ function RoomHeaderDesktop({
             />
           </svg>
           Exit Room
-        </button>
+        </DsButton>
       </div>
     </header>
   );
@@ -1337,8 +1393,8 @@ export function RoomScreen(): React.ReactNode {
             Play smart. Play sharp. Win with Ganatri.
           </span>
           <span className="room__footer-suits">♠ ♣</span>
-          <RoomFooterDecor />
         </footer>
+        <RoomCornerDecor />
       </div>
     );
   }
@@ -1413,6 +1469,7 @@ export function RoomScreen(): React.ReactNode {
         {isHost && (
           <p className="room__host-footer muted">♛ You are the host</p>
         )}
+        <RoomCornerDecor />
       </div>
     </div>
   );

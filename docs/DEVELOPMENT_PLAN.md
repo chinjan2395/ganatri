@@ -734,7 +734,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 **Architecture doc:** `docs/DESIGN_SYSTEM_ARCHITECTURE.md` — read it before starting any task in this phase. It covers the full directory structure, design token strategy, component convention, story format, ESLint enforcement, migration path, and acceptance criteria.
 
-**Status:** ⬜ Not started
+**Status:** 🟡 In progress (DS-A done, DS-B done, DS-C partial, DS-D partial)
 
 ### Two-tool philosophy
 - **Storybook** (runs inside `packages/ds`) — component workbench: isolation, controls, a11y audit, visual regression.
@@ -744,32 +744,32 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Create `packages/ds/` with `package.json`, `tsconfig.json`, `vite.config.ts` | ⬜ | `name: "@ganatri/ds"`, workspace package |
-| Install Storybook `@storybook/react-vite` + `addon-essentials` + `addon-a11y` | ⬜ | `npx storybook@latest init` inside `packages/ds` |
-| Create `.storybook/main.ts` + `.storybook/preview.ts` with dark default background | ⬜ | preview imports `src/tokens/index.css` globally |
-| Create `src/tokens/index.css` with all design tokens extracted from scattered CSS files | ⬜ | Tokens: `--gold`, `--gold-rim`, `--gold-2`, `--glow-gold`, `--safe`, `--danger`, `--panel`, `--panel-2`, `--text`, `--text-dim`, `--font-display`, `--chip-*`, `--red-suit`, `--black-suit`, etc. |
-| Create `src/index.ts` barrel export | ⬜ | Empty initially; components added as they are migrated |
-| Wire `@ganatri/ds: workspace:*` into `packages/web/package.json` | ⬜ | Run `npm install` at workspace root to link; confirm import resolves |
-| Add `packages/ds` to workspace root `package.json` `workspaces` array | ⬜ | |
+| Create `packages/ds/` with `package.json`, `tsconfig.json`, `vite.config.ts` | ✅ | `name: "@ganatri/ds"`, workspace package |
+| Install Storybook `@storybook/react-vite` + `addon-essentials` + `addon-a11y` | ✅ | `npx storybook@latest init` inside `packages/ds` |
+| Create `.storybook/main.ts` + `.storybook/preview.ts` with dark default background | ✅ | preview imports `src/tokens/index.css` globally |
+| Create `src/tokens/index.css` with all design tokens extracted from scattered CSS files | ✅ | Tokens: `--gold`, `--gold-rim`, `--gold-2`, `--glow-gold`, `--safe`, `--danger`, `--panel`, `--panel-2`, `--text`, `--text-dim`, `--font-display`, `--chip-*`, `--red-suit`, `--black-suit`, etc. |
+| Create `src/index.ts` barrel export | ✅ | All 15 components exported |
+| Wire `@ganatri/ds: workspace:*` into `packages/web/package.json` | ✅ | |
+| Add `packages/ds` to workspace root `package.json` `workspaces` array | ✅ | |
 
 ### DS-B — Migrate existing primitives
 
-Migrate the 9 components from `packages/web/src/design-system/DesignSystemPrimitives.tsx` into `packages/ds`. Delete `DesignSystemPrimitives.tsx` once it is empty.
+Migrate the 10 components from `packages/web/src/design-system/DesignSystemPrimitives.tsx` into `packages/ds`. Delete `DesignSystemPrimitives.tsx` once it is empty.
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Migrate `DsButton` → `Button` | ⬜ | Props: `label`, `tone ('primary'\|'secondary'\|'danger'\|'ghost')`, `compact`, `disabled`; ≥6 stories |
-| Migrate `DsBadge` → `Badge` | ⬜ | Props: `label`, `tone ('default'\|'success'\|'warning'\|'danger'\|'info')`; ≥5 stories |
-| Migrate `DsCard` → `Card` | ⬜ | Props: `children`; stories: default, with content |
-| Migrate `DsField` → `Field` | ⬜ | Props: `label`, `value`, `icon?`; stories: with/without icon |
-| Migrate `DsListRow` → `ListRow` | ⬜ | Props: `title`, `subtitle`, `trailing?: ReactNode`; stories: with/without trailing |
-| Migrate `DsPageHeader` → `PageHeader` | ⬜ | Props: `title`, `subtitle?` |
-| Migrate `DsSection` → `Section` | ⬜ | Props: `title`, `children` |
-| Migrate `DsStat` → `Stat` | ⬜ | Props: `label`, `value`, `delta?` |
-| Migrate `DsTabs` → `Tabs` | ⬜ | Props: `items: string[]`, `active: string`, `onSelect?: (item: string) => void` |
-| Migrate `DsAlert` → `Alert` | ⬜ | Props: `tone`, `title`, `description` |
-| Update all `packages/web` imports from `DesignSystemPrimitives` → `@ganatri/ds` | ⬜ | Grep for the import path and update; confirm build green |
-| Delete `packages/web/src/design-system/DesignSystemPrimitives.tsx` | ⬜ | Only after all imports updated |
+| Migrate `DsButton` → `Button` | ✅ | 4 tones, compact variant, disabled; 6 stories |
+| Migrate `DsBadge` → `Badge` | ✅ | 5 tones; 5 stories |
+| Migrate `DsCard` → `Card` | ✅ | title/subtitle optional header; 3 stories |
+| Migrate `DsField` → `Field` | ✅ | label, value, placeholder, helper; 3 stories |
+| Migrate `DsListRow` → `ListRow` | ✅ | title, subtitle, trailing; 3 stories |
+| Migrate `DsPageHeader` → `PageHeader` | ✅ | eyebrow, title, description, actions; 3 stories |
+| Migrate `DsSection` → `Section` | ✅ | title, description, children; 3 stories |
+| Migrate `DsStat` → `Stat` | ✅ | label, value, delta; 3 stories |
+| Migrate `DsTabs` → `Tabs` | ✅ | items, active, onChange; 3 stories |
+| Migrate `DsAlert` → `Alert` | ✅ | tone, title, description; 4 stories |
+| Update `DesignSystemScreen.tsx` import from `DesignSystemPrimitives` → `@ganatri/ds` | ✅ | Build green; tsc --noEmit passes |
+| Delete `packages/web/src/design-system/DesignSystemPrimitives.tsx` | ✅ | Deleted 2026-06-26 |
 
 ### DS-C — Extract room components
 
@@ -777,22 +777,28 @@ Migrate reusable sub-components from `RoomScreen.tsx` into `packages/ds`. Each c
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Extract `RoomOvalTable` | ⬜ | Props: `seats: SeatData[]`; contains `RoomSeatSlot` children |
-| Extract `RoomSeatSlot` | ⬜ | Props: `name`, `isYou`, `isHost`, `isSpeaking`, `avatarUrl?`, `isEmpty`; renders crown + YOU badge + glow ring |
-| Extract `RoomHeaderDesktop` | ⬜ | Props: `roomCode`, `playerCount`, `maxPlayers`; logo img + flourish + gold title |
-| Extract `RoomHeaderMobile` | ⬜ | Props: `roomCode`, `onBack`, `onMenu`; sticky bar |
-| Extract `RoomDetailsSidebar` | ⬜ | Props: `roomCode`, `gameMode`, `maxPlayers`, `entryFee`, `hostName`, `voiceEnabled` |
-| Extract `RoomActivityPanel` | ⬜ | Props: `entries: ActivityEntry[]`, `activeTab`, `onTabChange` |
-| Extract `RoomFriendsPanel` | ⬜ | Props: `friends: FriendRow[]` |
-| Extract `RoomFooterBar` | ⬜ | No required props — suits/tagline/decorative chips |
-| Extract `RoomPipRow` | ⬜ | Props: `filled: number`, `max: number` |
+| Extract `RoomOvalTable` | ✅ | Props: `seats: SeatData[]`; contains `RoomSeatSlot` children; 4 stories |
+| Extract `RoomSeatSlot` | ✅ | Props: `seat: SeatData`, `seatIndex: 0|1|2|3`; renders crown + YOU badge + speaking ring; 5 stories |
+| Extract `RoomHeaderDesktop` | ✅ | Props: `roomCode`, `playerCount`, `maxPlayers`, `logoSrc?`, `onSettings?`, `onExit?`; 3 stories |
+| Extract `RoomHeaderMobile` | ✅ | Props: `roomCode`, `onBack?`, `onCopyCode?`, `onMenu?`; 3 stories |
+| Extract `RoomDetailsSidebar` | ✅ | Props: `roomCode`, `gameMode`, `maxPlayers`, `hostName`, `onCopyCode?`, `onShareLink?`; 3 stories |
+| Extract `RoomActivityPanel` | ✅ | Props: `entries: ActivityEntry[]`, `activeTab?`, `onTabChange?`; 3 stories |
+| Extract `RoomFriendsPanel` | ✅ | Props: `friends: FriendRow[]`, `onInvite?`, `onViewAll?`; 3 stories |
+| Extract `RoomFooterBar` | ✅ | Props: `tagline?`; decorative suits + chips + card fan; 2 stories |
+| Extract `RoomPipRow` | ✅ | Props: `filled: number`, `max: number`; 4 stories |
+| Extract `RoomStatusPanel` | ✅ | Props: `playerCount`, `maxPlayers?`, `elapsedSeconds`; seat fill bar + timer; 3 stories |
+| Extract `RoomVoiceChatPanel` | ✅ | Props: `participants`, `mode`, `muted`, `deafened`, + callbacks; 4 stories |
+| Extract `RoomCornerDecor` | ✅ | No props; pure decoration: chip pile + card fan + sparkles; 1 story |
+| Extract `RoomDealerChip` | ✅ | No props; gold D chip; 1 story |
+| Create `packages/ds/src/globals.css` with global button/input/box-sizing resets | ✅ | Fixes Storybook visual mismatch vs web app |
+| Import `globals.css` in `packages/ds/.storybook/preview.ts` | ✅ | Buttons now render as gold casino buttons in Storybook |
 | Update `RoomScreen.tsx` to import all extracted components from `@ganatri/ds` | ⬜ | Remove inline sub-component definitions; pass live data as props |
 
 ### DS-D — Update `/design` showroom
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Update `DesignSystemScreen.tsx` to import DS components from `@ganatri/ds` | ⬜ | Replace all inline JSX component definitions + `room__*` class usage with DS imports |
+| Update `DesignSystemScreen.tsx` to import DS primitives from `@ganatri/ds` | ✅ | All 10 primitive imports switched; `tsc --noEmit` passes |
 | Remove `import './RoomScreen.css'` from `DesignSystemScreen.tsx` | ⬜ | The showroom must not depend on screen-level CSS; all needed styles live in DS component CSS files |
 | Confirm all 13 sidebar sections render correctly with DS components | ⬜ | Run `npm run dev` and visual-check each section |
 
@@ -839,5 +845,5 @@ Migrate reusable sub-components from `RoomScreen.tsx` into `packages/ds`. Each c
 | Phase 7 — Improvements       | ⬜ Backlog identified; not yet started (27 tasks across 7 sub-phases 7a–7g). **Deprioritized below Phase 8.** |
 | Phase 8 — Social (Co-players & Invitations) | ✅ Complete (all 8a–8h shipped; 387 total tests) |
 | Phase 9 — Scoring / Rating / XP Progression | 🟡 9a–9g complete (all scoring infrastructure + UI wired). Remaining: 9h admin/export/analytics follow-up. |
-| Phase DS — Design System Package (`packages/ds`) | ⬜ Not started. Architecture doc: `docs/DESIGN_SYSTEM_ARCHITECTURE.md`. 5 sub-phases: DS-A scaffold, DS-B migrate 9 primitives, DS-C extract room components, DS-D update showroom, DS-E ESLint + CI gate. |
+| Phase DS — Design System Package (`packages/ds`) | 🟡 In progress. DS-A ✅ scaffold, DS-B ✅ 10 primitives migrated + DesignSystemPrimitives.tsx deleted, DS-C ✅ 13 room components extracted (RoomHeaderDesktop/Mobile, RoomDetailsSidebar, RoomActivityPanel, RoomFriendsPanel, RoomSeatSlot, RoomOvalTable, RoomStatusPanel, RoomVoiceChatPanel, RoomFooterBar, RoomCornerDecor, RoomPipRow, RoomDealerChip) + globals.css, DS-D 🟡 primitive imports switched, DS-E ⬜ ESLint + CI gate. |
 | Phase 6i — Account deletion (right to erasure) | ✅ Complete (full stack: DB + server + web; 441 total tests) |

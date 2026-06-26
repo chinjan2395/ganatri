@@ -1,0 +1,1 @@
+export { RoomCornerDecor } from './RoomCornerDecor';

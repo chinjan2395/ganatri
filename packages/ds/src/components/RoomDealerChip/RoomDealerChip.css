@@ -1,0 +1,23 @@
+.room__dealer-chip {
+  position: absolute;
+  top: 44%;
+  left: 56%;
+  z-index: 3;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: #2a1f00;
+  background: linear-gradient(180deg, var(--gold-rim) 0%, var(--gold) 50%, var(--gold-2) 100%);
+  border: 1px solid rgba(184, 134, 11, 0.8);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.45),
+    0 0 8px rgba(231, 195, 74, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  user-select: none;
+  pointer-events: none;
+}

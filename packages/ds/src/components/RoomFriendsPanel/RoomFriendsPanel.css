@@ -1,0 +1,161 @@
+.room__friends-panel {
+  background: linear-gradient(180deg, rgba(10, 21, 14, 0.9) 0%, rgba(6, 15, 10, 0.78) 100%);
+  border: 1px solid rgba(198, 160, 63, 0.34);
+  border-radius: 10px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    inset 0 0 0 1px rgba(231, 195, 74, 0.04),
+    0 6px 20px rgba(0, 0, 0, 0.26);
+  padding: 16px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.room__friends-heading {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--gold);
+  margin: 0 0 4px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.room__friends-empty {
+  font-size: 12px;
+  margin: 0;
+  color: var(--text-dim);
+}
+
+.room__invite-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.room__invite-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(231, 195, 74, 0.08);
+}
+
+.room__invite-row:last-child {
+  border-bottom: none;
+}
+
+.room__invite-initials {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #2a3d30;
+  color: var(--gold-rim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+@media (min-width: 900px) {
+  .room__invite-initials {
+    box-shadow: 0 0 0 2px rgba(231, 195, 74, 0.55);
+  }
+}
+
+.room__invite-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.room__invite-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.room__invite-online-dot {
+  font-size: 8px;
+  color: var(--safe);
+  line-height: 1;
+}
+
+.room__invite-sub {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.room__invite-btn {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(231, 195, 74, 0.48);
+  background: rgba(8, 18, 12, 0.75);
+  background-image: none;
+  color: var(--gold);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+  min-width: 54px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: unset;
+  box-shadow: none;
+  text-shadow: none;
+  letter-spacing: 0.03em;
+  font-family: inherit;
+}
+
+.room__invite-btn:hover:not(:disabled) {
+  background: rgba(231, 195, 74, 0.1);
+  border-color: rgba(231, 195, 74, 0.65);
+  filter: none;
+  box-shadow: none;
+}
+
+.room__invite-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.room__friends-view-all {
+  font-size: 11px;
+  padding: 8px 10px;
+  min-height: unset;
+  width: 100%;
+  background: transparent;
+  background-image: none;
+  border: 1px solid rgba(231, 195, 74, 0.5);
+  color: var(--gold);
+  border-radius: 8px;
+  box-shadow: none;
+  text-shadow: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.room__friends-view-all:hover:not(:disabled) {
+  background: rgba(231, 195, 74, 0.08);
+  border-color: rgba(231, 195, 74, 0.65);
+  filter: none;
+  box-shadow: none;
+}
