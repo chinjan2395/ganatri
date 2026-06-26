@@ -308,10 +308,10 @@ function ButtonsSection(): ReactNode {
         </div>
       </DsSection>
 
-      <DsSection title="Header Action Buttons — Desktop (Canonical)" description="Settings (outline, disabled) and Exit Room (danger) buttons shown in the desktop room header's right slot. These are the canonical header button patterns.">
+      <DsSection title="Header Action Buttons — Desktop (Canonical)" description="Settings (outline, disabled) and Exit Room (ghost) buttons shown in the desktop room header's right slot. These are the canonical header button patterns.">
         <div className="design-button-row">
           <DsButton label="Settings" tone="outline" disabled />
-          <DsButton label="Exit Room" tone="danger" />
+          <DsButton label="Exit Room" tone="ghost" />
         </div>
       </DsSection>
 

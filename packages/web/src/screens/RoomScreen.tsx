@@ -1163,7 +1163,7 @@ function RoomHeaderDesktop({
           Settings
         </DsButton>
         <DsButton
-          tone="danger"
+          tone="ghost"
           onClick={onExit}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
