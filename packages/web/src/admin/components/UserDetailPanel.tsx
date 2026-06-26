@@ -251,6 +251,48 @@ export function UserDetailPanel({ user, loading, error, onBack }: UserDetailPane
         </div>
       </section>
 
+      {!isUserDetail(user) && (
+        <section className="admin-user-detail__section">
+          <h4 className="admin-user-detail__section-title">Progression &amp; Rating</h4>
+          {user.progression !== null ? (
+            <div className="admin-user-detail__stats">
+              <div className="admin-user-detail__stat">
+                <span className="admin-user-detail__stat-icon">⭐</span>
+                <span className="admin-user-detail__stat-value">{user.progression.level}</span>
+                <span className="admin-user-detail__stat-label">Level</span>
+              </div>
+              <div className="admin-user-detail__stat">
+                <span className="admin-user-detail__stat-icon">📈</span>
+                <span className="admin-user-detail__stat-value">{user.progression.rankedRating}</span>
+                <span className="admin-user-detail__stat-label">Ranked Rating</span>
+              </div>
+              <div className="admin-user-detail__stat">
+                <span className="admin-user-detail__stat-icon">✨</span>
+                <span className="admin-user-detail__stat-value">{user.progression.totalXp}</span>
+                <span className="admin-user-detail__stat-label">Total XP</span>
+              </div>
+              <div className="admin-user-detail__stat">
+                <span className="admin-user-detail__stat-icon">🎯</span>
+                <span className="admin-user-detail__stat-value">{user.progression.xpToNextLevel}</span>
+                <span className="admin-user-detail__stat-label">XP to Next Level</span>
+              </div>
+              <div className="admin-user-detail__stat">
+                <span className="admin-user-detail__stat-icon">🏅</span>
+                <span className="admin-user-detail__stat-value">{user.progression.highestMatchScore}</span>
+                <span className="admin-user-detail__stat-label">Highest Match Score</span>
+              </div>
+              <div className="admin-user-detail__stat">
+                <span className="admin-user-detail__stat-icon">👻</span>
+                <span className="admin-user-detail__stat-value">{user.progression.ghostFinishes}</span>
+                <span className="admin-user-detail__stat-label">Ghost Finishes</span>
+              </div>
+            </div>
+          ) : (
+            <p className="admin-user-detail__no-progression">No progression data yet.</p>
+          )}
+        </section>
+      )}
+
       <section className="admin-user-detail__section">
         <h4 className="admin-user-detail__section-title">Admin Actions</h4>
         <div className="admin-user-detail__actions">
