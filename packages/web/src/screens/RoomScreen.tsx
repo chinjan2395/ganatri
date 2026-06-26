@@ -151,6 +151,14 @@ function PlayerPipIcon(): React.ReactNode {
   );
 }
 
+function PlayerBadgeIcon(): React.ReactNode {
+  return (
+    <span className="room__player-badge-icon">
+      <DetailIcon name="players" />
+    </span>
+  );
+}
+
 function UserSilhouetteIcon(): React.ReactNode {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -431,7 +439,6 @@ interface VoiceChatPanelProps {
   playerNames: Record<string, string>;
   playerAvatarUrls: Readonly<Record<string, string | null>>;
   account: AccountInfo | null;
-  variant: 'mobile' | 'desktop';
 }
 
 function VoiceChatPanel({
@@ -441,7 +448,6 @@ function VoiceChatPanel({
   playerNames,
   playerAvatarUrls,
   account,
-  variant,
 }: VoiceChatPanelProps): React.ReactNode {
   const speakingSet = useVoiceSpeaking();
 
@@ -476,154 +482,119 @@ function VoiceChatPanel({
     <div className="room__voice-section">
       <div className="room__voice-header">
         <h3 className="room__voice-title">VOICE CHAT</h3>
-        {variant === 'desktop' && (
-          <div className="room__voice-meta">
-            <span className="room__voice-count">
-              {players.length} participant{players.length !== 1 ? 's' : ''}
-            </span>
-            <span className="room__voice-status room__voice-status--enabled">
-              <span className="room__voice-status-dot" aria-hidden="true" />
-              Enabled
-            </span>
-          </div>
-        )}
-      </div>
-
-      {variant === 'desktop' && (
-        <div className="room__voice-participants-wrap">
-          <div className="room__voice-participants">
-            {slots.map((pid, idx) => {
-              const name = pid
-                ? (pid === playerId ? 'You' : (playerNames[pid] ?? pid.slice(0, 6)))
-                : 'Empty';
-              const av = pid
-                ? (pid === playerId ? (account?.avatarUrl ?? null) : (playerAvatarUrls[pid] ?? null))
-                : null;
-              const speaking = pid ? speakingSet.has(pid) : false;
-              const isSelf = pid === playerId;
-              const micMuted = isSelf && voice.mode === 'open' && voice.muted;
-              return (
-                <div key={pid ?? `empty-${idx}`} className="room__voice-participant">
-                  <div className="room__voice-participant-avatar-wrap">
-                    <div
-                      className={[
-                        'room__voice-participant-circle',
-                        speaking ? 'room__voice-participant-circle--speaking' : '',
-                        !pid ? 'room__voice-participant-circle--empty' : '',
-                      ].filter(Boolean).join(' ')}
-                    >
-                      {av ? (
-                        <img
-                          src={av}
-                          alt={name}
-                          referrerPolicy="no-referrer"
-                          className="room__voice-participant-img"
-                        />
-                      ) : pid ? (
-                        <span className="room__voice-participant-initials">{getInitials(name)}</span>
-                      ) : (
-                        <UserSilhouetteIcon />
-                      )}
-                    </div>
-                    {pid && (
-                      <span
-                        className={[
-                          'room__voice-mic-badge',
-                          speaking ? 'room__voice-mic-badge--live' : '',
-                          micMuted ? 'room__voice-mic-badge--muted' : '',
-                        ].filter(Boolean).join(' ')}
-                        aria-hidden="true"
-                      >
-                        <MicIcon muted={micMuted} size={10} />
-                      </span>
-                    )}
-                  </div>
-                  <span
-                    className={`room__voice-participant-name${!pid ? ' room__voice-participant-name--empty' : ''}`}
-                  >
-                    {name}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-          <span className="room__voice-participants-scroll" aria-hidden="true">
-            ›
+        <div className="room__voice-meta">
+          <span className="room__voice-count">
+            {players.length} participant{players.length !== 1 ? 's' : ''}
+          </span>
+          <span className="room__voice-status room__voice-status--enabled">
+            <span className="room__voice-status-dot" aria-hidden="true" />
+            Enabled
           </span>
         </div>
-      )}
+      </div>
 
-      {variant === 'desktop' && (
-        <div className="room__voice-desktop-controls">
+      <div className="room__voice-participants-wrap">
+        <div className="room__voice-participants">
+          {slots.map((pid, idx) => {
+            const name = pid
+              ? (pid === playerId ? 'You' : (playerNames[pid] ?? pid.slice(0, 6)))
+              : 'Empty';
+            const av = pid
+              ? (pid === playerId ? (account?.avatarUrl ?? null) : (playerAvatarUrls[pid] ?? null))
+              : null;
+            const speaking = pid ? speakingSet.has(pid) : false;
+            const isSelf = pid === playerId;
+            const micMuted = isSelf && voice.mode === 'open' && voice.muted;
+            return (
+              <div key={pid ?? `empty-${idx}`} className="room__voice-participant">
+                <div className="room__voice-participant-avatar-wrap">
+                  <div
+                    className={[
+                      'room__voice-participant-circle',
+                      speaking ? 'room__voice-participant-circle--speaking' : '',
+                      !pid ? 'room__voice-participant-circle--empty' : '',
+                    ].filter(Boolean).join(' ')}
+                  >
+                    {av ? (
+                      <img
+                        src={av}
+                        alt={name}
+                        referrerPolicy="no-referrer"
+                        className="room__voice-participant-img"
+                      />
+                    ) : pid ? (
+                      <span className="room__voice-participant-initials">{getInitials(name)}</span>
+                    ) : (
+                      <UserSilhouetteIcon />
+                    )}
+                  </div>
+                  {pid && (
+                    <span
+                      className={[
+                        'room__voice-mic-badge',
+                        speaking ? 'room__voice-mic-badge--live' : '',
+                        micMuted ? 'room__voice-mic-badge--muted' : '',
+                      ].filter(Boolean).join(' ')}
+                      aria-hidden="true"
+                    >
+                      <MicIcon muted={micMuted} size={10} />
+                    </span>
+                  )}
+                </div>
+                <span
+                  className={`room__voice-participant-name${!pid ? ' room__voice-participant-name--empty' : ''}`}
+                >
+                  {name}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        <span className="room__voice-participants-scroll" aria-hidden="true">
+          ›
+        </span>
+      </div>
+
+      <div className="room__voice-desktop-controls">
+        <button
+          type="button"
+          className={[
+            'room__voice-ptt-bar',
+            voice.mode === 'ptt' && voice.pttActive ? 'room__voice-ptt-bar--active' : '',
+            voice.mode === 'open' && voice.muted ? 'room__voice-ptt-bar--muted' : '',
+          ].filter(Boolean).join(' ')}
+          onMouseDown={handlePttDown}
+          onMouseUp={handlePttUp}
+          onMouseLeave={handlePttUp}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handlePttUp}
+          onClick={handleMicClick}
+          title={voice.mode === 'ptt' ? 'Hold to talk' : voice.muted ? 'Unmute' : 'Mute'}
+        >
+          <span className="room__voice-ptt-pill">{pttLabel}</span>
+          <span className="room__voice-ptt-hint-inline">{pttHint}</span>
+        </button>
+        <div className="room__voice-util-row">
           <button
             type="button"
-            className={[
-              'room__voice-ptt-bar',
-              voice.mode === 'ptt' && voice.pttActive ? 'room__voice-ptt-bar--active' : '',
-              voice.mode === 'open' && voice.muted ? 'room__voice-ptt-bar--muted' : '',
-            ].filter(Boolean).join(' ')}
-            onMouseDown={handlePttDown}
-            onMouseUp={handlePttUp}
-            onMouseLeave={handlePttUp}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            onTouchCancel={handlePttUp}
-            onClick={handleMicClick}
-            title={voice.mode === 'ptt' ? 'Hold to talk' : voice.muted ? 'Unmute' : 'Mute'}
-          >
-            <span className="room__voice-ptt-pill">{pttLabel}</span>
-            <span className="room__voice-ptt-hint-inline">{pttHint}</span>
-          </button>
-          <div className="room__voice-util-row">
-            <button
-              type="button"
-              className={`room__voice-util-btn${voice.deafened ? ' room__voice-util-btn--active' : ''}`}
-              onClick={voice.toggleDeafen}
-              title={voice.deafened ? 'Undeafen' : 'Deafen'}
-              aria-label={voice.deafened ? 'Undeafen' : 'Deafen'}
-            >
-              {voice.deafened ? '🔈' : '🔊'}
-            </button>
-            <button
-              type="button"
-              className="room__voice-util-btn"
-              onClick={voice.toggleMode}
-              title={voice.mode === 'ptt' ? 'Switch to open mic' : 'Switch to push-to-talk'}
-            >
-              {voice.mode === 'ptt' ? 'Open mic' : 'PTT mode'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {variant === 'mobile' && (
-        <div className="room__voice-controls">
-          <button
-            className={`room__voice-btn${voice.muted && voice.mode === 'open' ? ' room__voice-btn--muted' : ''}`}
-            onMouseDown={handlePttDown}
-            onMouseUp={handlePttUp}
-            onMouseLeave={handlePttUp}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            onTouchCancel={handlePttUp}
-            onClick={handleMicClick}
-            title={voice.mode === 'ptt' ? 'Hold to talk' : voice.muted ? 'Unmute' : 'Mute'}
-          >
-            {voice.mode === 'ptt' ? (voice.pttActive ? '🎙️' : '🔇') : (voice.muted ? '🔇' : '🎙️')}
-          </button>
-          <button
-            className={`room__voice-btn${voice.deafened ? ' room__voice-btn--muted' : ''}`}
+            className={`room__voice-util-btn${voice.deafened ? ' room__voice-util-btn--active' : ''}`}
             onClick={voice.toggleDeafen}
             title={voice.deafened ? 'Undeafen' : 'Deafen'}
+            aria-label={voice.deafened ? 'Undeafen' : 'Deafen'}
           >
             {voice.deafened ? '🔈' : '🔊'}
           </button>
-          <button className="room__voice-mode-btn secondary" onClick={voice.toggleMode}>
-            {voice.mode === 'ptt' ? 'PTT' : 'MIC'}
+          <button
+            type="button"
+            className="room__voice-util-btn"
+            onClick={voice.toggleMode}
+            title={voice.mode === 'ptt' ? 'Switch to open mic' : 'Switch to push-to-talk'}
+          >
+            {voice.mode === 'ptt' ? 'Open mic' : 'PTT mode'}
           </button>
-          {voice.mode === 'ptt' && <span className="room__voice-hint muted">Hold to talk</span>}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -1034,7 +1005,7 @@ function RoomHeaderMobile({
   return (
     <header className="room__header-mobile">
       <button
-        className="room__header-back secondary"
+        className="room__header-back"
         onClick={onBack}
         aria-label="Leave room"
       >
@@ -1046,14 +1017,14 @@ function RoomHeaderMobile({
       </div>
       <div className="room__header-actions">
         <button
-          className="room__header-icon-btn secondary"
+          className="room__header-icon-btn"
           onClick={onCopy}
           aria-label="Copy room code"
         >
-          📋
+          <CopyIcon size={16} />
         </button>
         <button
-          className="room__header-icon-btn secondary"
+          className="room__header-icon-btn"
           onClick={onMenuToggle}
           aria-label="Menu"
         >
@@ -1098,12 +1069,15 @@ function RoomHeaderDesktop({
           <h1 className="room__header-room-title">ROOM {roomCode}</h1>
           <span className="room__header-flourish room__header-flourish--right" aria-hidden="true" />
         </div>
-        <span className="room__player-badge room__player-badge--header">4 PLAYER ROOM</span>
+        <span className="room__player-badge room__player-badge--header">
+          <PlayerBadgeIcon />
+          4 PLAYER ROOM
+        </span>
       </div>
       <div className="room__header-right">
         <button
           type="button"
-          className="secondary room__header-settings-btn"
+          className="room__header-settings-btn"
           disabled
           title="Settings coming soon"
         >
@@ -1115,7 +1089,7 @@ function RoomHeaderDesktop({
           </svg>
           Settings
         </button>
-        <button type="button" className="danger room__header-exit-btn" onClick={onExit}>
+        <button type="button" className="room__header-exit-btn" onClick={onExit}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path
               d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
@@ -1319,7 +1293,6 @@ export function RoomScreen(): React.ReactNode {
                 playerNames={playerNames}
                 playerAvatarUrls={playerAvatarUrls}
                 account={account}
-                variant="desktop"
               />
             </div>
           </main>
@@ -1367,7 +1340,10 @@ export function RoomScreen(): React.ReactNode {
       />
       <div className="room__mobile-body">
         <img src={logo} alt="Ganatri" className="room__logo-mobile" />
-        <div className="room__player-badge">👥 {room.players.length} PLAYER ROOM</div>
+        <div className="room__player-badge">
+          <PlayerBadgeIcon />
+          {room.players.length} PLAYER ROOM
+        </div>
         <OvalTable {...sharedTableProps} />
         <section className="room__friends-panel room__status-panel">
           <h3 className="room__friends-heading">PLAYERS</h3>
@@ -1389,12 +1365,15 @@ export function RoomScreen(): React.ReactNode {
           playerNames={playerNames}
           playerAvatarUrls={playerAvatarUrls}
           account={account}
-          variant="mobile"
         />
         <div className="room__action-row">
-          <button className="secondary room__action-btn">👥 Invite Friends</button>
-          <button className="secondary room__action-btn" onClick={handleShare}>
-            🔗 Share Link
+          <button type="button" className="room__action-btn">
+            <DetailIcon name="players" />
+            Invite Friends
+          </button>
+          <button type="button" className="room__action-btn" onClick={handleShare}>
+            <LinkIcon size={14} />
+            Share Link
           </button>
         </div>
         {err && <div className="room__error">{err}</div>}

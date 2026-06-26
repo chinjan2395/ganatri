@@ -817,13 +817,22 @@ function HeaderSection(): ReactNode {
               <h1 className="room__header-room-title">ROOM 4X7Z</h1>
               <span className="room__header-flourish room__header-flourish--right" aria-hidden="true" />
             </div>
-            <span className="room__player-badge room__player-badge--header">4 PLAYER ROOM</span>
+            <span className="room__player-badge room__player-badge--header">
+              <span className="room__player-badge-icon" aria-hidden="true">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                  <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.7" />
+                  <circle cx="17" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M3 19c0-2.8 2.7-4.5 6-4.5s6 1.7 6 4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                </svg>
+              </span>
+              4 PLAYER ROOM
+            </span>
           </div>
           <div className="room__header-right">
-            <button type="button" className="secondary room__header-settings-btn" disabled>
+            <button type="button" className="room__header-settings-btn" disabled>
               Settings
             </button>
-            <button type="button" className="danger room__header-exit-btn">
+            <button type="button" className="room__header-exit-btn">
               Exit Room
             </button>
           </div>
@@ -832,14 +841,14 @@ function HeaderSection(): ReactNode {
 
       <DsSection title="Room Header — Mobile" description="Compact sticky header with back button, room code display, and overflow menu icon.">
         <header className="room__header-mobile design-room-header-wrap" style={{ position: 'static' }}>
-          <button type="button" className="room__header-back secondary" aria-label="Leave room">←</button>
+          <button type="button" className="room__header-back" aria-label="Leave room">←</button>
           <div className="room__header-title-wrap">
             <span className="room__header-title">Room</span>
             <span className="room__header-code">4X7Z</span>
           </div>
           <div className="room__header-actions">
-            <button type="button" className="room__header-icon-btn secondary" aria-label="Copy room code">📋</button>
-            <button type="button" className="room__header-icon-btn secondary" aria-label="Menu">⋮</button>
+            <button type="button" className="room__header-icon-btn" aria-label="Copy room code">⎘</button>
+            <button type="button" className="room__header-icon-btn" aria-label="Menu">⋮</button>
           </div>
         </header>
       </DsSection>
