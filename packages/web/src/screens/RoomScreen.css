@@ -435,6 +435,11 @@ button.room__header-exit-btn:hover:not(:disabled) {
   z-index: 1;
 }
 
+.room__mobile-body > .ds-button {
+  width: 100%;
+  max-width: 400px;
+}
+
 .room__logo-mobile {
   width: min(184px, 48vw);
   filter: drop-shadow(0 0 14px rgba(231, 195, 74, 0.3));

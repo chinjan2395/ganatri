@@ -1459,13 +1459,12 @@ export function RoomScreen(): React.ReactNode {
           </button>
         </div>
         {err && <div className="room__error">{err}</div>}
-        <button
-          className="danger room__leave-btn"
+        <DsButton
+          label="Leave Room"
+          tone="danger"
           onClick={() => void leaveRoom()}
           disabled={busy}
-        >
-          Leave Room
-        </button>
+        />
         {isHost && (
           <p className="room__host-footer muted">♛ You are the host</p>
         )}
