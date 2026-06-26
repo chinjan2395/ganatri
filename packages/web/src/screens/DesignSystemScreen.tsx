@@ -281,10 +281,18 @@ function ButtonsSection(): ReactNode {
         </div>
       </DsSection>
 
-      <DsSection title="Danger (Canonical)" description="Destructive or irreversible actions. Red gradient background for high visibility. Used for Leave Room, Delete, and other critical actions.">
+      <DsSection title="Danger" description="Destructive or irreversible actions. Dark background with red border.">
         <div className="design-button-row">
-          <DsButton label="Exit Room" tone="danger" />
-          <DsButton label="Leave" tone="danger" compact />
+          <DsButton tone="danger">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
+                fill="currentColor"
+              />
+            </svg>
+            Exit Room
+          </DsButton>
+          <DsButton label="Delete" tone="danger" compact />
           <DsButton label="Disabled" tone="danger" disabled />
         </div>
       </DsSection>

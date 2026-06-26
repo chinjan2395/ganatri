@@ -39,22 +39,20 @@
 }
 
 .ds-button--danger {
-  background: linear-gradient(180deg, #c02525, #8c1515 55%, #6a0f0f);
-  border: 1px solid #520c0c;
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 160, 160, 0.18),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.3),
-    0 3px 10px rgba(100, 10, 10, 0.5);
+  background: rgba(8, 18, 12, 0.82);
+  background-image: none;
+  border: 1px solid rgba(220, 70, 70, 0.55);
+  color: #e86868;
+  box-shadow: none;
+  text-shadow: none;
 }
 
 .ds-button--danger:hover:not(:disabled) {
-  filter: brightness(1.1);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 160, 160, 0.18),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.3),
-    0 0 20px rgba(180, 30, 30, 0.65);
+  background: rgba(220, 70, 70, 0.12);
+  border-color: rgba(220, 70, 70, 0.72);
+  color: #f08080;
+  filter: none;
+  box-shadow: none;
 }
 
 .ds-button--ghost {
