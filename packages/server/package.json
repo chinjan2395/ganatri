@@ -5,6 +5,7 @@
   "scripts": {
     "start": "tsx --env-file-if-exists=.env src/index.ts",
     "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
+    "dev:alt": "PORT=4001 WEB_ORIGIN=http://localhost:5174 CORS_ORIGIN=http://localhost:5174 tsx watch --env-file-if-exists=.env src/index.ts",
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

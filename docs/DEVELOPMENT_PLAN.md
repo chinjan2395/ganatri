@@ -6,6 +6,9 @@ Last updated: 2026-06-26 (RoomScreen mobile Voice Chat unified with desktop: rem
 
 Last updated: 2026-06-26 (RoomScreen header + body button polish per `Room_Layout.png`: desktop header center stacks title + player badge vertically; Settings/Exit ghost buttons (gold outline / red outline on dark bg); player badge gold pill with users icon; Invite + mobile action buttons switched to ghost gold-outline style; Copy Code brighter gold gradient + dark icon/text; Share Link dark ghost button; mobile header gold icon buttons + SVG copy icon. `RoomScreen.tsx` + `RoomScreen.css` + `DesignSystemScreen.tsx`. Build green.)
 
+Last updated: 2026-06-26 (Phase DS-B primitives migration COMPLETE — 10 components (Button, Badge, Card, Field, ListRow, PageHeader, Section, Stat, Tabs, Alert) migrated to `packages/ds/src/components/`; each has .tsx + token-variable CSS + ≥3 Storybook stories + index.ts; barrel `src/index.ts` exports all; `DesignSystemScreen.tsx` import updated to aliased `@ganatri/ds`; `DesignSystemPrimitives.tsx` deleted; `npm run build -w @ganatri/web` green — 541 modules, 0 TS errors.)
+Last updated: 2026-06-26 (Phase DS-B primitives migration — 10 components created in `packages/ds/src/components/` (Button, Badge, Card, Field, ListRow, PageHeader, Section, Stat, Tabs, Alert); each with .tsx + .css (token variables) + .stories.tsx (≥3 stories) + index.ts; barrel `packages/ds/src/index.ts` exports all 10; `DesignSystemScreen.tsx` import updated to aliased `@ganatri/ds` imports. npm install running to link workspace.)
+Last updated: 2026-06-26 (Phase DS-A scaffold started — `packages/ds` directory created with `package.json` (`@ganatri/ds` v0.1.0), `tsconfig.json` (extends base), `vite.config.ts`; `.storybook/main.ts` + `preview.ts` (dark-felt default, tokens CSS global import); `src/tokens/index.css` with all 17 design tokens extracted; `src/index.ts` barrel; `@ganatri/ds: "*"` wired into `packages/web/package.json`; root workspace auto-picks up `packages/*` — no manual change needed. npm install running to link the workspace.)
 Last updated: 2026-06-26 (Phase DS Design System Package architecture — `docs/DESIGN_SYSTEM_ARCHITECTURE.md` created; Phase DS added to development plan with 16 tasks across 5 sub-phases A–E; design system architecture covers `packages/ds` package scaffold, Storybook setup, design token extraction, component file convention, story format, complete component inventory, golden rule + ESLint enforcement, migration path, and two-tool philosophy.)
 
 Last updated: 2026-06-25 (RoomScreen premium felt background: pure CSS diamond weave + vignette + SVG noise grain + inline SVG crest watermark via `RoomFeltBackdrop` — no background image asset. `RoomScreen.tsx` + `RoomScreen.css`. Build green.)
@@ -867,7 +870,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 **Architecture doc:** `docs/DESIGN_SYSTEM_ARCHITECTURE.md` — read it before starting any task in this phase. It covers the full directory structure, design token strategy, component convention, story format, ESLint enforcement, migration path, and acceptance criteria.
 
-**Status:** ⬜ Not started
+**Status:** 🟡 In progress — DS-A ✅ DS-B ✅ DS-C pending
 
 ### Two-tool philosophy
 - **Storybook** (runs inside `packages/ds`) — component workbench: isolation, controls, a11y audit, visual regression.
@@ -877,13 +880,13 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Create `packages/ds/` with `package.json`, `tsconfig.json`, `vite.config.ts` | ⬜ | `name: "@ganatri/ds"`, workspace package |
-| Install Storybook `@storybook/react-vite` + `addon-essentials` + `addon-a11y` | ⬜ | `npx storybook@latest init` inside `packages/ds` |
-| Create `.storybook/main.ts` + `.storybook/preview.ts` with dark default background | ⬜ | preview imports `src/tokens/index.css` globally |
-| Create `src/tokens/index.css` with all design tokens extracted from scattered CSS files | ⬜ | Tokens: `--gold`, `--gold-rim`, `--gold-2`, `--glow-gold`, `--safe`, `--danger`, `--panel`, `--panel-2`, `--text`, `--text-dim`, `--font-display`, `--chip-*`, `--red-suit`, `--black-suit`, etc. |
-| Create `src/index.ts` barrel export | ⬜ | Empty initially; components added as they are migrated |
-| Wire `@ganatri/ds: workspace:*` into `packages/web/package.json` | ⬜ | Run `npm install` at workspace root to link; confirm import resolves |
-| Add `packages/ds` to workspace root `package.json` `workspaces` array | ⬜ | |
+| Create `packages/ds/` with `package.json`, `tsconfig.json`, `vite.config.ts` | ✅ | `name: "@ganatri/ds"`, npm workspace; `tsconfig` extends `tsconfig.base.json` |
+| Install Storybook `@storybook/react-vite` + `addon-essentials` + `addon-a11y` | 🟡 | `devDependencies` declared in `packages/ds/package.json`; `npm install` running |
+| Create `.storybook/main.ts` + `.storybook/preview.ts` with dark default background | ✅ | `main.ts` glob `../src/**/*.stories.@(ts\|tsx)`; `preview.ts` imports tokens + sets `dark-felt` default background |
+| Create `src/tokens/index.css` with all design tokens extracted from scattered CSS files | ✅ | Tokens: `--gold`, `--gold-rim`, `--gold-2`, `--glow-gold`, `--safe`, `--danger`, `--panel`, `--panel-2`, `--text`, `--text-dim`, `--font-display`, `--chip-*`, `--red-suit`, `--black-suit`, etc. |
+| Create `src/index.ts` barrel export | ✅ | Empty initially; components added as they are migrated |
+| Wire `@ganatri/ds: "*"` into `packages/web/package.json` | ✅ | npm workspace uses `"*"` (not `"workspace:*"` which is pnpm/yarn syntax) |
+| Add `packages/ds` to workspace root `package.json` `workspaces` array | ✅ | Root uses `"packages/*"` glob — auto-registered, no change needed |
 
 ### DS-B — Migrate existing primitives
 
@@ -891,18 +894,19 @@ Migrate the 9 components from `packages/web/src/design-system/DesignSystemPrimit
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Migrate `DsButton` → `Button` | ⬜ | Props: `label`, `tone ('primary'\|'secondary'\|'danger'\|'ghost')`, `compact`, `disabled`; ≥6 stories |
-| Migrate `DsBadge` → `Badge` | ⬜ | Props: `label`, `tone ('default'\|'success'\|'warning'\|'danger'\|'info')`; ≥5 stories |
-| Migrate `DsCard` → `Card` | ⬜ | Props: `children`; stories: default, with content |
-| Migrate `DsField` → `Field` | ⬜ | Props: `label`, `value`, `icon?`; stories: with/without icon |
-| Migrate `DsListRow` → `ListRow` | ⬜ | Props: `title`, `subtitle`, `trailing?: ReactNode`; stories: with/without trailing |
-| Migrate `DsPageHeader` → `PageHeader` | ⬜ | Props: `title`, `subtitle?` |
-| Migrate `DsSection` → `Section` | ⬜ | Props: `title`, `children` |
-| Migrate `DsStat` → `Stat` | ⬜ | Props: `label`, `value`, `delta?` |
-| Migrate `DsTabs` → `Tabs` | ⬜ | Props: `items: string[]`, `active: string`, `onSelect?: (item: string) => void` |
-| Migrate `DsAlert` → `Alert` | ⬜ | Props: `tone`, `title`, `description` |
-| Update all `packages/web` imports from `DesignSystemPrimitives` → `@ganatri/ds` | ⬜ | Grep for the import path and update; confirm build green |
-| Delete `packages/web/src/design-system/DesignSystemPrimitives.tsx` | ⬜ | Only after all imports updated |
+| Migrate `DsButton` → `Button` | ✅ | `Button.tsx` + `Button.css` + `Button.stories.tsx` (6 stories) + `index.ts` in `packages/ds/src/components/Button/` |
+| Migrate `DsBadge` → `Badge` | ✅ | `Badge.tsx` + `Badge.css` + `Badge.stories.tsx` (5 stories) + `index.ts` |
+| Migrate `DsCard` → `Card` | ✅ | `Card.tsx` + `Card.css` + `Card.stories.tsx` (4 stories) + `index.ts` |
+| Migrate `DsField` → `Field` | ✅ | `Field.tsx` + `Field.css` + `Field.stories.tsx` (3 stories) + `index.ts` |
+| Migrate `DsListRow` → `ListRow` | ✅ | `ListRow.tsx` + `ListRow.css` + `ListRow.stories.tsx` (3 stories) + `index.ts` |
+| Migrate `DsPageHeader` → `PageHeader` | ✅ | `PageHeader.tsx` + `PageHeader.css` + `PageHeader.stories.tsx` (3 stories) + `index.ts` |
+| Migrate `DsSection` → `Section` | ✅ | `Section.tsx` + `Section.css` + `Section.stories.tsx` (3 stories) + `index.ts` |
+| Migrate `DsStat` → `Stat` | ✅ | `Stat.tsx` + `Stat.css` + `Stat.stories.tsx` (4 stories) + `index.ts` |
+| Migrate `DsTabs` → `Tabs` | ✅ | `Tabs.tsx` (added `onSelect` callback) + `Tabs.css` + `Tabs.stories.tsx` (3 stories) + `index.ts` |
+| Migrate `DsAlert` → `Alert` | ✅ | `Alert.tsx` + `Alert.css` + `Alert.stories.tsx` (5 stories) + `index.ts` |
+| Update `packages/ds/src/index.ts` barrel with all 10 components | ✅ | All 10 components exported with named + type exports |
+| Update all `packages/web` imports from `DesignSystemPrimitives` → `@ganatri/ds` | ✅ | `DesignSystemScreen.tsx` uses aliased imports (`Alert as DsAlert`, etc.); build green |
+| Delete `packages/web/src/design-system/DesignSystemPrimitives.tsx` | ✅ | Deleted; only `webComponentInventory.ts` remains in `design-system/` |
 
 ### DS-C — Extract room components
 
@@ -972,5 +976,5 @@ Migrate reusable sub-components from `RoomScreen.tsx` into `packages/ds`. Each c
 | Phase 7 — Improvements       | ⬜ Backlog identified; not yet started (27 tasks across 7 sub-phases 7a–7g). **Deprioritized below Phase 8.** |
 | Phase 8 — Social (Co-players & Invitations) | ✅ Complete (all 8a–8h shipped; 387 total tests) |
 | Phase 9 — Scoring / Rating / XP Progression | 🟡 9a–9g complete (all scoring infrastructure + UI wired). Remaining: 9h admin/export/analytics follow-up. |
-| Phase DS — Design System Package (`packages/ds`) | ⬜ Not started. Architecture doc: `docs/DESIGN_SYSTEM_ARCHITECTURE.md`. 5 sub-phases: DS-A scaffold, DS-B migrate 9 primitives, DS-C extract room components, DS-D update showroom, DS-E ESLint + CI gate. |
+| Phase DS — Design System Package (`packages/ds`) | 🟡 DS-A scaffold in progress: `packages/ds` created, Storybook config, tokens CSS, barrel export, web dep wired. DS-B–DS-E pending. |
 | Phase 6i — Account deletion (right to erasure) | ✅ Complete (full stack: DB + server + web; 441 total tests) |
