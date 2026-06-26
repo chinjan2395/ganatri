@@ -199,7 +199,7 @@ jobs:
             - If you are unsure about a game rule, mark BLOCKED and ask - do not guess.
           claude_args: >-
             --model claude-sonnet-4-6
-            --max-turns 60
+            --max-turns 150
             --allowedTools Edit,Read,Write,Bash,Agent
 
       - name: Extract run summary for Slack

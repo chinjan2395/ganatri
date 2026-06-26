@@ -33,7 +33,7 @@ engine Part 1 → engine Part 2 → server → web client → polish. Show passi
 After every task — whether a full phase or a single feature — the responsible agent must:
 1. Open `docs/DEVELOPMENT_PLAN.md`.
 2. Mark affected rows with the correct status icon (⬜ / 🟡 / ✅).
-3. Update the "Last updated" date at the top.
+3. Update `docs/LAST_UPDATED.txt` with today's date.
 4. Update the test counts in the "Quick status summary" table if they changed.
 5. Add any newly discovered tasks as new rows in the appropriate phase section.
 Never close out a task without updating the plan.
