@@ -183,35 +183,53 @@ function PlayerStatusBar({
   maxPlayers = 4,
   elapsedSeconds,
 }: PlayerStatusBarProps): React.ReactNode {
+  const fillPct = Math.round((playerCount / maxPlayers) * 100);
+  const isReady = playerCount >= 2;
+  const isFull = playerCount === maxPlayers;
+
   return (
     <div className="room__status-bar">
-      <div className="room__status-bar-left">
-        <p className="room__player-count">
-          <span className="room__player-count-label">Players </span>
-          <span className="room__player-count-value">
-            {playerCount}/{maxPlayers}
-          </span>
-        </p>
-        <div
-          className="room__pips"
-          role="list"
-          aria-label={`${playerCount} of ${maxPlayers} players joined`}
-        >
+      {/* ── Seats column ── */}
+      <div className="room__statusbar-col">
+        <span className="room__statusbar-eyebrow">SEATS</span>
+        <div className="room__statusbar-fraction" aria-label={`${playerCount} of ${maxPlayers} seats filled`}>
+          <span className="room__statusbar-num">{playerCount}</span>
+          <span className="room__statusbar-denom">/{maxPlayers}</span>
+        </div>
+        <div className="room__pips" role="list" aria-label={`${playerCount} of ${maxPlayers} players joined`}>
           {Array.from({ length: maxPlayers }, (_, i) => (
-            <span
-              key={i}
-              role="listitem"
-              className={`room__pip${i < playerCount ? ' room__pip--filled' : ''}`}
-            >
+            <span key={i} role="listitem" className={`room__pip${i < playerCount ? ' room__pip--filled' : ''}`}>
               {i < playerCount ? <PlayerPipIcon /> : null}
             </span>
           ))}
         </div>
+        <div className="room__statusbar-fillbar" aria-hidden="true">
+          <div
+            className={`room__statusbar-fill${isFull ? ' room__statusbar-fill--full' : ''}`}
+            style={{ width: `${fillPct}%` }}
+          />
+        </div>
       </div>
-      <p className="room__elapsed">
-        <span className="room__elapsed-time">{formatElapsed(elapsedSeconds)}</span>
-        <span className="room__elapsed-suffix"> elapsed</span>
-      </p>
+
+      {/* ── Vertical divider ── */}
+      <div className="room__statusbar-vline" aria-hidden="true" />
+
+      {/* ── Timer column ── */}
+      <div className="room__statusbar-col room__statusbar-col--timer">
+        <span className="room__statusbar-eyebrow">IN LOBBY</span>
+        <span className="room__statusbar-clock">{formatElapsed(elapsedSeconds)}</span>
+        <span className="room__statusbar-clock-label">elapsed</span>
+      </div>
+
+      {/* ── Status strip (spans full width) ── */}
+      <div className={`room__statusbar-footer${isFull ? ' room__statusbar-footer--full' : isReady ? ' room__statusbar-footer--ready' : ''}`}>
+        <span className="room__statusbar-footer-dot" aria-hidden="true" />
+        {isFull
+          ? 'ROOM FULL — READY TO START'
+          : isReady
+            ? 'READY TO START'
+            : `WAITING FOR PLAYERS · ${playerCount}/${maxPlayers}`}
+      </div>
     </div>
   );
 }
