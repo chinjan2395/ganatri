@@ -2,17 +2,17 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { AdminLayout } from '../admin/AdminLayout';
 import { useGame } from '../state/GameProvider';
 import {
-  Alert as DsAlert,
-  Badge as DsBadge,
-  Button as DsButton,
-  Card as DsCard,
-  Field as DsField,
-  ListRow as DsListRow,
-  PageHeader as DsPageHeader,
-  Section as DsSection,
-  Stat as DsStat,
-  Tabs as DsTabs,
-} from '@ganatri/ds';
+  DsAlert,
+  DsBadge,
+  DsButton,
+  DsCard,
+  DsField,
+  DsListRow,
+  DsPageHeader,
+  DsSection,
+  DsStat,
+  DsTabs,
+} from '../design-system/DesignSystemPrimitives';
 import {
   DESIGN_SECTIONS,
   type DesignSectionId,
