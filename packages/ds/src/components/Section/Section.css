@@ -1,0 +1,30 @@
+.ds-section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  border-radius: 24px;
+  padding: 24px;
+  border: 1px solid rgba(231, 195, 74, 0.12);
+  background: linear-gradient(180deg, rgba(20, 38, 27, 0.95), rgba(11, 21, 16, 0.96));
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(10px);
+}
+
+.ds-section__header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ds-section__header h2 {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+
+.ds-section__header p {
+  margin: 0;
+  color: var(--text-dim);
+  line-height: 1.55;
+}

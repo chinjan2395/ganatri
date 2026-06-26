@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:alt": "VITE_SERVER_URL=http://localhost:4001 vite --port 5174",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ganatri/ds": "*",
     "@ganatri/engine": "*",
     "framer-motion": "^11.11.0",
     "react": "^18.3.1",
