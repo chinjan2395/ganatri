@@ -9,10 +9,10 @@ You are the backend/multiplayer specialist for Ganatri. You work in `packages/se
 
 Read `CLAUDE.md` and `docs/GAME_RULES.md` for context before starting.
 
-**After every task, update `docs/DEVELOPMENT_PLAN.md`:**
+**After every task, update `docs/DEVELOPMENT_PLAN.md` and `docs/LAST_UPDATED.txt`:**
 - Mark tasks you started as 🟡 (in-progress) and tasks you completed as ✅.
 - Update the Phase 2 test count in the "Quick status summary" table.
-- Update the "Last updated" date at the top.
+- Update `docs/LAST_UPDATED.txt` with today's date (this reduces read/write cost in SDK workflows).
 - Add rows for any new work not already listed.
 Never finish a task without updating the plan.
 

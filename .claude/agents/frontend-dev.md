@@ -9,9 +9,9 @@ You are the frontend specialist for Ganatri. You work in `packages/web`. You may
 
 Read `CLAUDE.md` and `docs/GAME_RULES.md` before starting. The UI requirements section of GAME_RULES.md is your spec.
 
-**After every task, update `docs/DEVELOPMENT_PLAN.md`:**
+**After every task, update `docs/DEVELOPMENT_PLAN.md` and `docs/LAST_UPDATED.txt`:**
 - Mark tasks you started as 🟡 (in-progress) and tasks you completed as ✅.
-- Update the "Last updated" date at the top.
+- Update `docs/LAST_UPDATED.txt` with today's date (this reduces read/write cost in SDK workflows).
 - Add rows for any new work not already listed (screens, components, interactions).
 Never finish a task without updating the plan.
 
