@@ -2,8 +2,6 @@
 
 Last updated: 2026-06-26 (Phase 9g Scoring UI — LobbyScreen ProfilePanel progression block: replaced plain `Level · Rating · XP` paragraph with visual level badge (gold circular Cinzel badge), XP progress bar (gold fill + `xpIntoLevel / xpRange XP` numeric label, XP calculated from `progression.level` + `progression.xpToNextLevel`), and muted rating line. New CSS classes: `lobby__progression`, `lobby__progression-row`, `lobby__level-badge`, `lobby__level-label`, `lobby__level-num`, `lobby__xp-block`, `lobby__xp-bar`, `lobby__xp-bar-fill`, `lobby__xp-label`, `lobby__rating-label`. Null-safe: renders nothing when `progression` is null. Build green, zero TS errors.)
 
-Last updated: 2026-06-26 (Phase 9g Scoring UI integration — LobbyScreen ProfilePanel: replaced plain-text "Level X · Rating Y · XP Z" with gold circular level badge + XP progress bar + rating label. XP bar width = clamp(0–100, (xpRange - xpToNextLevel) / xpRange * 100). HistoryScreen + StatsScreen scoring fields already wired per Phase 9a–9f. Build green; 458 tests pass.)
-
 Last updated: 2026-06-26 (Phase DS Design System Package architecture — `docs/DESIGN_SYSTEM_ARCHITECTURE.md` created; Phase DS added to development plan with 16 tasks across 5 sub-phases A–E; design system architecture covers `packages/ds` package scaffold, Storybook setup, design token extraction, component file convention, story format, complete component inventory, golden rule + ESLint enforcement, migration path, and two-tool philosophy.)
 
 Last updated: 2026-06-25 (RoomScreen premium felt background: pure CSS diamond weave + vignette + SVG noise grain + inline SVG crest watermark via `RoomFeltBackdrop` — no background image asset. `RoomScreen.tsx` + `RoomScreen.css`. Build green.)
@@ -713,7 +711,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 **Goal:** Add a server-authoritative scoring system based on [POINTS_SYSTEM.md](/Users/chinjanpatel/Documents/ganatri/docs/POINTS_SYSTEM.md): placement still determines the winner, but each match now also produces (1) a per-match **Match Score**, (2) a persistent **Ranked Rating** delta, and (3) persistent **XP / level progression** for logged-in players.
 
-**Status:** ⬜ Not started
+**Status:** 🟡 In progress — 9a–9g complete; 9h (admin/export/analytics) pending
 
 ### Architecture decisions
 

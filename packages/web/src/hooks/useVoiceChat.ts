@@ -109,6 +109,8 @@ export function useVoiceChat(
   const [iceServersReady, setIceServersReady] = useState(false);
 
   const localStreamRef = useRef<MediaStream | null>(null);
+  // In-flight getUserMedia promise — prevents duplicate acquisition calls.
+  const micAcquirePromiseRef = useRef<Promise<void> | null>(null);
   // Latest ICE servers; read by createPeer (ref so the callback stays stable).
   const iceServersRef = useRef<RTCIceServer[]>(STUN_SERVERS);
   // Mirror deafened in a ref so playRemoteStream (a stable callback) can read it.
@@ -219,6 +221,46 @@ export function useVoiceChat(
     if (ctx && ctx.state === 'suspended') void ctx.resume().catch(() => {});
   }, []);
 
+  // ── lazy mic acquisition ─────────────────────────────────────────────────
+  //
+  // The mic is NOT acquired on room join. It is acquired the first time the
+  // player activates voice (PTT press or open-mode unmute). Subsequent
+  // activations reuse the live stream — no latency, no re-permission prompt.
+  // This keeps the browser mic indicator and hardware DSP off until the player
+  // actually needs to speak, eliminating the battery/heat drain reported when
+  // the tab showed the mic indicator for the entire session.
+  const ensureMicStream = useCallback((): Promise<void> => {
+    if (localStreamRef.current) return Promise.resolve();
+    if (micAcquirePromiseRef.current) return micAcquirePromiseRef.current;
+
+    const p = navigator.mediaDevices
+      .getUserMedia({ audio: AUDIO_CONSTRAINTS, video: false })
+      .then(stream => {
+        if (!enabledRef.current) {
+          // User left the room while acquisition was in flight — discard stream.
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
+        // Start disabled; applyMuteState (re-triggered by localStreamReady flip)
+        // will enable the track if PTT/open-mode is still active.
+        stream.getAudioTracks().forEach(t => { t.enabled = false; });
+        localStreamRef.current = stream;
+        setLocalStreamReady(true);
+      })
+      .catch(() => {
+        setPermissionDenied(true);
+      })
+      .finally(() => {
+        micAcquirePromiseRef.current = null;
+      });
+
+    micAcquirePromiseRef.current = p;
+    return p;
+  // All reads go through refs (enabledRef, localStreamRef, micAcquirePromiseRef).
+  // setters are stable. No deps needed.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── iOS audio unlock ────────────────────────────────────────────────────
 
   // iOS Safari starts AudioContext suspended and blocks audio autoplay outside
@@ -290,26 +332,12 @@ export function useVoiceChat(
   // stopped, AudioContext suspended.
   useEffect(() => {
     if (!enabled) return;
-
-    let cancelled = false;
-
-    navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS, video: false }).then(stream => {
-      if (cancelled) {
-        stream.getTracks().forEach(t => t.stop());
-        return;
-      }
-      // Start muted in PTT mode so we don't transmit before the user speaks.
-      stream.getAudioTracks().forEach(t => { t.enabled = false; });
-      localStreamRef.current = stream;
-      setLocalStreamReady(true);
-      // Local mic starts disabled, so detection stays paused until unmuted/PTT
-      // (see the mute/PTT sync effect). Don't start it here.
-    }).catch(() => {
-      if (!cancelled) setPermissionDenied(true);
-    });
-
+    // Mic is acquired lazily in applyMuteState on first PTT press / open-mode
+    // unmute (via ensureMicStream). No getUserMedia here keeps the browser mic
+    // indicator clear and hardware DSP off until the player actually speaks.
     return () => {
-      cancelled = true;
+      // Any in-flight acquisition checks enabledRef.current (now false) and
+      // discards the stream, so no further cleanup is needed for that path.
       // Close every peer connection and its per-peer detection/audio.
       for (const pid of [...peersRef.current.keys()]) closePeer(pid);
       // Stop local speaking detection (if running) and clear the speaking set.
@@ -717,22 +745,28 @@ export function useVoiceChat(
   // ── mute / PTT sync ─────────────────────────────────────────────────────
 
   const applyMuteState = useCallback((shouldMute: boolean) => {
-    const stream = localStreamRef.current;
-    stream?.getAudioTracks().forEach(t => { t.enabled = !shouldMute; });
-
     if (shouldMute) {
-      // Muted / PTT inactive: we cannot transmit, so stop polling the local
-      // analyser. If nothing else needs the AudioContext (no remote streams),
-      // suspend it to save CPU/battery. stopSpeakingDetection also clears the
-      // local speaking flag.
+      // Muted / PTT inactive: disable the track if we have one, stop detection.
+      localStreamRef.current?.getAudioTracks().forEach(t => { t.enabled = false; });
       if (myPlayerId) stopSpeakingDetection(myPlayerId);
       maybeSuspendAudioCtx();
-    } else if (stream && myPlayerId) {
-      // Unmuted / PTT active: resume the context and (re)start local detection.
-      resumeAudioCtx();
-      startSpeakingDetection(myPlayerId, stream);
+    } else {
+      // Unmuted / PTT active: lazily acquire the mic on first activation.
+      // ensureMicStream is a no-op if the stream is already live.
+      // If the stream isn't ready yet, it flips localStreamReady=true once
+      // acquired, which re-runs the mute/PTT sync effect so the track is
+      // enabled and detection started with the then-current PTT/mute state.
+      void ensureMicStream();
+      const stream = localStreamRef.current;
+      if (stream) {
+        stream.getAudioTracks().forEach(t => { t.enabled = true; });
+        if (myPlayerId) {
+          resumeAudioCtx();
+          startSpeakingDetection(myPlayerId, stream);
+        }
+      }
     }
-  }, [myPlayerId, stopSpeakingDetection, startSpeakingDetection, maybeSuspendAudioCtx, resumeAudioCtx]);
+  }, [myPlayerId, stopSpeakingDetection, startSpeakingDetection, maybeSuspendAudioCtx, resumeAudioCtx, ensureMicStream]);
 
   // Also depends on localStreamReady so that once the mic stream arrives, the
   // current mute/PTT state is (re)applied — starting local detection if the

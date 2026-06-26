@@ -1109,6 +1109,7 @@
 
 /* ── Progression block (level badge + XP bar + rating) ─────────── */
 
+
 .lobby__progression {
   display: flex;
   flex-direction: column;

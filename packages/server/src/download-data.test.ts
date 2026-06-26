@@ -146,7 +146,7 @@ describe('DOWNLOAD_MY_DATA', () => {
       const { data } = ack;
       expect(data.games).toHaveLength(1);
       // Flat shape: no nested `.game` sub-object
-      expect((data.games[0] as Record<string, unknown>).game).toBeUndefined();
+      expect((data.games[0]! as unknown as Record<string, unknown>).game).toBeUndefined();
       // Dates serialised as ISO strings, not Date objects
       expect(typeof data.games[0]!.startedAt).toBe('string');
       expect(data.stats).not.toBeNull();

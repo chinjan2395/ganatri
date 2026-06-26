@@ -60,7 +60,7 @@ _(none)_
 
 1. **Admin user detail panel** (`AdminScreen.tsx` / `UserManagementPage.tsx`): when a user is selected in admin user search, show `rankedRating`, `level`, `totalXp`, `highestMatchScore`, and recent score ledger entries in the `UserDetailPanel`.
 2. **Admin export**: extend `exportGamesData` + `admin_export_data` to include per-game `matchScore`, `xpEarned`, `rankedRatingDelta` from `game_players` so exported JSON is audit-friendly.
-3. **Optional KPI follow-up**: average match score by player count in KPI charts — defer if scope is large.
+3. **Backfill/default strategy**: existing users with no progression rows should show defaults (rating=0, xp=0, level=1) — verify the server `getMyProgression` returns defaults for new users.
 
 Acceptance: Admin can view a user's full progression in user detail; export JSON includes scoring fields; all 458 tests pass.
 
