@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ganatri/ds": "*",
     "@ganatri/engine": "*",
     "framer-motion": "^11.11.0",
     "react": "^18.3.1",

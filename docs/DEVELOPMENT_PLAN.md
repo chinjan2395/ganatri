@@ -734,7 +734,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 **Architecture doc:** `docs/DESIGN_SYSTEM_ARCHITECTURE.md` — read it before starting any task in this phase. It covers the full directory structure, design token strategy, component convention, story format, ESLint enforcement, migration path, and acceptance criteria.
 
-**Status:** ⬜ Not started
+**Status:** 🟡 In progress — DS-A scaffold complete; DS-B through DS-E not started.
 
 ### Two-tool philosophy
 - **Storybook** (runs inside `packages/ds`) — component workbench: isolation, controls, a11y audit, visual regression.
@@ -744,13 +744,13 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Create `packages/ds/` with `package.json`, `tsconfig.json`, `vite.config.ts` | ⬜ | `name: "@ganatri/ds"`, workspace package |
-| Install Storybook `@storybook/react-vite` + `addon-essentials` + `addon-a11y` | ⬜ | `npx storybook@latest init` inside `packages/ds` |
-| Create `.storybook/main.ts` + `.storybook/preview.ts` with dark default background | ⬜ | preview imports `src/tokens/index.css` globally |
-| Create `src/tokens/index.css` with all design tokens extracted from scattered CSS files | ⬜ | Tokens: `--gold`, `--gold-rim`, `--gold-2`, `--glow-gold`, `--safe`, `--danger`, `--panel`, `--panel-2`, `--text`, `--text-dim`, `--font-display`, `--chip-*`, `--red-suit`, `--black-suit`, etc. |
-| Create `src/index.ts` barrel export | ⬜ | Empty initially; components added as they are migrated |
-| Wire `@ganatri/ds: workspace:*` into `packages/web/package.json` | ⬜ | Run `npm install` at workspace root to link; confirm import resolves |
-| Add `packages/ds` to workspace root `package.json` `workspaces` array | ⬜ | |
+| Create `packages/ds/` with `package.json`, `tsconfig.json`, `vite.config.ts` | ✅ | `name: "@ganatri/ds"`, workspace package; `vite.config.ts` uses `@vitejs/plugin-react` (already in workspace) |
+| Install Storybook `@storybook/react-vite` + `addon-essentials` + `addon-a11y` | ✅ | Added to `devDependencies` in `packages/ds/package.json`; installed via `npm install` at workspace root (no `npx storybook init` — manual edit per spec) |
+| Create `.storybook/main.ts` + `.storybook/preview.ts` with dark default background | ✅ | preview imports `src/tokens/index.css` globally; dark-felt default bg `#010603` |
+| Create `src/tokens/index.css` with all design tokens extracted from scattered CSS files | ✅ | All tokens: `--gold`, `--gold-rim`, `--gold-2`, `--glow-gold`, `--safe`, `--danger`, `--panel`, `--panel-2`, `--text`, `--text-dim`, `--font-display`, `--chip-*`, `--red-suit`, `--black-suit`, etc. |
+| Create `src/index.ts` barrel export | ✅ | Empty comment barrel; components added as they are migrated |
+| Wire `@ganatri/ds: workspace:*` into `packages/web/package.json` | ✅ | Added as `"@ganatri/ds": "*"` (npm workspace syntax; `workspace:*` is pnpm-only); `npm install` at root links it; resolves at `node_modules/@ganatri/ds` |
+| Add `packages/ds` to workspace root `package.json` `workspaces` array | ✅ | Already handled by `"workspaces": ["packages/*"]` glob at root — no change needed |
 
 ### DS-B — Migrate existing primitives
 
@@ -839,5 +839,5 @@ Migrate reusable sub-components from `RoomScreen.tsx` into `packages/ds`. Each c
 | Phase 7 — Improvements       | ⬜ Backlog identified; not yet started (27 tasks across 7 sub-phases 7a–7g). **Deprioritized below Phase 8.** |
 | Phase 8 — Social (Co-players & Invitations) | ✅ Complete (all 8a–8h shipped; 387 total tests) |
 | Phase 9 — Scoring / Rating / XP Progression | 🟡 9a–9h (admin detail/export/defaults) complete. Remaining: optional KPI analytics + rollout guardrails. |
-| Phase DS — Design System Package (`packages/ds`) | ⬜ Not started. Architecture doc: `docs/DESIGN_SYSTEM_ARCHITECTURE.md`. 5 sub-phases: DS-A scaffold, DS-B migrate 9 primitives, DS-C extract room components, DS-D update showroom, DS-E ESLint + CI gate. |
+| Phase DS — Design System Package (`packages/ds`) | 🟡 DS-A scaffold complete; DS-B through DS-E not started. Architecture doc: `docs/DESIGN_SYSTEM_ARCHITECTURE.md`. |
 | Phase 6i — Account deletion (right to erasure) | ✅ Complete (full stack: DB + server + web; 441 total tests) |
