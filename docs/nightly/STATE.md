@@ -13,7 +13,7 @@
 Phase 9 — Scoring, Rating & XP Progression
 
 ## Status
-IN_PROGRESS — Phase 9a–9f complete (DB schema, server scoring, web base layer merged to main 2026-06-26). Next: Phase 9g (UI integration: lobby/profile/history/stats).  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+IN_PROGRESS — Phase 9g complete (LobbyScreen progression widget + HistoryScreen/StatsScreen scoring data verified). Next: Phase 9h (admin progression summary, export audit trail).  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase 6i Data export (2026-06-25) — `download_my_data` event: server handler (getUserGameHistory + getPlayerStats in parallel, flattenHistoryEntry + mapStatsView), 4 integration tests; web DownloadMyDataAck type + downloadMyData() helper + GameProvider callback + LobbyScreen "Download My Data" button (DOM-append pattern, deferred revokeObjectURL). 458 tests pass (153 engine + 114 server + 191 db).
@@ -46,26 +46,23 @@ small full-stack vertical slices that mirror the history slice.
 Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — skip in nightly runs.
 
 ## Last Run
-- Date: 2026-06-26
-- Outcome: Phase 9a–9f (DB schema + server scoring + web layer) merged to main. Conflicts resolved with design updates (touchAuthSession + updatedAt defensive checks). All 458 tests pass. Ready for Phase 9g.
-- Branch: main (commit 246e518)
+- Date: 2026-06-25
+- Outcome: Phase 9g complete — LobbyScreen progression widget (gold LVL badge + XP progress bar + rating pill). HistoryScreen and StatsScreen already showed scoring data correctly. Priority queue item marked [x]. All 458 tests pass, build green.
+- Branch: nightly/2026-06-25-2241
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-**Phase 9g — Scoring UI Integration (next nightly task):**
+**Phase 9h — Admin Progression & Export (next nightly task):**
 
-Wire persisted scoring data into existing screens. All score data already persists in DB; just wire the reads into UI.
+9g is complete. Next: Phase 9h — Admin progression summary and export audit trail.
 
-1. **LobbyScreen profile area**: show level badge + XP progress bar + ranked rating (can reuse Rewards panel or add to profile section)
-2. **HistoryScreen scorecards**: expand game rows to show matchScore, xpEarned, rankedRatingDelta per game
-3. **StatsScreen stats grid**: add 4 new stat cards (highestMatchScore, totalMatchScore, ghostFinishes, avgMatchScore)
-4. **LeaderboardScreen** *(optional follow-up)*: keep wins board for v1; pivot to rating board or add separate rating leaderboard in future
+1. **Admin user detail** (`AdminScreen` / `UserDetailPanel`): show `rankedRating`, `level`, `totalXp`, `highestMatchScore`, `ghostFinishes` from `AdminUserStatsView.progression` which already exists in the protocol.
+2. **Admin export**: `ExportGamePlayerView` already has `matchScore/xpEarned/rankedRatingDelta` fields — verify they are included in the exported JSON (server-side export handler). If missing, add them.
+3. **Backfill/default strategy**: existing users with no progression rows should show defaults (rating=0, xp=0, level=1) — verify the server `getMyProgression` returns defaults for new users.
 
-Acceptance: All screens display stored scoring without recomputation; responsive on mobile/desktop; all 458 tests pass.
-
-After 9g complete: move to 9h (admin progression summary + export audit trail).
+Note: packages/db work routes to `backend-dev`. AdminScreen UI work routes to `frontend-dev`.
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.

@@ -1107,6 +1107,56 @@
   margin: 0;
 }
 
+.lobby__progression {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.lobby__progression-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lobby__level-badge {
+  background: var(--accent, #c9a84c);
+  color: #111;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.05em;
+}
+
+.lobby__rating-badge {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.lobby__xp-bar-wrap {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.lobby__xp-bar {
+  height: 100%;
+  background: var(--accent, #c9a84c);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+  min-width: 2px;
+}
+
+.lobby__xp-label {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
 /* ── How To Play modal ────────────────────────────────────────── */
 
 .lobby__modal-overlay {
