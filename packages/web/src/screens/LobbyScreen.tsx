@@ -867,27 +867,27 @@ function ProfilePanel({
                 </div>
               )}
               {progression && (() => {
-                const levelStartXp = (progression.level - 1) ** 2 * 25;
-                const nextLevelXp = progression.level ** 2 * 25;
-                const xpInLevel = progression.totalXp - levelStartXp;
-                const xpForLevel = nextLevelXp - levelStartXp;
-                const progress = xpForLevel > 0 ? xpInLevel / xpForLevel : 1;
+                const xpRange = (2 * progression.level - 1) * 25;
+                const xpIntoLevel = xpRange - progression.xpToNextLevel;
+                const xpPercent = Math.max(0, Math.min(100, (xpIntoLevel / xpRange) * 100));
                 return (
                   <div className="lobby__progression">
-                    <div className="lobby__progression-badges">
-                      <span className="lobby__level-badge">LVL {progression.level}</span>
-                      <span className="lobby__rating-badge">Rating {progression.rankedRating}</span>
+                    <div className="lobby__progression-row">
+                      <div className="lobby__level-badge">
+                        <span className="lobby__level-label">LEVEL</span>
+                        <span className="lobby__level-num">{progression.level}</span>
+                      </div>
+                      <div className="lobby__xp-block">
+                        <div className="lobby__xp-bar">
+                          <div
+                            className="lobby__xp-bar-fill"
+                            style={{ width: `${xpPercent}%` }}
+                          />
+                        </div>
+                        <span className="lobby__xp-label">{xpIntoLevel} / {xpRange} XP</span>
+                      </div>
                     </div>
-                    <div
-                      className="lobby__xp-bar-wrap"
-                      aria-label={`XP: ${xpInLevel} of ${xpForLevel}`}
-                    >
-                      <div
-                        className="lobby__xp-bar"
-                        style={{ width: `${Math.round(progress * 100)}%` }}
-                      />
-                    </div>
-                    <div className="lobby__xp-label">{xpInLevel} / {xpForLevel} XP to next level</div>
+                    <p className="lobby__rating-label">Rating: {progression.rankedRating}</p>
                   </div>
                 );
               })()}

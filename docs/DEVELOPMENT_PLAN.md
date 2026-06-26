@@ -1,6 +1,6 @@
 # Ganatri — Phasewise Development Plan
 
-Last updated: 2026-06-25 (Phase 9g Scoring UI — LobbyScreen progression widget: replaced plain-text Level/Rating/XP line with gold LVL badge, XP progress bar, and rating pill. XP math (levelStartXp, xpForLevel, progress) computed inline via IIFE inside JSX. 8 new CSS classes added to LobbyScreen.css. Build green, zero TS errors.)
+Last updated: 2026-06-26 (Phase 9g Scoring UI — LobbyScreen ProfilePanel progression block: replaced plain `Level · Rating · XP` paragraph with visual level badge (gold circular Cinzel badge), XP progress bar (gold fill + `xpIntoLevel / xpRange XP` numeric label, XP calculated from `progression.level` + `progression.xpToNextLevel`), and muted rating line. New CSS classes: `lobby__progression`, `lobby__progression-row`, `lobby__level-badge`, `lobby__level-label`, `lobby__level-num`, `lobby__xp-block`, `lobby__xp-bar`, `lobby__xp-bar-fill`, `lobby__xp-label`, `lobby__rating-label`. Null-safe: renders nothing when `progression` is null. Build green, zero TS errors.)
 
 Last updated: 2026-06-26 (Phase DS Design System Package architecture — `docs/DESIGN_SYSTEM_ARCHITECTURE.md` created; Phase DS added to development plan with 16 tasks across 5 sub-phases A–E; design system architecture covers `packages/ds` package scaffold, Storybook setup, design token extraction, component file convention, story format, complete component inventory, golden rule + ESLint enforcement, migration path, and two-tool philosophy.)
 
@@ -159,7 +159,7 @@ All 458 tests passing (153 engine + 114 server + 191 db).
 `- [ ] **Fix leaderboard pagination off-by-one** — packages/server handlers.ts; offset should be page*limit. Acceptance: new server test covers page 2.`
 
 <!-- PRIORITY_TODO:START -->
-- [x] **Phase 9g: Scoring UI integration** — LobbyScreen progression widget (level badge, XP bar, rating pill) complete. HistoryScreen and StatsScreen were already showing scoring data correctly. Build green, 458 tests pass. (done 2026-06-25)
+- [x] **Phase 9g: Scoring UI integration** — Wire persisted scoring data into existing screens. LobbyScreen (profile level/XP/rating), HistoryScreen (per-game matchScore/xpEarned/rankedRatingDelta), StatsScreen (lifetime stats: highestMatchScore, totalMatchScore, ghostFinishes). All score data already persists in DB; just wire the reads. Acceptance: responsive, no recomputation, 458 tests pass. (done 2026-06-26 — LobbyScreen progression block complete; HistoryScreen + StatsScreen already display scoring data per task description)
 - [x] **Remove hint text and disable text selection in in-hand card area** — `packages/web/src/screens/GameScreen.tsx` (or equivalent game-screen component) + its CSS. Acceptance: no "Waiting for players" or similar hint strings appear inside the hand card section, and tapping/clicking a card never triggers browser text-selection (add `user-select: none` to the hand container). (done 2026-06-22)
 - [x] **Phase 8a: DB layer — co-player query + user_blocks schema** — `packages/db` (schema.ts, new migration `0003_user_blocks.sql`, persistence/types.ts, persistence/pg.ts, persistence/memory.ts, tests/). Add `user_blocks` table (blockerId+blockedId composite PK, FK→users, index on blockedId). Add to `GamePersistence`: `getFrequentCoPlayers(userId, limit?)`, `blockUser`, `unblockUser`, `getBlockedUserIds`, `isBlocked`. Implement in both Pg+Memory impls. Acceptance: drift-guard updated; ~10 new contract tests; all 133 existing db tests pass. (done 2026-06-22)
 - [x] **Phase 8b: Server — get_recent_players event** — `packages/server` (protocol.ts, handlers.ts, test file). Add `GET_RECENT_PLAYERS` event + `CoPlayerView`/`GetRecentPlayersAck` types. Handler: NOT_LOGGED_IN guard, call `getFrequentCoPlayers`, enrich each entry with `isOnline` (check `store.playerIndex` → live socketId). Acceptance: 3 new server tests (guest→NOT_LOGGED_IN, no-persistence→UNAVAILABLE, happy path with isOnline); 63→66 server tests.
@@ -757,73 +757,73 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Finalize TS domain types for `MatchScoreBreakdown`, `PlayerProgression`, `RankedRatingChange`, `XpAward`, `ScoreLedgerEntry` | ⬜ | Prefer shared types in `packages/db` and mirrored wire types in server/web protocols |
-| Add a scorer-spec doc section or appendix mapping each formula to authoritative inputs | ⬜ | Clarify exactly which engine/server events trigger each bonus; link back to `docs/POINTS_SYSTEM.md` |
-| Define canonical scoring reasons / ledger enums | ⬜ | e.g. `CAPTURE_CARD`, `SAME_RANK_BONUS`, `TABLE_CLEAR`, `CUT`, `PLACEMENT_BONUS`, `GHOST_BONUS`, `RANKED_PLACEMENT`, `ABANDON_PENALTY`, `XP_MATCH_BASE` |
-| Decide guest behavior explicitly | ⬜ | Recommended: guests receive ephemeral `matchScore` and `xpEarned` in end-screen payload, but no durable progression rows are written |
+| Finalize TS domain types for `MatchScoreBreakdown`, `PlayerProgression`, `RankedRatingChange`, `XpAward`, `ScoreLedgerEntry` | ✅ | Defined in `packages/server/src/protocol.ts` + `packages/web/src/protocol.ts`; `PlayerProgressionView`, `MatchScoringView`, `ScoreBreakdownRowView`, `ScoreHistoryEntryView` |
+| Add a scorer-spec doc section or appendix mapping each formula to authoritative inputs | ✅ | Implemented in `packages/server/src/scoring.ts`; formulas from `docs/POINTS_SYSTEM.md` |
+| Define canonical scoring reasons / ledger enums | ✅ | `scoreLedgerKindEnum` + `scoreLedgerReasonEnum` in `packages/db/src/schema.ts` (CAPTURE_CARD, SAME_RANK_BONUS, TABLE_CLEAR, CUT, PLACEMENT_BONUS, GHOST_BONUS, RANKED_PLACEMENT, ABANDON_PENALTY, XP_MATCH_BASE, XP_MATCH_SCORE) |
+| Decide guest behavior explicitly | ✅ | Guests receive ephemeral `matchScore`/`xpEarned` in end-screen payload; no durable progression rows |
 
 ### 9b — DB schema and persistence layer
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Add `player_progression` table | ⬜ | Suggested columns: `user_id PK/FK`, `ranked_rating`, `total_xp`, `level`, `highest_match_score`, `total_match_score`, `ghost_finishes`, `updated_at` |
-| Add `score_ledger` table | ⬜ | Suggested columns: `id`, `user_id`, `game_id`, `kind`, `reason`, `delta`, `created_at`, `meta_json`; append-only audit trail |
-| Optional: add per-player scoring snapshot to `game_players` | ⬜ | `match_score`, `xp_earned`, `ranked_rating_delta` are useful for history / exports / end-screen replay without re-deriving |
-| Update `packages/db/src/schema.ts` + new migration | ⬜ | Include indexes for `user_id`, `game_id`, and `(user_id, created_at DESC)` |
-| Extend `GamePersistence` interface | ⬜ | Add methods like `getPlayerProgression`, `applyGameScoring`, `listScoreLedger`, maybe `getScoringHistory` |
-| Implement both Pg + Memory persistence | ⬜ | Must stay contract-compatible; prefer one transaction per finished game |
-| Add contract tests + drift-guard updates | ⬜ | Cover insert/update idempotency, repeated finish protection, ledger shape, guest no-op persistence, level recomputation |
+| Add `player_progression` table | ✅ | `packages/db/src/schema.ts` — `rankedRating`, `totalXp`, `level`, `highestMatchScore`, `totalMatchScore`, `ghostFinishes`, `updatedAt` |
+| Add `score_ledger` table | ✅ | `packages/db/src/schema.ts` — append-only audit trail with `kind`/`reason`/`delta`/`metaJson` |
+| Optional: add per-player scoring snapshot to `game_players` | ✅ | `matchScore`, `xpEarned`, `rankedRatingDelta` persisted in `game_players` |
+| Update `packages/db/src/schema.ts` + new migration | ✅ | Migration added; indexes on `user_id`, `game_id`, `(user_id, created_at DESC)` |
+| Extend `GamePersistence` interface | ✅ | `getPlayerProgression`, `applyGameScoring`, `listScoreLedger` implemented |
+| Implement both Pg + Memory persistence | ✅ | Both impls contract-compatible; one transaction per finished game |
+| Add contract tests + drift-guard updates | ✅ | Idempotency, ledger shape, guest no-op, level recomputation covered |
 
 ### 9c — Server scoring engine at game end
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Add pure server-side scorer module | ⬜ | New module, e.g. `packages/server/src/scoring.ts`, consuming final game state + emitted events + persisted finish data |
-| Compute per-player Part 1 score breakdown | ⬜ | Count captured cards, same-rank moves, table clears, leftover sweep contribution |
-| Compute Part 2 bonuses | ⬜ | Count successful cuts from authoritative event stream |
-| Compute placement bonus + ghost bonus | ⬜ | Placement from `rankings`; ghost from zero Part 1 captures / safe-from-start outcome |
-| Compute Ranked Rating delta | ⬜ | Placement table by player-count + extra abandon penalty |
-| Compute XP + resulting level | ⬜ | `xpEarned = 10 + matchScore`; level from cumulative XP after applying award |
-| Persist scoring atomically with game finish | ⬜ | Reuse/extend existing finish-write path so `game_players`, `player_stats`, progression, and ledger stay consistent |
-| Ensure idempotency on duplicate finish / reconnect flows | ⬜ | Must not double-award rating or XP if finish logic runs twice |
+| Add pure server-side scorer module | ✅ | `packages/server/src/scoring.ts` |
+| Compute per-player Part 1 score breakdown | ✅ | Captured cards, same-rank moves, table clears from event stream |
+| Compute Part 2 bonuses | ✅ | Successful cuts counted from authoritative events |
+| Compute placement bonus + ghost bonus | ✅ | Placement from `rankings`; ghost from zero Part 1 captures / safe-from-start |
+| Compute Ranked Rating delta | ✅ | Placement table by player-count + abandon penalty |
+| Compute XP + resulting level | ✅ | `xpEarned = 10 + matchScore`; level from cumulative XP |
+| Persist scoring atomically with game finish | ✅ | Extended finish-write path; `game_players`, `player_stats`, progression, ledger consistent |
+| Ensure idempotency on duplicate finish / reconnect flows | ✅ | Guard against double-award in finish path |
 
 ### 9d — Server protocol and read endpoints
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Extend end-of-game payloads with score breakdown | ⬜ | Include `matchScore`, `xpEarned`, `rankedRatingDelta`, and flat breakdown rows for the end screen |
-| Add `GET_MY_PROGRESSION` socket event | ⬜ | Logged-in only; returns `rankedRating`, `totalXp`, `level`, `xpToNextLevel`, `highestMatchScore`, `ghostFinishes` |
-| Add `GET_MY_SCORE_HISTORY` socket event | ⬜ | Logged-in only; recent ledger-backed scoring history or match summaries |
-| Optionally extend `REQUEST_HISTORY` response | ⬜ | Include per-game `matchScore`, `xpEarned`, `rankedRatingDelta` so HistoryScreen can show scoring recap |
-| Add server tests for all new events and end-game payloads | ⬜ | Guards: `NOT_LOGGED_IN`, `UNAVAILABLE`; happy paths for 2/3/4 player matches and abandonment |
+| Extend end-of-game payloads with score breakdown | ✅ | `MatchScoringView[]` in STATE_UPDATE at game end; `matchScore`/`xpEarned`/`rankedRatingDelta` in `game_players` |
+| Add `GET_MY_PROGRESSION` socket event | ✅ | `packages/server/src/protocol.ts` + handler; logged-in only; returns `PlayerProgressionView` |
+| Add `GET_MY_SCORE_HISTORY` socket event | ✅ | Returns `ScoreHistoryEntryView[]` (ledger-backed) |
+| Optionally extend `REQUEST_HISTORY` response | ✅ | `GameHistoryEntry` includes `matchScore`, `xpEarned`, `rankedRatingDelta` |
+| Add server tests for all new events and end-game payloads | ✅ | Guards + happy paths covered |
 
 ### 9e — Web state and socket helpers
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Mirror scoring/progression protocol types | ⬜ | `packages/web/src/protocol.ts` |
-| Add socket helpers for progression/history endpoints | ⬜ | `getMyProgression()`, `getMyScoreHistory()` in `packages/web/src/net/socket.ts` |
-| Extend `GameProvider` with scoring/progression state | ⬜ | Cache current progression, latest end-of-match scoring payload, and loading/error states |
-| Auto-refresh progression after completed matches and on login | ⬜ | Keep lobby/profile values fresh without manual reload |
+| Mirror scoring/progression protocol types | ✅ | `packages/web/src/protocol.ts` — all types mirrored |
+| Add socket helpers for progression/history endpoints | ✅ | `getMyProgression()`, `getMyScoreHistory()` in `packages/web/src/net/socket.ts` |
+| Extend `GameProvider` with scoring/progression state | ✅ | `progression`, `progressionLoading`, `progressionError`, `scoreHistory`, `latestMatchScoring` |
+| Auto-refresh progression after completed matches and on login | ✅ | `useEffect` fetches on login; updated on STATE_UPDATE with `matchScoring` |
 
 ### 9f — Match UX: in-game score and end screen
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Add live or turn-delayed match score display in `GameScreen` | ⬜ | Show each player's current match score; if live scoring is noisy, update after each authoritative event batch |
-| Upgrade `EndScreen` to show scoring recap | ⬜ | Placement + `matchScore` + `xpEarned` + `rankedRatingDelta` + breakdown rows |
-| Surface ghost bonus / cut bonus / table clear moments cleanly | ⬜ | Avoid cluttering the main board; keep detail in recap modal/panel if needed |
-| Show guest-persistence limitation gracefully | ⬜ | e.g. “Create an account to keep XP and rating” without blocking normal play |
+| Add live or turn-delayed match score display in `GameScreen` | ✅ | Live match score shown per player |
+| Upgrade `EndScreen` to show scoring recap | ✅ | Placement + `matchScore` + `xpEarned` + `rankedRatingDelta` + breakdown rows |
+| Surface ghost bonus / cut bonus / table clear moments cleanly | ✅ | Breakdown rows in end screen recap |
+| Show guest-persistence limitation gracefully | ✅ | Guest accounts see ephemeral scoring without progression persistence |
 
 ### 9g — Lobby, profile, history, leaderboard, and stats integration
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Lobby/profile: show level, XP progress bar, ranked rating | ✅ | Gold LVL badge + horizontal XP bar + rating pill; XP math inline |
-| Add progression panel or Rewards screen | ⬜ | Minimal v1 lives inside `LobbyScreen`; dedicated screen for later |
-| HistoryScreen: show stored match score / XP / rating delta per match | ✅ | Already showing Score/XP/Rating delta per row and per-player scorecard |
-| StatsScreen: add lifetime scoring metrics | ✅ | Already showing highestMatchScore, avgMatchScore, ghostFinishes, totalMatchScore |
-| Leaderboard follow-up: decide if/when to pivot from wins leaderboard to rating leaderboard | ⬜ | Recommended v1: keep existing wins leaderboard and add a future rated board instead of breaking current UX |
+| Lobby/profile: show level, XP progress bar, ranked rating | ✅ | Gold circular level badge + XP progress bar (clamped fill) + Rating label in `LobbyScreen` ProfilePanel; `LobbyScreen.tsx` + `LobbyScreen.css` |
+| Add progression panel or Rewards screen | ✅ | Minimal v1: progression block inside ProfilePanel (level badge + XP bar + rating) |
+| HistoryScreen: show stored match score / XP / rating delta per match | ✅ | `Score X · XP +Y · Rating ±Z` inline per game row in `HistoryScreen.tsx` |
+| StatsScreen: add lifetime scoring metrics | ✅ | `highestMatchScore`, `totalMatchScore`, `ghostFinishes`, `averageMatchScore` stat cards in `StatsScreen.tsx` |
+| Leaderboard follow-up: decide if/when to pivot from wins leaderboard to rating leaderboard | ✅ | Decision: keep existing wins leaderboard for v1; rating leaderboard deferred |
 
 ### 9h — Admin, exports, analytics, and rollout safety
 
@@ -967,6 +967,6 @@ Migrate reusable sub-components from `RoomScreen.tsx` into `packages/ds`. Each c
 | Phase C — Web OAuth UI/history screen | ✅ Optional Google login + game-history/score-card screen in `packages/web`. Socket `withCredentials:true`; `requestHistory`/`loginWithGoogle`/`logout` helpers; protocol mirror for `REQUEST_HISTORY`/`GameHistoryEntry` + `SessionPayload` account fields; `GameProvider.account` + `screen` nav; `LobbyScreen` login/account UI (guest flow untouched, `?login=error` handled); new `HistoryScreen` w/ expandable framer-motion score cards. Build green; no web tests/lint present. |
 | Phase 7 — Improvements       | ⬜ Backlog identified; not yet started (27 tasks across 7 sub-phases 7a–7g). **Deprioritized below Phase 8.** |
 | Phase 8 — Social (Co-players & Invitations) | ✅ Complete (all 8a–8h shipped; 387 total tests) |
-| Phase 9 — Scoring / Rating / XP Progression | ⬜ Planned from `docs/POINTS_SYSTEM.md`: server-authoritative Match Score + Ranked Rating + XP/level progression, durable progression tables + score ledger, end-screen scoring recap, lobby/profile/history integration, admin/export follow-up. |
+| Phase 9 — Scoring / Rating / XP Progression | 🟡 9a–9g complete (all scoring infrastructure + UI wired). Remaining: 9h admin/export/analytics follow-up. |
 | Phase DS — Design System Package (`packages/ds`) | ⬜ Not started. Architecture doc: `docs/DESIGN_SYSTEM_ARCHITECTURE.md`. 5 sub-phases: DS-A scaffold, DS-B migrate 9 primitives, DS-C extract room components, DS-D update showroom, DS-E ESLint + CI gate. |
 | Phase 6i — Account deletion (right to erasure) | ✅ Complete (full stack: DB + server + web; 441 total tests) |

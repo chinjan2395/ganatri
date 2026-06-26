@@ -1107,54 +1107,91 @@
   margin: 0;
 }
 
+/* ── Progression block (level badge + XP bar + rating) ─────────── */
+
+
 .lobby__progression {
   display: flex;
   flex-direction: column;
   gap: 6px;
   width: 100%;
-  margin-top: 6px;
 }
 
-.lobby__progression-badges {
+.lobby__progression-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  width: 100%;
 }
 
 .lobby__level-badge {
-  background: var(--accent, #c9a84c);
-  color: #111;
-  font-size: 11px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid var(--accent, #e7c34a);
+  background: rgba(0, 0, 0, 0.55);
+  box-shadow: 0 0 8px rgba(231, 195, 74, 0.35);
+  gap: 1px;
+}
+
+.lobby__level-label {
+  font-family: 'Cinzel', serif;
+  font-size: 7px;
   font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 10px;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
+  color: var(--accent, #e7c34a);
+  line-height: 1;
+  text-transform: uppercase;
 }
 
-.lobby__rating-badge {
-  font-size: 12px;
-  color: var(--text-dim);
+.lobby__level-num {
+  font-family: 'Cinzel', serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent, #e7c34a);
+  line-height: 1;
 }
 
-.lobby__xp-bar-wrap {
-  width: 100%;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
-  overflow: hidden;
+.lobby__xp-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
 }
 
 .lobby__xp-bar {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.lobby__xp-bar-fill {
   height: 100%;
-  background: var(--accent, #c9a84c);
-  border-radius: 3px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #c9a227, var(--accent, #e7c34a));
   transition: width 0.4s ease;
-  min-width: 2px;
 }
 
 .lobby__xp-label {
   font-size: 11px;
-  color: var(--text-dim);
+  color: var(--text-dim, #888);
+  line-height: 1;
+}
+
+.lobby__rating-label {
+  font-size: 12px;
+  color: var(--text-dim, #888);
+  margin: 0;
+  text-align: left;
+  padding-left: 2px;
 }
 
 /* ── How To Play modal ────────────────────────────────────────── */
