@@ -1,6 +1,6 @@
 # Ganatri — Phasewise Development Plan
 
-Last updated: 2026-06-26 (Phase 9g Scoring UI — LobbyScreen ProfilePanel progression block: replaced plain `Level · Rating · XP` paragraph with visual level badge (gold circular Cinzel badge), XP progress bar (gold fill + `xpIntoLevel / xpRange XP` numeric label, XP calculated from `progression.level` + `progression.xpToNextLevel`), and muted rating line. New CSS classes: `lobby__progression`, `lobby__progression-row`, `lobby__level-badge`, `lobby__level-label`, `lobby__level-num`, `lobby__xp-block`, `lobby__xp-bar`, `lobby__xp-bar-fill`, `lobby__xp-label`, `lobby__rating-label`. Null-safe: renders nothing when `progression` is null. Build green, zero TS errors.)
+**Last updated date:** See `docs/LAST_UPDATED.txt`. This file focuses on phase/task status; timestamps are tracked in a separate, low-overhead file to reduce read/write cost in SDK agent workflows.
 
 Last updated: 2026-06-26 (RoomScreen mobile Voice Chat unified with desktop: removed `variant` prop from `VoiceChatPanel`; mobile now shows participant avatars, meta row (count + Enabled), PTT bar, and util controls matching desktop. Removed legacy circular emoji mic controls + mobile-only CSS hide rules. `RoomScreen.tsx` + `RoomScreen.css`. Build green.)
 
