@@ -1,3 +1,5 @@
+// SCREEN SHELL: no reusable component definitions here.
+// Components → packages/ds | Screens → packages/web/src/screens
 import { useEffect, useState, type ReactNode } from 'react';
 import { AdminLayout } from '../admin/AdminLayout';
 import { useGame } from '../state/GameProvider';
@@ -12,7 +14,7 @@ import {
   DsSection,
   DsStat,
   DsTabs,
-} from '../design-system/DesignSystemPrimitives';
+} from '@ganatri/ds';
 import {
   DESIGN_SECTIONS,
   type DesignSectionId,
@@ -20,7 +22,6 @@ import {
 import logo from '../assets/ganatri-logo.png';
 import './AdminScreen.css';
 import './DesignSystemScreen.css';
-import './RoomScreen.css';
 
 const OWNER_EMAIL = import.meta.env.VITE_DESIGN_SYSTEM_OWNER_EMAIL?.trim().toLowerCase() ?? '';
 const LOCAL_VERIFICATION_KEY = 'ganatri.designSystem.localVerifiedEmail';
@@ -57,6 +58,9 @@ export function DesignSystemScreen(): ReactNode {
   const [localVerified, setLocalVerified] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const isLocalhost = isLocalhostHost(window.location.hostname);
+
+  // TODO: remove this bypass before deploying
+  if (isLocalhost) return <DesignSystemContent />;
 
   useEffect(() => {
     if (!isLocalhost || !OWNER_EMAIL) return;
@@ -270,18 +274,34 @@ function ButtonsSection(): ReactNode {
         </div>
       </DsSection>
 
-      <DsSection title="Danger" description="Destructive or irreversible actions. Red gradient.">
+      <DsSection title="Outline" description="Dark background with gold border. Used for secondary room actions like Settings.">
         <div className="design-button-row">
-          <DsButton label="Leave Room" tone="danger" />
-          <DsButton label="Revoke" tone="danger" compact />
+          <DsButton label="Settings" tone="outline" />
+          <DsButton label="Options" tone="outline" compact />
+          <DsButton label="Disabled" tone="outline" disabled />
+        </div>
+      </DsSection>
+
+      <DsSection title="Danger" description="Destructive or irreversible actions. Dark background with red border.">
+        <div className="design-button-row">
+          <DsButton tone="danger">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
+                fill="currentColor"
+              />
+            </svg>
+            Exit Room
+          </DsButton>
+          <DsButton label="Delete" tone="danger" compact />
           <DsButton label="Disabled" tone="danger" disabled />
         </div>
       </DsSection>
 
-      <DsSection title="Room Action Buttons" description="Copy Code and Share Link as used in the Room Details sidebar.">
+      <DsSection title="Room Action Buttons" description="Primary (gold gradient) and Ghost buttons as used in the Room Details sidebar. Canonical design.">
         <div className="design-button-row">
-          <button type="button" className="room__details-btn room__details-btn--primary">Copy Code</button>
-          <button type="button" className="room__details-btn room__details-btn--share">Share Link</button>
+          <DsButton label="Copy Code" tone="primary" />
+          <DsButton label="Share Link" tone="ghost" />
         </div>
       </DsSection>
 
@@ -294,6 +314,73 @@ function ButtonsSection(): ReactNode {
       <DsSection title="Leave Room" description="Full-width red gradient button for exiting the room — always at the bottom of mobile layout.">
         <div style={{ width: '100%', maxWidth: 320 }}>
           <button type="button" className="room__leave-btn">Leave Room</button>
+        </div>
+      </DsSection>
+
+      <DsSection title="Header Action Buttons — Desktop (Canonical)" description="Settings (outline, disabled) and Exit Room (danger) buttons shown in the desktop room header's right slot. These are the canonical header button patterns.">
+        <div className="design-button-row">
+          <DsButton label="Settings" tone="outline" disabled />
+          <DsButton tone="danger">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
+                fill="currentColor"
+              />
+            </svg>
+            Exit Room
+          </DsButton>
+        </div>
+      </DsSection>
+
+      <DsSection title="Header Buttons — Mobile" description="Back arrow, icon-button (copy/menu), used in the sticky mobile room header.">
+        <div className="design-button-row">
+          <button type="button" className="room__header-back" aria-label="Leave room">←</button>
+          <button type="button" className="room__header-icon-btn" aria-label="Copy room code">⎘</button>
+          <button type="button" className="room__header-icon-btn" aria-label="Menu">⋮</button>
+        </div>
+      </DsSection>
+
+      <DsSection title="Voice Controls" description="PTT/Mic bar and utility buttons (deafen, mode toggle) from the Voice Chat panel.">
+        <div className="design-button-stack" style={{ gap: 12 }}>
+          <button type="button" className="room__voice-ptt-bar">
+            <span className="room__voice-ptt-pill">MIC</span>
+            <span className="room__voice-ptt-hint-inline">Open mic mode</span>
+          </button>
+          <button type="button" className="room__voice-ptt-bar room__voice-ptt-bar--active">
+            <span className="room__voice-ptt-pill">PTT</span>
+            <span className="room__voice-ptt-hint-inline">Hold to talk</span>
+          </button>
+          <button type="button" className="room__voice-ptt-bar room__voice-ptt-bar--muted">
+            <span className="room__voice-ptt-pill">Unmute</span>
+            <span className="room__voice-ptt-hint-inline">Mic muted</span>
+          </button>
+          <div className="room__voice-util-row">
+            <button type="button" className="room__voice-util-btn">🔊</button>
+            <button type="button" className="room__voice-util-btn room__voice-util-btn--active">🔈</button>
+            <button type="button" className="room__voice-util-btn">PTT mode</button>
+            <button type="button" className="room__voice-util-btn">Open mic</button>
+          </div>
+        </div>
+      </DsSection>
+
+      <DsSection title="Mobile Action Row" description="Compact icon+label action buttons shown below the table on mobile (Invite Friends, Share Link).">
+        <div className="room__action-row">
+          <button type="button" className="room__action-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.7" />
+              <circle cx="17" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M3 19c0-2.8 2.7-4.5 6-4.5s6 1.7 6 4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+              <path d="M16 14.5c2.2.4 4 1.8 4 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            Invite Friends
+          </button>
+          <button type="button" className="room__action-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M10 13a5 5 0 0 0 7.54.54l2-2a5 5 0 0 0-7.07-7.07l-1.12 1.12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-2 2a5 5 0 0 0 7.07 7.07l1.12-1.12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+            Share Link
+          </button>
         </div>
       </DsSection>
     </>
@@ -390,7 +477,7 @@ function TypographySection(): ReactNode {
 function CardsSection(): ReactNode {
   return (
     <>
-      <DsSection title="Generic Card" description="Surface container for any grouped content.">
+      <DsSection title="Card (Canonical Design)" description="Glassmorphic dark card with gold border and backdrop blur. This is the canonical card design used throughout the app for all grouped content surfaces.">
         <div className="design-grid design-grid--two">
           <DsCard title="Room Details" subtitle="Private · 4 seats">
             <p className="design-copy">Room code: ROOM-4X7Z. Created by Chinjan.</p>
@@ -418,7 +505,7 @@ function CardsSection(): ReactNode {
         </div>
       </DsSection>
 
-      <DsSection title="Room Details Panel" description="Glassmorphic dark card with icon-row layout — used in the Room screen left sidebar.">
+      <DsSection title="Room Details Panel (Canonical)" description="Glassmorphic dark card (canonical) with icon-row layout — used in the Room screen left sidebar. Uses standardized Card design + Primary/Ghost buttons.">
         <div className="room__details-sidebar design-room-panel-preview">
           <h3 className="room__details-heading">ROOM DETAILS</h3>
           <div className="room__details-rows">
@@ -444,8 +531,8 @@ function CardsSection(): ReactNode {
             </div>
           </div>
           <div className="room__details-actions">
-            <button type="button" className="room__details-btn room__details-btn--primary">Copy Code</button>
-            <button type="button" className="room__details-btn room__details-btn--share">Share Link</button>
+            <DsButton label="Copy Code" tone="primary" />
+            <DsButton label="Share Link" tone="ghost" />
           </div>
         </div>
       </DsSection>
@@ -475,6 +562,65 @@ function CardsSection(): ReactNode {
             <button type="button" className="room__chat-emoji-btn" disabled title="Emoji">😊</button>
             <input className="room__chat-input" placeholder="Type a message..." readOnly />
             <button type="button" className="room__chat-send-btn" disabled>➤</button>
+          </div>
+        </div>
+      </DsSection>
+
+      <DsSection title="Voice Chat Panel" description="Voice chat section with participant row, PTT/mic bar, and utility controls.">
+        <div className="room__voice-section design-room-panel-preview">
+          <div className="room__voice-header">
+            <h3 className="room__voice-title">VOICE CHAT</h3>
+            <div className="room__voice-meta">
+              <span className="room__voice-count">3 participants</span>
+              <span className="room__voice-status room__voice-status--enabled">
+                <span className="room__voice-status-dot" aria-hidden="true" />
+                Enabled
+              </span>
+            </div>
+          </div>
+          <div className="room__voice-participants-wrap">
+            <div className="room__voice-participants">
+              {(['CP', 'AS', 'PM'] as const).map((initials, idx) => (
+                <div key={idx} className="room__voice-participant">
+                  <div className="room__voice-participant-avatar-wrap">
+                    <div className={`room__voice-participant-circle${idx === 1 ? ' room__voice-participant-circle--speaking' : ''}`}>
+                      <span className="room__voice-participant-initials">{initials}</span>
+                    </div>
+                    <span className={`room__voice-mic-badge${idx === 1 ? ' room__voice-mic-badge--live' : ''}`} aria-hidden="true">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <rect x="9" y="4" width="6" height="10" rx="3" stroke="currentColor" strokeWidth="1.8" />
+                        <path d="M6 11a6 6 0 0 0 12 0M12 17v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                      </svg>
+                    </span>
+                  </div>
+                  <span className="room__voice-participant-name">
+                    {idx === 0 ? 'You' : idx === 1 ? 'Arjun S.' : 'Priya M.'}
+                  </span>
+                </div>
+              ))}
+              <div className="room__voice-participant">
+                <div className="room__voice-participant-avatar-wrap">
+                  <div className="room__voice-participant-circle room__voice-participant-circle--empty">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle cx="12" cy="9" r="3.5" fill="currentColor" opacity="0.35" />
+                      <path d="M6 19c0-3 2.7-5 6-5s6 2 6 5" fill="currentColor" opacity="0.35" />
+                    </svg>
+                  </div>
+                </div>
+                <span className="room__voice-participant-name room__voice-participant-name--empty">Empty</span>
+              </div>
+            </div>
+            <span className="room__voice-participants-scroll" aria-hidden="true">›</span>
+          </div>
+          <div className="room__voice-desktop-controls">
+            <button type="button" className="room__voice-ptt-bar">
+              <span className="room__voice-ptt-pill">MIC</span>
+              <span className="room__voice-ptt-hint-inline">Open mic mode</span>
+            </button>
+            <div className="room__voice-util-row">
+              <button type="button" className="room__voice-util-btn" title="Deafen">🔊</button>
+              <button type="button" className="room__voice-util-btn" title="Switch to push-to-talk">PTT mode</button>
+            </div>
           </div>
         </div>
       </DsSection>
@@ -556,6 +702,46 @@ function PillsBadgesSection(): ReactNode {
                 )}
               </span>
             ))}
+          </div>
+        </div>
+      </DsSection>
+
+      <DsSection title="Player Status Bar" description="Two-column layout: seat counter with fill bar on the left, digital lobby timer on the right. Status strip spans the bottom.">
+        <div className="room__status-panel" style={{ maxWidth: 380, padding: '12px 14px 10px' }}>
+          <div className="room__status-bar">
+            <div className="room__statusbar-col">
+              <span className="room__statusbar-eyebrow">SEATS</span>
+              <div className="room__statusbar-fraction">
+                <span className="room__statusbar-num">3</span>
+                <span className="room__statusbar-denom">/4</span>
+              </div>
+              <div className="room__pips" role="list" aria-label="3 of 4 players joined">
+                {[true, true, true, false].map((filled, i) => (
+                  <span key={i} role="listitem" className={`room__pip${filled ? ' room__pip--filled' : ''}`}>
+                    {filled && (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle cx="12" cy="12" r="8" fill="currentColor" />
+                        <circle cx="12" cy="12" r="5.5" stroke="rgba(0,0,0,0.25)" strokeWidth="1" />
+                        <path d="M12 7v10M9 10h6" stroke="rgba(0,0,0,0.35)" strokeWidth="1.2" strokeLinecap="round" />
+                      </svg>
+                    )}
+                  </span>
+                ))}
+              </div>
+              <div className="room__statusbar-fillbar" aria-hidden="true">
+                <div className="room__statusbar-fill" style={{ width: '75%' }} />
+              </div>
+            </div>
+            <div className="room__statusbar-vline" aria-hidden="true" />
+            <div className="room__statusbar-col room__statusbar-col--timer">
+              <span className="room__statusbar-eyebrow">IN LOBBY</span>
+              <span className="room__statusbar-clock">04:22</span>
+              <span className="room__statusbar-clock-label">elapsed</span>
+            </div>
+            <div className="room__statusbar-footer room__statusbar-footer--ready">
+              <span className="room__statusbar-footer-dot" aria-hidden="true" />
+              READY TO START
+            </div>
           </div>
         </div>
       </DsSection>
@@ -779,7 +965,12 @@ function GameTableSection(): ReactNode {
             <div className="room__seat room__seat--3">
               <div className="room__seat-slot">
                 <div className="room__seat-circle room__seat-circle--empty">
-                  <span className="room__seat-icon" aria-hidden="true">👤</span>
+                  <span className="room__seat-icon" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle cx="12" cy="9" r="3.5" fill="currentColor" opacity="0.35" />
+                      <path d="M6 19c0-3 2.7-5 6-5s6 2 6 5" fill="currentColor" opacity="0.35" />
+                    </svg>
+                  </span>
                 </div>
                 <span className="room__seat-waiting-label">
                   Waiting for<br />player...

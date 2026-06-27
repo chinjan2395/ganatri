@@ -1,0 +1,97 @@
+.ds-button {
+  min-height: 42px;
+  border-radius: 14px;
+  padding: 0 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.96rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: filter 0.15s, box-shadow 0.15s, background 0.15s;
+  font-family: inherit;
+  text-shadow: none;
+}
+
+.ds-button--primary {
+  background: linear-gradient(180deg, #f0d878 0%, var(--gold) 42%, #c9a020 100%);
+  color: #141008;
+  border-color: #b8921a;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42), 0 2px 10px rgba(231, 195, 74, 0.32);
+}
+
+.ds-button--primary:hover:not(:disabled) {
+  filter: brightness(1.05);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42), 0 4px 14px rgba(231, 195, 74, 0.42);
+}
+
+.ds-button--secondary {
+  background: linear-gradient(180deg, rgba(24, 47, 35, 0.98), rgba(14, 25, 19, 0.98));
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.ds-button--secondary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.ds-button--danger {
+  background: rgba(8, 18, 12, 0.82);
+  background-image: none;
+  border: 1px solid rgba(220, 70, 70, 0.55);
+  color: #e86868;
+  box-shadow: none;
+  text-shadow: none;
+}
+
+.ds-button--danger:hover:not(:disabled) {
+  background: rgba(220, 70, 70, 0.12);
+  border-color: rgba(220, 70, 70, 0.72);
+  color: #f08080;
+  filter: none;
+  box-shadow: none;
+}
+
+.ds-button--ghost {
+  background: transparent;
+  color: var(--gold-rim);
+  border-color: rgba(231, 195, 74, 0.3);
+  box-shadow: none;
+}
+
+.ds-button--ghost:hover:not(:disabled) {
+  background: rgba(231, 195, 74, 0.08);
+  border-color: rgba(231, 195, 74, 0.5);
+  filter: none;
+  box-shadow: none;
+}
+
+.ds-button--outline {
+  background: rgba(8, 18, 12, 0.82);
+  background-image: none;
+  border: 1px solid rgba(231, 195, 74, 0.48);
+  color: var(--gold);
+  box-shadow: none;
+  text-shadow: none;
+}
+
+.ds-button--outline:hover:not(:disabled) {
+  background: rgba(231, 195, 74, 0.1);
+  border-color: rgba(231, 195, 74, 0.65);
+  filter: none;
+  box-shadow: none;
+}
+
+.ds-button--compact {
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 0.92rem;
+}
+
+.ds-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

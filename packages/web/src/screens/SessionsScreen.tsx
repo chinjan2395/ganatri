@@ -1,3 +1,5 @@
+// SCREEN SHELL: no reusable component definitions here.
+// Components → packages/ds | Screens → packages/web/src/screens
 import { useEffect, useState } from 'react';
 import { useGame } from '../state/GameProvider';
 import { useIsDesktop } from '../hooks/useIsDesktop';
