@@ -1,0 +1,14 @@
+@keyframes ds-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ds-spinner {
+  display: inline-block;
+  border-radius: 50%;
+  border: 3px solid var(--border-gold);
+  border-top-color: var(--gold);
+  animation: ds-spin 0.75s linear infinite;
+  flex-shrink: 0;
+}

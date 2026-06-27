@@ -10,10 +10,10 @@
 > (Current Phase → next NOT_STARTED/IN_PROGRESS item) apply.
 
 ## Current Phase
-Phase 9 — Scoring, Rating & XP Progression
+Phase DS-R — Design System Consolidation
 
 ## Status
-IN_PROGRESS — Phase 9a–9h (partial) complete (2026-06-26). Remaining 9h items: optional KPI scoring analytics + rollout guardrails (low priority).  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+IN_PROGRESS — DS-R1 complete (2026-06-27). DS-R2 is next.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase 6i Data export (2026-06-25) — `download_my_data` event: server handler (getUserGameHistory + getPlayerStats in parallel, flattenHistoryEntry + mapStatsView), 4 integration tests; web DownloadMyDataAck type + downloadMyData() helper + GameProvider callback + LobbyScreen "Download My Data" button (DOM-append pattern, deferred revokeObjectURL). 458 tests pass (153 engine + 114 server + 191 db).
@@ -47,17 +47,15 @@ small full-stack vertical slices that mirror the history slice.
 Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — skip in nightly runs.
 
 ## Last Run
-- Date: 2026-06-26
-- Outcome: Phase 9h (partial) — UserDetailPanel admin gains Progression & Rating section (level/rating/XP/highestMatchScore/ghostFinishes). Export scoring fields already present; defaults already handled in progressionViewOf(null). All 458 tests pass.
-- Branch: nightly/2026-06-26-0949
+- Date: 2026-06-27
+- Outcome: Phase DS-R1 complete — DsIcon (25-name union), DsAvatar (image+initials fallback), DsSpinner (CSS ring), DsEmptyState added to packages/ds; --silver/--bronze tokens added; all 458 tests pass.
+- Branch: nightly/2026-06-27-1942
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-**Phase 9 is substantially complete.** The remaining optional items in 9h (KPI scoring analytics, rollout guardrails) are low priority. Consider moving to Phase DS (Design System Package) or Phase 7 improvements next.
-
-**Phase DS — Design System Package** is the next major phase: `packages/ds` scaffold → Storybook → migrate 9 primitives from `DesignSystemPrimitives.tsx` → extract Room components → update `/design` showroom → ESLint gate. Architecture doc: `docs/DESIGN_SYSTEM_ARCHITECTURE.md`.
+**Phase DS-R is in progress.** DS-R1 (DsIcon/DsAvatar/DsSpinner/DsEmptyState) is done. Next: DS-R2 — `DsModal` + `DsTitleBlock` (overlay/dialog shell for Lobby ProfilePanel/HowToPlayModal/EndScreen; decorative title with flourish + heading + optional crown).
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.
