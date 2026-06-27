@@ -24,7 +24,7 @@ All 458 tests passing (153 engine + 114 server + 191 db).
 - Tackle items **top to bottom, one per run**. Leave finished items checked (with a date) for visibility, or delete them once their PR is merged.
 - Each item should be self-contained and reviewable: include a short acceptance criterion and the package/files it touches.
 
-**Current priority: resume remaining Phase 6 work (6i/6j privacy/ops), then Phase 5 voice smoke test, then Phase 9 scoring/progression, then production/deployment follow-ups.**
+**Current priority: Phase DS-R — Design System Consolidation (HIGH).** Refactor all player screens to consume `@ganatri/ds` only — no design component declared independently in any screen. This phase takes precedence over the normal phase flow; the nightly run should pick up the next ⬜ task from the **Phase DS-R** section below (work `DS-R1 → DS-R14` in order). After Phase DS-R completes: resume remaining Phase 6 work (6i/6j privacy/ops), then Phase 5 voice smoke test, then Phase 9 scoring/progression, then production/deployment follow-ups.
 
 **How to add a priority item:** insert a `- [ ]` line between the two markers below, e.g.
 `- [ ] **Fix leaderboard pagination off-by-one** — packages/server handlers.ts; offset should be page*limit. Acceptance: new server test covers page 2.`
@@ -44,6 +44,33 @@ All 458 tests passing (153 engine + 114 server + 191 db).
 - [x] **Update user profile logo in game session too** — `packages/web`. Acceptance: Update user profile logo in game session too. It should show google profile icon if user is logged in via google. (done 2026-06-21)
 - [x] **Update "Log in with Google" button logo on homepage** — `packages/web/src/LobbyScreen.tsx` (and any Google icon asset or inline SVG it references). Acceptance: The "Log in with Google" button in the lobby displays the new/correct logo. (done 2026-06-21)
 <!-- PRIORITY_TODO:END -->
+
+---
+
+## Phase DS-R — Design System Consolidation (CURRENT PRIORITY)
+
+**Goal:** Every player-facing screen becomes a thin shell that wires data into `@ganatri/ds` components. No design component (button, input, card, badge, icon, nav, modal, profile card, row, etc.) is declared independently in any screen. All visual styling lives in DS component CSS modules; screen `.css` files keep only page layout/positioning. **Admin pages (`packages/web/src/admin`) are explicitly out of scope.**
+
+**Per-task conventions:** New DS components live in `packages/ds/src/components/<Name>/` as a folder of `<Name>.tsx` (explicit `export interface Ds<Name>Props`, `ds-<name>` root class, `type="button"` on buttons), `<Name>.css` (token CSS vars — `--gold`, `--panel`, `--text`, etc.; no hard-coded palette where a token exists), `<Name>.stories.tsx` (default + key variants), and `index.ts`; then export from `packages/ds/src/index.ts`. Reuse existing primitives (`DsButton`, `DsCard`, `DsBadge`, `DsField`, `DsTabs`, `DsStat`, `DsAlert`, `FooterBar`, `FeltBackdrop`, `CornerDecor`). Screen migrations import from `@ganatri/ds`, delete local sub-components / inline `<svg>`, map data→props, and move migrated styling into the DS component CSS. Harvest SVG path data + CSS from the screens being replaced. **Every task acceptance:** build + lint (incl. the screens-must-use-DS ESLint gate from commit `ff29862`) green, Storybook stories render, all 458 tests still pass (UI-only change), desktop (≥900px) + mobile parity for screen migrations.
+
+Work `DS-R1 → DS-R14` in order — DS-R1–R5 build the missing components, DS-R6–R13 migrate screens, DS-R14 enforces. DS-R6 (Leaderboard) is the canonical first migration: if DS-R1–R5 miss a shared pattern, add a follow-up component task before continuing.
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| DS-R1: Foundational primitives — `DsIcon`, `DsAvatar`, `DsSpinner`, `DsEmptyState` | ⬜ | `DsIcon` = one component, `name` union centralizing every inline SVG (`home, history, stats, leaderboard, trophy, profile, back, crown, medal, flourish, bell, gear, gift, people, person, share, plus, copy, mic, mic-off, speaker, settings, exit, close, check`; `medal` takes rank/tone for gold/silver/bronze). `DsAvatar` = image-with-initials-fallback. `DsSpinner`/`DsEmptyState` replace `.spinner`/`.muted`/`card-surface lb__message`. Source: `LeaderboardScreen.tsx` lines 28–77 + nav SVGs. |
+| DS-R2: `DsModal` + `DsTitleBlock` | ⬜ | `DsModal` = overlay/dialog shell (backdrop, panel, title, close) backing Lobby `ProfilePanel`/`HowToPlayModal` + EndScreen. `DsTitleBlock` = decorative title (flourish + heading + optional crown). |
+| DS-R3: Navigation — `DsTopNav`, `DsBottomNav`, `DsScreenHeader` | ⬜ | Desktop top nav (ref `LeaderboardHeader` desktop branch), mobile tab bar (ref `LeaderboardBottomNav`), mobile header (back + `DsTitleBlock` + trailing slot). Consume DS-R1. |
+| DS-R4: Profile — `DsProfileCard`/`DsProfileSidebar`/`DsProfileStrip` | ⬜ | Avatar + name + id + stat pairs + nav buttons (ref `LeaderboardProfileSidebar`); compact strip for History/Stats mobile. |
+| DS-R5: Data rows — `DsRankRow`, `DsStatCard`, `DsSummaryBar`, `DsHistoryRow`, `DsSessionRow`, `DsPlayTimeBar`, `DsPlaceholder` | ⬜ | `DsRankRow` (ref `LeaderboardRow` + `.lb__row*`, optional framer-motion props), `DsStatCard` (bordered icon+label+value+delta, distinct from `DsStat`), plus History/Stats/Sessions row + placeholder patterns. |
+| DS-R6: Migrate `LeaderboardScreen` (canonical) | ⬜ | `LeaderboardScreen.tsx` + `.css`. Replace `MedalIcon`/`TitleFlourish`/`CrownIcon`/`LeaderboardRow`/`LeaderboardHeader`/`LeaderboardProfileSidebar`/`LeaderboardBottomNav` with DS-R1–R5; strip CSS into DS. Validates DS-R1–R5 coverage. |
+| DS-R7: Migrate `HistoryScreen` | ⬜ | Replace `TitleFlourish`/`CrownIcon`/`HistoryHeader`/`HistoryProfileSidebar`/`MobileProfileStrip`/`HistoryBottomNav`/`SummaryBar`/`HistoryRow` with DS components. |
+| DS-R8: Migrate `StatsScreen` | ⬜ | Replace `StatIcon`/`StatCard`/`StatsHeader`/`StatsProfileSidebar`/`StatsBottomNav`/`PlayTimeBar`/`*Placeholder`/`RecentResults` with `DsStatCard`/`DsPlayTimeBar`/`DsPlaceholder`/nav/profile. |
+| DS-R9: Migrate `SessionsScreen` | ⬜ | Replace `SessionsHeader`/`SessionRow` + raw header/back/badge/action markup with `DsScreenHeader`/`DsSessionRow`/`DsBadge`/`DsButton`/`DsIcon`. |
+| DS-R10: Migrate `LobbyScreen` (largest) | ⬜ | `LobbyHeader`→`DsTopNav`; create/join→`DsField`+`DsButton`; dividers→`DsDivider` (add if missing); `ProfilePanel`/`HowToPlayModal`→`DsModal`; `MobileBottomNav`→`DsBottomNav`; `QuickActions`/`RecentlyPlayed`/`DesktopSidebar`→`DsCard`/`DsListRow`/`DsAvatar`/`DsButton`; icons→`DsIcon`. Preserve all state/handlers (create/join/rejoin/Google login/blocked-users). |
+| DS-R11: Migrate `EndScreen` | ⬜ | `components/EndScreen.tsx` + `.css`. `DsModal`/`DsCard` shell, rankings via `DsRankRow`/`DsListRow`, buttons via `DsButton`, trophy/winner via `DsIcon`/`DsAvatar`. Keep `playerNames` wiring. |
+| DS-R12: Finalize `RoomScreen` (purge leftover raw elements) | ⬜ | `room__start-btn`/mobile `room__action-btn`/`room__leave-btn`→`DsButton`(+`DsIcon`), player-badge + share/invite svgs→`DsIcon`, `room__error`→`DsAlert`. No inline `<svg>` or styled `<button>` left. |
+| DS-R13: Finalize `GameScreen` | ⬜ | HUD phase/scoreboard pills→`DsBadge`/`DsCard`, voice icon/mode buttons→`DsButton`+`DsIcon`, leave→`DsButton`, loading→`DsSpinner`. Leave game-specific components (`Card`/`Hand`/`Part1Board`/`Part2Board`/`OpponentSeat`/`CapturedPile`/`TurnTimer`/`CutAnimation`) as-is. |
+| DS-R14: Enforcement & cleanup | ⬜ | Extend the screens-must-use-DS ESLint gate to cover every migrated screen; grep `packages/web/src/screens` + `components/EndScreen.tsx` for residual raw design (inline `<svg`, `className="...btn"`, `<input`, `style={{`). Update plan status icons, `docs/LAST_UPDATED.txt`, test-count summary. |
 
 ---
 
