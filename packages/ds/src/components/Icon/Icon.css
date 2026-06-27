@@ -1,0 +1,27 @@
+.ds-icon {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* Medal tone classes */
+.ds-icon--medal-gold {
+  color: var(--gold);
+}
+
+.ds-icon--medal-silver {
+  color: var(--silver);
+}
+
+.ds-icon--medal-bronze {
+  color: var(--bronze);
+}
+
+.ds-icon--medal-other {
+  color: var(--text-dim);
+}
+
+/* Suppress text selection within icons */
+.ds-icon text {
+  user-select: none;
+}
