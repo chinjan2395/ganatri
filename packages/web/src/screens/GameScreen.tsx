@@ -1,3 +1,5 @@
+// SCREEN SHELL: no reusable component definitions here.
+// Components → packages/ds | Screens → packages/web/src/screens
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cardId, type CardId, type Card as CardModel, type GameEvent, type Phase } from '@ganatri/engine';

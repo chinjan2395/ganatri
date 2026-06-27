@@ -1,3 +1,5 @@
+// SCREEN SHELL: no reusable component definitions here.
+// Components → packages/ds | Screens → packages/web/src/screens
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGame } from '../state/GameProvider';

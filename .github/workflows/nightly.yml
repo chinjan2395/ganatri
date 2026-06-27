@@ -164,6 +164,12 @@ jobs:
           fi
           bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$TEXT"
 
+      - name: Lint & typecheck
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          npm run lint
+          npm run typecheck
+
       - name: Run Claude on next phase
         if: steps.gate.outputs.run == 'true'
         uses: anthropics/claude-code-action@v1

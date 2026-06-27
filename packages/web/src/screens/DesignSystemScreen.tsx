@@ -1,3 +1,5 @@
+// SCREEN SHELL: no reusable component definitions here.
+// Components → packages/ds | Screens → packages/web/src/screens
 import { useEffect, useState, type ReactNode } from 'react';
 import { AdminLayout } from '../admin/AdminLayout';
 import { useGame } from '../state/GameProvider';
@@ -20,7 +22,6 @@ import {
 import logo from '../assets/ganatri-logo.png';
 import './AdminScreen.css';
 import './DesignSystemScreen.css';
-import './RoomScreen.css';
 
 const OWNER_EMAIL = import.meta.env.VITE_DESIGN_SYSTEM_OWNER_EMAIL?.trim().toLowerCase() ?? '';
 const LOCAL_VERIFICATION_KEY = 'ganatri.designSystem.localVerifiedEmail';
