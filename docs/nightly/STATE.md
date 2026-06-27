@@ -13,7 +13,7 @@
 Phase 9 — Scoring, Rating & XP Progression
 
 ## Status
-IN_PROGRESS — Phase 9a–9g complete (2026-06-26). Next: Phase 9h (admin progression summary + export audit trail).  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+IN_PROGRESS — Phase 9a–9h (partial) complete (2026-06-26). Remaining 9h items: optional KPI scoring analytics + rollout guardrails (low priority).  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase 6i Data export (2026-06-25) — `download_my_data` event: server handler (getUserGameHistory + getPlayerStats in parallel, flattenHistoryEntry + mapStatsView), 4 integration tests; web DownloadMyDataAck type + downloadMyData() helper + GameProvider callback + LobbyScreen "Download My Data" button (DOM-append pattern, deferred revokeObjectURL). 458 tests pass (153 engine + 114 server + 191 db).
@@ -48,20 +48,16 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-26
-- Outcome: Phase 9g complete — LobbyScreen ProfilePanel upgraded from plain-text progression to visual level badge + XP progress bar + rating label. HistoryScreen + StatsScreen scoring already wired per 9a–9f. All 458 tests pass. Build green.
-- Branch: nightly/2026-06-26-0504
+- Outcome: Phase 9h (partial) — UserDetailPanel admin gains Progression & Rating section (level/rating/XP/highestMatchScore/ghostFinishes). Export scoring fields already present; defaults already handled in progressionViewOf(null). All 458 tests pass.
+- Branch: nightly/2026-06-26-0949
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-**Phase 9h — Admin Progression Summary + Export Audit Trail (next nightly task):**
+**Phase 9 is substantially complete.** The remaining optional items in 9h (KPI scoring analytics, rollout guardrails) are low priority. Consider moving to Phase DS (Design System Package) or Phase 7 improvements next.
 
-1. **Admin user detail panel** (`AdminScreen.tsx` / `UserManagementPage.tsx`): when a user is selected in admin user search, show `rankedRating`, `level`, `totalXp`, `highestMatchScore`, and recent score ledger entries in the `UserDetailPanel`.
-2. **Admin export**: extend `exportGamesData` + `admin_export_data` to include per-game `matchScore`, `xpEarned`, `rankedRatingDelta` from `game_players` so exported JSON is audit-friendly.
-3. **Backfill/default strategy**: existing users with no progression rows should show defaults (rating=0, xp=0, level=1) — verify the server `getMyProgression` returns defaults for new users.
-
-Acceptance: Admin can view a user's full progression in user detail; export JSON includes scoring fields; all 458 tests pass.
+**Phase DS — Design System Package** is the next major phase: `packages/ds` scaffold → Storybook → migrate 9 primitives from `DesignSystemPrimitives.tsx` → extract Room components → update `/design` showroom → ESLint gate. Architecture doc: `docs/DESIGN_SYSTEM_ARCHITECTURE.md`.
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.

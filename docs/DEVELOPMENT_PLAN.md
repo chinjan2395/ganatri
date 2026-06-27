@@ -700,10 +700,10 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Admin user detail: show progression summary | ⬜ | `rankedRating`, `level`, `totalXp`, `highestMatchScore`, recent ledger entries |
-| Admin export: include progression and per-match scoring fields | ⬜ | Extend existing export path so scoring is audit-friendly |
+| Admin user detail: show progression summary | ✅ | `rankedRating`, `level`, `totalXp`, `highestMatchScore`, recent ledger entries |
+| Admin export: include progression and per-match scoring fields | ✅ | `matchScore`, `xpEarned`, `rankedRatingDelta` already in `ExportGamePlayerView` + `exportGamesData`; JSON export is audit-friendly |
 | KPI follow-up: optional scoring analytics | ⬜ | XP granted/day, average match score by player count, abandon-rate impact on rating |
-| Backfill / default strategy for existing users | ⬜ | Recommended v1: initialize progression at defaults (`rating=0`, `xp=0`, `level=1`) with no historical backfill |
+| Backfill / default strategy for existing users | ✅ | `progressionViewOf(null)` in handlers.ts already returns defaults (rating=0, xp=0, level=1); no backfill needed |
 | Rollout guardrails | ⬜ | Feature flag or config gate for scoring UI while backend stabilizes |
 
 ### Recommended implementation order
@@ -848,6 +848,6 @@ Migrate reusable sub-components from `RoomScreen.tsx` into `packages/ds`. Each c
 | Phase C — Web OAuth UI/history screen | ✅ Optional Google login + game-history/score-card screen in `packages/web`. Socket `withCredentials:true`; `requestHistory`/`loginWithGoogle`/`logout` helpers; protocol mirror for `REQUEST_HISTORY`/`GameHistoryEntry` + `SessionPayload` account fields; `GameProvider.account` + `screen` nav; `LobbyScreen` login/account UI (guest flow untouched, `?login=error` handled); new `HistoryScreen` w/ expandable framer-motion score cards. Build green; no web tests/lint present. |
 | Phase 7 — Improvements       | ⬜ Backlog identified; not yet started (27 tasks across 7 sub-phases 7a–7g). **Deprioritized below Phase 8.** |
 | Phase 8 — Social (Co-players & Invitations) | ✅ Complete (all 8a–8h shipped; 387 total tests) |
-| Phase 9 — Scoring / Rating / XP Progression | 🟡 9a–9g complete (all scoring infrastructure + UI wired). Remaining: 9h admin/export/analytics follow-up. |
+| Phase 9 — Scoring / Rating / XP Progression | 🟡 9a–9h (admin detail/export/defaults) complete. Remaining: optional KPI analytics + rollout guardrails. |
 | Phase DS — Design System Package (`packages/ds`) | ✅ Complete. DS-A ✅ scaffold, DS-B ✅ 10 primitives migrated, DS-C ✅ 14 components extracted + renamed to generic names + RoomScreen 1476→439 lines, DS-D ✅ imports clean + Storybook visual check passed, DS-E ✅ ESLint rule + convention comments + lint script + CI gate all active. |
 | Phase 6i — Account deletion (right to erasure) | ✅ Complete (full stack: DB + server + web; 441 total tests) |
