@@ -29,40 +29,42 @@ export type { DsTabsProps } from './components/Tabs';
 export { DsAlert } from './components/Alert';
 export type { DsAlertProps } from './components/Alert';
 
-// Room components
-export { RoomHeaderDesktop } from './components/RoomHeaderDesktop';
-export type { RoomHeaderDesktopProps } from './components/RoomHeaderDesktop';
+// Layout components
+export { HeaderDesktop } from './components/HeaderDesktop';
+export type { HeaderDesktopProps } from './components/HeaderDesktop';
 
-export { RoomHeaderMobile } from './components/RoomHeaderMobile';
-export type { RoomHeaderMobileProps } from './components/RoomHeaderMobile';
+export { HeaderMobile } from './components/HeaderMobile';
+export type { HeaderMobileProps } from './components/HeaderMobile';
 
-export { RoomDetailsSidebar } from './components/RoomDetailsSidebar';
-export type { RoomDetailsSidebarProps } from './components/RoomDetailsSidebar';
+export { DetailsSidebar } from './components/DetailsSidebar';
+export type { DetailsSidebarProps } from './components/DetailsSidebar';
 
-export { RoomActivityPanel } from './components/RoomActivityPanel';
-export type { RoomActivityPanelProps } from './components/RoomActivityPanel';
+export { ActivityPanel } from './components/ActivityPanel';
+export type { ActivityPanelProps, ActivityEntry } from './components/ActivityPanel';
 
-export { RoomFriendsPanel } from './components/RoomFriendsPanel';
-export type { RoomFriendsPanelProps } from './components/RoomFriendsPanel';
+export { SocialPanel } from './components/SocialPanel';
+export type { SocialPanelProps, FriendEntry } from './components/SocialPanel';
 
-export { RoomSeatSlot } from './components/RoomSeatSlot';
-export type { RoomSeatSlotProps, SeatData } from './components/RoomSeatSlot';
+export { FeltBackdrop } from './components/FeltBackdrop';
 
-export { RoomOvalTable } from './components/RoomOvalTable';
-export type { RoomOvalTableProps } from './components/RoomOvalTable';
+export { SeatSlot } from './components/SeatSlot';
+export type { SeatSlotProps, SeatData } from './components/SeatSlot';
 
-export { RoomStatusPanel } from './components/RoomStatusPanel';
-export type { RoomStatusPanelProps } from './components/RoomStatusPanel';
+export { OvalTable } from './components/OvalTable';
+export type { OvalTableProps } from './components/OvalTable';
 
-export { RoomVoiceChatPanel } from './components/RoomVoiceChatPanel';
-export type { RoomVoiceChatPanelProps, VoiceParticipant } from './components/RoomVoiceChatPanel';
+export { StatusPanel } from './components/StatusPanel';
+export type { StatusPanelProps } from './components/StatusPanel';
 
-export { RoomFooterBar } from './components/RoomFooterBar';
-export type { RoomFooterBarProps } from './components/RoomFooterBar';
+export { VoiceChatPanel } from './components/VoiceChatPanel';
+export type { VoiceChatPanelProps, VoiceParticipant } from './components/VoiceChatPanel';
 
-export { RoomCornerDecor } from './components/RoomCornerDecor';
+export { FooterBar } from './components/FooterBar';
+export type { FooterBarProps } from './components/FooterBar';
 
-export { RoomPipRow } from './components/RoomPipRow';
-export type { RoomPipRowProps } from './components/RoomPipRow';
+export { CornerDecor } from './components/CornerDecor';
 
-export { RoomDealerChip } from './components/RoomDealerChip';
+export { PipRow } from './components/PipRow';
+export type { PipRowProps } from './components/PipRow';
+
+export { DealerChip } from './components/DealerChip';

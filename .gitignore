@@ -6,3 +6,4 @@ coverage/
 reports/
 *.env
 packages/web/src/references
+storybook-static/
