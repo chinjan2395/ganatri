@@ -13,7 +13,7 @@
 Phase DS-R — Design System Consolidation
 
 ## Status
-IN_PROGRESS — DS-R5 complete (2026-06-28). DS-R6 is next.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+IN_PROGRESS — DS-R6 complete (2026-06-28). DS-R7 is next.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase 6i Data export (2026-06-25) — `download_my_data` event: server handler (getUserGameHistory + getPlayerStats in parallel, flattenHistoryEntry + mapStatsView), 4 integration tests; web DownloadMyDataAck type + downloadMyData() helper + GameProvider callback + LobbyScreen "Download My Data" button (DOM-append pattern, deferred revokeObjectURL). 458 tests pass (153 engine + 114 server + 191 db).
@@ -48,24 +48,28 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-28
-- Outcome: Phase DS-R5 complete — DsRankRow, DsStatCard, DsSummaryBar, DsHistoryRow, DsSessionRow, DsPlayTimeBar, DsPlaceholder added to packages/ds; stories for all seven; all exported from packages/ds/src/index.ts; 458 tests still pass (153 engine + 114 server + 191 db).
-- Branch: nightly/2026-06-28-0720
+- Outcome: DS-R6 complete — LeaderboardScreen migrated to DS components (585→312 lines TSX, 791→211 lines CSS); removed all local sub-components; framer-motion dropped; 458 tests pass.
+- Branch: nightly/2026-06-28-1009
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-**Phase DS-R is in progress.** DS-R1 through DS-R5 are done. Next: DS-R6 — Migrate `LeaderboardScreen` (canonical migration).
+**Phase DS-R is in progress.** DS-R1 through DS-R6 are done. Next: DS-R7 — Migrate `HistoryScreen`.
 
-DS-R6 task: `LeaderboardScreen.tsx` + `.css`. Replace all locally-defined sub-components with DS equivalents:
-- `MedalIcon` → remove (DsRankRow handles medals internally)
+DS-R7 task: `HistoryScreen.tsx` + `.css`. Replace locally-defined sub-components with DS equivalents:
 - `TitleFlourish` + `CrownIcon` → `DsTitleBlock`
-- `LeaderboardRow` → `DsRankRow`
-- `LeaderboardHeader` (desktop+mobile) → `DsTopNav` + `DsScreenHeader`
-- `LeaderboardProfileSidebar` → `DsProfileSidebar` + `DsProfileCard`
-- `LeaderboardBottomNav` → `DsBottomNav`
-- Screen CSS: keep only layout/positioning; strip design styles (moved to DS component CSS)
+- `HistoryHeader` (desktop) → `DsTopNav`
+- `HistoryHeader` (mobile) → `DsScreenHeader`
+- `HistoryProfileSidebar` → `DsProfileSidebar`
+- `MobileProfileStrip` → `DsProfileStrip`
+- `HistoryBottomNav` → `DsBottomNav`
+- `SummaryBar` → `DsSummaryBar`
+- `HistoryRow` → `DsHistoryRow`
+- Loading/error states → `DsSpinner` / `DsEmptyState`
+- Footer → `FooterBar`
+- Screen CSS: keep only layout/positioning; strip design styles
 - Check build + lint + ESLint DS gate + 458 tests still pass
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.
