@@ -22,12 +22,25 @@ permissions:
   id-token: write
 
 jobs:
-  nightly:
+
+  # ─────────────────────────────────────────────────────────────
+  # 1 · SETUP & GATE
+  #     Prune old branches, decide whether to run, create the
+  #     working branch and push it so later jobs can check it out.
+  # ─────────────────────────────────────────────────────────────
+  setup-and-gate:
+    name: "1 · Setup & Gate"
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 10
     env:
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+    outputs:
+      run:         ${{ steps.gate.outputs.run }}
+      branch:      ${{ steps.branch.outputs.name }}
+      next_task:   ${{ steps.gate.outputs.next_task }}
+      skip_reason: ${{ steps.gate.outputs.skip_reason }}
+      open_pr:     ${{ steps.gate.outputs.open_pr }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -59,8 +72,9 @@ jobs:
         id: gate
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORCE_RUN_INPUT: ${{ github.event.inputs.force_run || 'false' }}
         run: |
-          FORCE_RUN="${{ github.event.inputs.force_run || 'false' }}"
+          FORCE_RUN="${FORCE_RUN_INPUT}"
           echo "force_run=${FORCE_RUN}" >> "$GITHUB_OUTPUT"
 
           # Skip if an unmerged nightly PR is already open — avoids re-doing the same task
@@ -142,12 +156,17 @@ jobs:
           fi
           bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$MSG"
 
-      - name: Create working branch
+      - name: Create and push working branch
         id: branch
         if: steps.gate.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
           BRANCH="nightly/$(date +%Y-%m-%d-%H%M)"
           git checkout -b "$BRANCH"
+          # Push immediately so the next job can check it out.
+          git push origin "$BRANCH"
           echo "name=$BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: Notify Slack — run started
@@ -170,9 +189,38 @@ jobs:
           npm run lint
           npm run typecheck
 
+  # ─────────────────────────────────────────────────────────────
+  # 2 · CLAUDE IMPLEMENTATION
+  #     Run Claude Code to implement the next unit of work.
+  #     Claude commits to the branch; we push those commits at
+  #     the end so job 3 can see them.
+  # ─────────────────────────────────────────────────────────────
+  claude-implement:
+    name: "2 · Claude Implementation"
+    needs: setup-and-gate
+    if: needs.setup-and-gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      has_commits: ${{ steps.check-commits.outputs.has_commits }}
+    steps:
+      - name: Checkout working branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup-and-gate.outputs.branch }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+
       - name: Run Claude on next phase
-        if: steps.gate.outputs.run == 'true'
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@a92e7c70a4da9793dc164451d829089dc057a464  # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
@@ -240,15 +288,62 @@ jobs:
             --max-turns 60
             --allowedTools Edit,Read,Write,Bash,Agent
 
+      - name: Push Claude's commits
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          git push origin "${{ needs.setup-and-gate.outputs.branch }}"
+
+      - name: Check for commits
+        id: check-commits
+        run: |
+          COUNT=$(git rev-list --count origin/main..HEAD 2>/dev/null || echo 0)
+          if [ "$COUNT" -gt 0 ]; then
+            echo "has_commits=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_commits=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ─────────────────────────────────────────────────────────────
+  # 3 · GENERATE REPORT
+  #     Build the development-progress PDF and upload it as an
+  #     artifact; also send the report zip to Slack.
+  # ─────────────────────────────────────────────────────────────
+  generate-report:
+    name: "3 · Generate Report"
+    needs: [setup-and-gate, claude-implement]
+    if: needs.setup-and-gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+    outputs:
+      commits: ${{ steps.summary.outputs.commits }}
+    steps:
+      - name: Checkout working branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup-and-gate.outputs.branch }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+
       - name: Install Chromium for PDF reports
-        if: steps.gate.outputs.run == 'true'
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y chromium-browser 2>/dev/null || sudo apt-get install -y chromium
 
       - name: Generate development report
-        if: steps.gate.outputs.run == 'true'
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@a92e7c70a4da9793dc164451d829089dc057a464  # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
@@ -284,7 +379,6 @@ jobs:
             --allowedTools Edit,Read,Write,Bash,Agent
 
       - name: Ensure development report (fallback if Claude produced nothing)
-        if: steps.gate.outputs.run == 'true'
         run: |
           if [ -z "$(ls -A reports 2>/dev/null)" ]; then
             echo "No reports/ output from Claude — generating fallback report."
@@ -297,7 +391,6 @@ jobs:
           ls -la reports/
 
       - name: Extract run summary for Slack
-        if: steps.gate.outputs.run == 'true'
         id: summary
         run: |
           COMMITS=$(bash .github/scripts/slack-nightly-msgs.sh commits 5)
@@ -308,12 +401,10 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Set report artifact name
-        if: steps.gate.outputs.run == 'true'
         id: report-artifact
         run: echo "name=ganatri-development-report-$(date +%Y-%m-%d-%H%M%S)" >> "$GITHUB_OUTPUT"
 
       - name: Check report files exist
-        if: steps.gate.outputs.run == 'true'
         id: report-files
         run: |
           if [ -n "$(ls -A reports 2>/dev/null)" ]; then
@@ -324,7 +415,7 @@ jobs:
           fi
 
       - name: Upload report artifact
-        if: steps.gate.outputs.run == 'true' && steps.report-files.outputs.has_files == 'true'
+        if: steps.report-files.outputs.has_files == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.report-artifact.outputs.name }}
@@ -332,7 +423,6 @@ jobs:
           retention-days: 30
 
       - name: Send report zip to Slack
-        if: steps.gate.outputs.run == 'true'
         continue-on-error: true
         env:
           RUN_COMMITS: ${{ steps.summary.outputs.commits }}
@@ -352,31 +442,35 @@ jobs:
             "Ganatri development report" \
             "$COMMENT"
 
-      - name: Push branch
-        id: push
-        if: steps.gate.outputs.run == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if [ "$(git rev-list --count origin/main..HEAD)" -eq 0 ]; then
-            echo "No commits this run — skipping push (no empty branch left behind)."
-            echo "pushed=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
-          git push origin "${{ steps.branch.outputs.name }}"
-          echo "pushed=true" >> "$GITHUB_OUTPUT"
+  # ─────────────────────────────────────────────────────────────
+  # 4 · PUBLISH & NOTIFY
+  #     Open the PR (if Claude committed anything) and send the
+  #     final Slack status message.
+  # ─────────────────────────────────────────────────────────────
+  publish-and-notify:
+    name: "4 · Publish & Notify"
+    needs: [setup-and-gate, claude-implement, generate-report]
+    if: needs.setup-and-gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+    steps:
+      - name: Checkout working branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup-and-gate.outputs.branch }}
+          fetch-depth: 0
 
       - name: Open Pull Request
         id: pr
-        if: steps.push.outputs.pushed == 'true'
+        if: needs.claude-implement.outputs.has_commits == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if git rev-parse --verify origin/main >/dev/null 2>&1 && \
-             [ "$(git rev-list --count origin/main..HEAD)" -gt 0 ]; then
-            BRANCH="${{ steps.branch.outputs.name }}"
-            PR_BODY="$(cat <<'EOF'
+          BRANCH="${{ needs.setup-and-gate.outputs.branch }}"
+          PR_BODY="$(cat <<'EOF'
           ## Autonomous nightly run
 
           See `docs/nightly/STATE.md` for what was done, what's next, and any blockers.
@@ -386,40 +480,36 @@ jobs:
           🤖 Generated with [Claude Code](https://claude.ai/claude-code)
           EOF
           )"
-            set +e
-            PR_ERR=$(gh pr create \
-              --base main \
-              --head "$BRANCH" \
-              --title "Nightly build — $(date +%Y-%m-%d\ %H:%M)" \
-              --body "$PR_BODY" 2>&1)
-            PR_EXIT=$?
-            set -e
-            if [ "$PR_EXIT" -eq 0 ]; then
-              PR_URL="$PR_ERR"
-            else
-              echo "gh pr create failed: $PR_ERR" >&2
-              if echo "$PR_ERR" | grep -q 'not permitted to create or approve pull requests'; then
-                echo "Fix: repo Settings → Actions → General → Workflow permissions →" >&2
-                echo "  enable \"Allow GitHub Actions to create and approve pull requests\"." >&2
-              fi
-              PR_URL=$(gh pr view "$BRANCH" --json url -q .url 2>/dev/null || true)
-            fi
-            echo "url=${PR_URL}" >> "$GITHUB_OUTPUT"
-            echo "Pull request: ${PR_URL:-<none>}"
-            if [ -z "$PR_URL" ]; then
-              exit 1
-            fi
+          set +e
+          PR_ERR=$(gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "Nightly build — $(date +%Y-%m-%d\ %H:%M)" \
+            --body "$PR_BODY" 2>&1)
+          PR_EXIT=$?
+          set -e
+          if [ "$PR_EXIT" -eq 0 ]; then
+            PR_URL="$PR_ERR"
           else
-            echo "No changes this run — no PR created."
+            echo "gh pr create failed: $PR_ERR" >&2
+            if echo "$PR_ERR" | grep -q 'not permitted to create or approve pull requests'; then
+              echo "Fix: repo Settings → Actions → General → Workflow permissions →" >&2
+              echo "  enable \"Allow GitHub Actions to create and approve pull requests\"." >&2
+            fi
+            PR_URL=$(gh pr view "$BRANCH" --json url -q .url 2>/dev/null || true)
+          fi
+          echo "url=${PR_URL}" >> "$GITHUB_OUTPUT"
+          echo "Pull request: ${PR_URL:-<none>}"
+          if [ -z "$PR_URL" ]; then
+            exit 1
           fi
 
       - name: Notify Slack — run finished
-        if: steps.gate.outputs.run == 'true'
         continue-on-error: true
         env:
-          RUN_COMMITS: ${{ steps.summary.outputs.commits }}
+          RUN_COMMITS: ${{ needs.generate-report.outputs.commits }}
         run: |
-          if [ "${{ steps.push.outputs.pushed }}" = "true" ]; then
+          if [ "${{ needs.claude-implement.outputs.has_commits }}" = "true" ]; then
             MSG=":white_check_mark: *Nightly build done* — ready for review"
             if [ -n "$RUN_COMMITS" ]; then
               MSG="${MSG}"$'\n'"${RUN_COMMITS}"
@@ -430,9 +520,22 @@ jobs:
           fi
           bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$MSG"
 
+  # ─────────────────────────────────────────────────────────────
+  # NOTIFY — FAILURE  (runs only when any prior job fails)
+  # ─────────────────────────────────────────────────────────────
+  notify-failure:
+    name: "Notify — Failure"
+    needs: [setup-and-gate, claude-implement, generate-report, publish-and-notify]
+    if: failure()
+    runs-on: ubuntu-latest
+    env:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Notify Slack — run failed
-        if: failure()
-        continue-on-error: true
         run: |
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" \

@@ -488,6 +488,72 @@ function CardsSection(): ReactNode {
         </div>
       </DsSection>
 
+      <DsSection title="Feature Cards" description="Tonal icon cards for feature highlights, game modes, and phase explainers — each with a matching accent glow and colored border.">
+        <div className="design-grid design-grid--three">
+          <div className="ds-feature-card ds-feature-card--gold">
+            <div className="ds-feature-card__icon">♛</div>
+            <div>
+              <span className="ds-feature-card__kicker">Host</span>
+              <h4 className="ds-feature-card__title">Room Host</h4>
+              <p className="ds-feature-card__text">Start the game, kick idle players, and manage the lobby before the round begins.</p>
+            </div>
+          </div>
+          <div className="ds-feature-card ds-feature-card--green">
+            <div className="ds-feature-card__icon">♠</div>
+            <div>
+              <span className="ds-feature-card__kicker">Phase 1</span>
+              <h4 className="ds-feature-card__title">Capture Round</h4>
+              <p className="ds-feature-card__text">Capture cards from the board by value match or summation to build your pile.</p>
+            </div>
+          </div>
+          <div className="ds-feature-card ds-feature-card--blue">
+            <div className="ds-feature-card__icon">♦</div>
+            <div>
+              <span className="ds-feature-card__kicker">Phase 2</span>
+              <h4 className="ds-feature-card__title">Suit & Cut</h4>
+              <p className="ds-feature-card__text">Follow-suit and cut rules activate. Play the right card or risk losing the trick.</p>
+            </div>
+          </div>
+        </div>
+      </DsSection>
+
+      <DsSection title="Score Summary Card" description="Rich post-game or mid-game score card with player rankings, score bars, and round indicator.">
+        <div className="ds-score-card">
+          <div className="ds-score-card__header">
+            <div className="ds-score-card__title-block">
+              <span className="ds-score-card__kicker">Game Score</span>
+              <h3 className="ds-score-card__title">Round 2 — Capture</h3>
+            </div>
+            <div className="ds-score-card__round">R2</div>
+          </div>
+          <div className="ds-score-card__divider" />
+          <div className="ds-score-card__players">
+            {([
+              { rank: 1, initials: 'CP', name: 'Chinjan P.', score: 48, pct: 78 },
+              { rank: 2, initials: 'AS', name: 'Arjun S.', score: 31, pct: 50 },
+              { rank: 3, initials: 'PM', name: 'Priya M.', score: 22, pct: 36 },
+              { rank: 4, initials: 'RK', name: 'Ravi K.', score: 11, pct: 18 },
+            ] as const).map((p) => (
+              <div key={p.name} className="ds-score-card__player">
+                <span className={`ds-score-card__player-rank${p.rank === 1 ? ' ds-score-card__player-rank--first' : ''}`}>
+                  #{p.rank}
+                </span>
+                <div className={`ds-score-card__player-avatar${p.rank > 1 ? ' ds-score-card__player-avatar--dim' : ''}`}>
+                  {p.initials}
+                </div>
+                <div className="ds-score-card__player-info">
+                  <span className="ds-score-card__player-name">{p.name}</span>
+                  <div className="ds-score-card__player-bar-track">
+                    <div className="ds-score-card__player-bar-fill" style={{ width: `${p.pct}%` }} />
+                  </div>
+                </div>
+                <span className="ds-score-card__player-score">{p.score} pts</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </DsSection>
+
       <DsSection title="Stat Tiles" description="Compact tiles for metrics, scores, and counts.">
         <div className="design-stat-grid">
           <DsStat label="Wins" value="24" delta="+3 this week" />
