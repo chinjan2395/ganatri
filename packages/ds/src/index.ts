@@ -1,4 +1,16 @@
 // Primitives
+export { DsIcon } from './components/Icon';
+export type { DsIconProps, DsIconName } from './components/Icon';
+
+export { DsAvatar } from './components/Avatar';
+export type { DsAvatarProps } from './components/Avatar';
+
+export { DsSpinner } from './components/Spinner';
+export type { DsSpinnerProps } from './components/Spinner';
+
+export { DsEmptyState } from './components/EmptyState';
+export type { DsEmptyStateProps } from './components/EmptyState';
+
 export { DsButton } from './components/Button';
 export type { DsButtonProps } from './components/Button';
 
