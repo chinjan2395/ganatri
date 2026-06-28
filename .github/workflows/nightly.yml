@@ -313,7 +313,7 @@ jobs:
   generate-report:
     name: "3 · Generate Report"
     needs: [setup-and-gate, claude-implement]
-    if: needs.setup-and-gate.outputs.run == 'true'
+    if: false  # disabled — re-enable by removing this line
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -449,7 +449,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────
   publish-and-notify:
     name: "4 · Publish & Notify"
-    needs: [setup-and-gate, claude-implement, generate-report]
+    needs: [setup-and-gate, claude-implement]
     if: needs.setup-and-gate.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -507,7 +507,7 @@ jobs:
       - name: Notify Slack — run finished
         continue-on-error: true
         env:
-          RUN_COMMITS: ${{ needs.generate-report.outputs.commits }}
+          RUN_COMMITS: ''  # needs.generate-report.outputs.commits — disabled with report generation
         run: |
           if [ "${{ needs.claude-implement.outputs.has_commits }}" = "true" ]; then
             MSG=":white_check_mark: *Nightly build done* — ready for review"
@@ -525,7 +525,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────
   notify-failure:
     name: "Notify — Failure"
-    needs: [setup-and-gate, claude-implement, generate-report, publish-and-notify]
+    needs: [setup-and-gate, claude-implement, publish-and-notify]
     if: failure()
     runs-on: ubuntu-latest
     env:
