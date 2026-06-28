@@ -590,10 +590,7 @@ jobs:
           fi
           EXTRA=""
           if [ -n "$PR_ERROR" ]; then
-            EXTRA="*PR create error*
-\`\`\`
-${PR_ERROR}
-\`\`\`"
+            EXTRA=$(printf '*PR create error*\n```\n%s\n```' "$PR_ERROR")
           fi
           SUMMARY=$(TITLE="Nightly build failed — publish" \
             WORKFLOW="nightly" \
