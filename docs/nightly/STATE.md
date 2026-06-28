@@ -13,7 +13,7 @@
 Phase DS-R — Design System Consolidation
 
 ## Status
-IN_PROGRESS — DS-R1 complete (2026-06-27). DS-R2 is next.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+IN_PROGRESS — DS-R2 complete (2026-06-28). DS-R3 is next.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase 6i Data export (2026-06-25) — `download_my_data` event: server handler (getUserGameHistory + getPlayerStats in parallel, flattenHistoryEntry + mapStatsView), 4 integration tests; web DownloadMyDataAck type + downloadMyData() helper + GameProvider callback + LobbyScreen "Download My Data" button (DOM-append pattern, deferred revokeObjectURL). 458 tests pass (153 engine + 114 server + 191 db).
@@ -47,15 +47,15 @@ small full-stack vertical slices that mirror the history slice.
 Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — skip in nightly runs.
 
 ## Last Run
-- Date: 2026-06-27
-- Outcome: Phase DS-R1 complete — DsIcon (25-name union), DsAvatar (image+initials fallback), DsSpinner (CSS ring), DsEmptyState added to packages/ds; --silver/--bronze tokens added; all 458 tests pass.
-- Branch: nightly/2026-06-27-1942
+- Date: 2026-06-28
+- Outcome: Phase DS-R2 complete — DsModal (overlay/dialog shell, WCAG focus-trap + Escape handler, backdrop-click-to-close, DsIcon close button) + DsTitleBlock (flourish+crown+heading, sm/md/lg sizes) added to packages/ds; stories for both; 458 tests still pass.
+- Branch: nightly/2026-06-28-0502
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-**Phase DS-R is in progress.** DS-R1 (DsIcon/DsAvatar/DsSpinner/DsEmptyState) is done. Next: DS-R2 — `DsModal` + `DsTitleBlock` (overlay/dialog shell for Lobby ProfilePanel/HowToPlayModal/EndScreen; decorative title with flourish + heading + optional crown).
+**Phase DS-R is in progress.** DS-R1 and DS-R2 are done. Next: DS-R3 — `DsTopNav`, `DsBottomNav`, `DsScreenHeader` (desktop top nav from LeaderboardHeader, mobile tab bar from LeaderboardBottomNav, mobile screen header with back + DsTitleBlock + trailing slot). Reference files: `packages/web/src/screens/LeaderboardScreen.tsx` + `LeaderboardScreen.css`. Consumes DS-R1 (DsIcon, DsAvatar).
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.
