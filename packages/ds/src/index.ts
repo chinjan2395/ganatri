@@ -95,3 +95,12 @@ export type { DsBottomNavProps, DsBottomNavTab } from './components/BottomNav';
 
 export { DsScreenHeader } from './components/ScreenHeader';
 export type { DsScreenHeaderProps } from './components/ScreenHeader';
+
+export { DsProfileCard } from './components/ProfileCard';
+export type { DsProfileCardProps, DsProfileStat } from './components/ProfileCard';
+
+export { DsProfileSidebar } from './components/ProfileSidebar';
+export type { DsProfileSidebarProps, DsProfileNavItem } from './components/ProfileSidebar';
+
+export { DsProfileStrip } from './components/ProfileStrip';
+export type { DsProfileStripProps } from './components/ProfileStrip';

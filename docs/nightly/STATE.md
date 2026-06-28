@@ -13,7 +13,7 @@
 Phase DS-R — Design System Consolidation
 
 ## Status
-IN_PROGRESS — DS-R3 complete (2026-06-28). DS-R4 is next.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+IN_PROGRESS — DS-R4 complete (2026-06-28). DS-R5 is next.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase 6i Data export (2026-06-25) — `download_my_data` event: server handler (getUserGameHistory + getPlayerStats in parallel, flattenHistoryEntry + mapStatsView), 4 integration tests; web DownloadMyDataAck type + downloadMyData() helper + GameProvider callback + LobbyScreen "Download My Data" button (DOM-append pattern, deferred revokeObjectURL). 458 tests pass (153 engine + 114 server + 191 db).
@@ -48,19 +48,21 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-28
-- Outcome: Phase DS-R3 complete — DsTopNav (desktop sticky header with logo/nav/avatar), DsBottomNav (mobile fixed tab bar, hidden ≥900px), DsScreenHeader (mobile back-button header + DsTitleBlock + optional trailing) added to packages/ds; stories for all three; `--accent` token added to DS tokens/index.css; 458 tests still pass.
-- Branch: nightly/2026-06-28-0628
+- Outcome: Phase DS-R4 complete — DsProfileCard (avatar + crown + name + playerId + stat grid), DsProfileSidebar (aside wrapper + sticky desktop nav), DsProfileStrip (compact mobile strip) added to packages/ds; stories for all three; all exported from packages/ds/src/index.ts; 458 tests still pass.
+- Branch: nightly/2026-06-28-0701
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-**Phase DS-R is in progress.** DS-R1, DS-R2, DS-R3 are done. Next: DS-R4 — `DsProfileCard`, `DsProfileSidebar`, `DsProfileStrip`.
-- Reference: `LeaderboardProfileSidebar` in `packages/web/src/screens/LeaderboardScreen.tsx` (lines ~253–308).
-- `DsProfileCard`: avatar (DsAvatar) + name + optional player ID + stat pairs grid (rank / win%) + optional nav buttons column.
-- `DsProfileSidebar`: wraps DsProfileCard in `<aside>` + sidebar nav buttons row (history/stats/leaderboard); desktop-only positioning.
-- `DsProfileStrip`: compact horizontal strip version for History/Stats mobile headers (avatar + name + key stat).
-- All consume DsAvatar, DsIcon, DsTitleBlock as needed.
+**Phase DS-R is in progress.** DS-R1, DS-R2, DS-R3, DS-R4 are done. Next: DS-R5 — `DsRankRow`, `DsStatCard`, `DsSummaryBar`, `DsHistoryRow`, `DsSessionRow`, `DsPlayTimeBar`, `DsPlaceholder`.
+- `DsRankRow`: ref `LeaderboardRow` + `.lb__row*` CSS in `LeaderboardScreen.css`. Optional framer-motion props for entrance animation.
+- `DsStatCard`: bordered card with icon + label + value + optional delta badge. Distinct from `DsStat` (which is a simple inline label/value pair).
+- `DsSummaryBar`: horizontal bar summarizing game result totals (ref `SummaryBar` in HistoryScreen).
+- `DsHistoryRow`: single game history entry row (ref `HistoryRow` in HistoryScreen.tsx).
+- `DsSessionRow`: single auth session row for SessionsScreen (ref `SessionRow` in SessionsScreen.tsx).
+- `DsPlayTimeBar`: play-time breakdown visual bar (ref `PlayTimeBar` in StatsScreen).
+- `DsPlaceholder`: generic loading placeholder skeleton (ref `*Placeholder` patterns in StatsScreen).
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.
