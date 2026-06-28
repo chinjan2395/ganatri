@@ -41,6 +41,12 @@ export type { DsTabsProps } from './components/Tabs';
 export { DsAlert } from './components/Alert';
 export type { DsAlertProps } from './components/Alert';
 
+export { DsModal } from './components/Modal';
+export type { DsModalProps } from './components/Modal';
+
+export { DsTitleBlock } from './components/TitleBlock';
+export type { DsTitleBlockProps } from './components/TitleBlock';
+
 // Layout components
 export { HeaderDesktop } from './components/HeaderDesktop';
 export type { HeaderDesktopProps } from './components/HeaderDesktop';
