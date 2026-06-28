@@ -1,0 +1,67 @@
+/* ============================================================
+   DsBottomNav — Mobile fixed bottom tab bar
+   Shown on mobile (<900px); hidden on desktop (≥900px).
+   ============================================================ */
+
+.ds-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(10, 26, 16, 0.97);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(231, 195, 74, 0.22);
+  display: flex;
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px));
+  z-index: 100;
+}
+
+@media (min-width: 900px) {
+  .ds-bottom-nav {
+    display: none;
+  }
+}
+
+/* ── Tab button ────────────────────────────────────────────── */
+
+.ds-bottom-nav__tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 2px;
+  background: transparent;
+  background-image: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  transition: color 0.15s;
+  box-shadow: none;
+  text-shadow: none;
+  min-height: unset;
+  height: auto;
+  border-radius: 0;
+}
+
+.ds-bottom-nav__tab:hover {
+  color: rgba(255, 255, 255, 0.7);
+  filter: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+.ds-bottom-nav__tab--active {
+  color: var(--accent);
+}
+
+/* ── Label ─────────────────────────────────────────────────── */
+
+.ds-bottom-nav__label {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+}
