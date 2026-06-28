@@ -48,49 +48,26 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Format request into a phase TODO line (Claude)
-        id: claude-format
+      - name: Format request into a phase TODO line (GitHub Models)
+        id: ai-format
         if: steps.payload.outputs.ok == 'true'
         continue-on-error: true
-        uses: anthropics/claude-code-action@v1
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt: |
-            A new full-phase development request was submitted from Slack:
+        env:
+          REQUEST_TEXT: ${{ github.event.client_payload.text }}
+          GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
+          TARGET_FILE: docs/phase-nightly/STATE.md
+          START_MARKER: "<!-- PHASE_TODO:START -->"
+          END_MARKER: "<!-- PHASE_TODO:END -->"
+          CONTEXT_FILE: docs/DEVELOPMENT_PLAN.md
+        run: node .github/scripts/github-models-format-todo.js
 
-            """
-            ${{ github.event.client_payload.text }}
-            """
-
-            Your ONLY job is to turn this into a single, well-formed phase TODO
-            line and insert it into docs/phase-nightly/STATE.md. Do not implement it.
-
-            1. Read docs/phase-nightly/STATE.md, especially the "Phase TODO Queue"
-               section between the <!-- PHASE_TODO:START --> and
-               <!-- PHASE_TODO:END --> markers.
-            2. Read the Phase 9 section in docs/DEVELOPMENT_PLAN.md so the TODO
-               references the right package/files and acceptance criterion.
-            3. Format the submission as ONE line, in EXACTLY this shape:
-                  - [ ] **<concise title>** - <package/files it likely touches>. Acceptance: <one concrete, testable criterion>.
-               Keep it to a single line. Be specific, but do not invent scope the
-               submitter did not ask for.
-            4. Insert your line as the FIRST unchecked item immediately after
-               the <!-- PHASE_TODO:START --> marker. Always ADD a new `- [ ]`
-               line at the top of the queue. If the only content is "_(none)_",
-               replace that placeholder.
-            5. Do NOT modify anything else. Do NOT run git. Do NOT commit.
-          claude_args: >-
-            --model claude-sonnet-4-6
-            --max-turns 15
-            --allowedTools Edit,Read,Write
-
-      - name: Notify Slack — Claude unavailable
-        if: steps.payload.outputs.ok == 'true' && steps.claude-format.outcome == 'failure'
+      - name: Notify Slack — GitHub Models unavailable
+        if: steps.payload.outputs.ok == 'true' && steps.ai-format.outcome == 'failure'
         continue-on-error: true
         run: |
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" \
-            ":warning: Claude is unavailable - queuing your phase request with a fallback formatter. <${RUN_URL}|View run>"
+            ":warning: GitHub Models is unavailable - queuing your phase request with a fallback formatter. <${RUN_URL}|View run>"
 
       - name: Ensure phase TODO queued (fallback if Claude made no edit)
         if: steps.payload.outputs.ok == 'true'
