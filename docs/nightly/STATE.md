@@ -13,7 +13,7 @@
 Phase DS-R — Design System Consolidation
 
 ## Status
-IN_PROGRESS — DS-R7 complete (2026-06-28). DS-R8 is next.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+IN_PROGRESS — DS-R8 complete (2026-06-28). DS-R9 is next.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase 6i Data export (2026-06-25) — `download_my_data` event: server handler (getUserGameHistory + getPlayerStats in parallel, flattenHistoryEntry + mapStatsView), 4 integration tests; web DownloadMyDataAck type + downloadMyData() helper + GameProvider callback + LobbyScreen "Download My Data" button (DOM-append pattern, deferred revokeObjectURL). 458 tests pass (153 engine + 114 server + 191 db).
@@ -48,27 +48,24 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-28
-- Outcome: DS-R7 complete — HistoryScreen migrated to DS components (506→280 lines TSX, 848→141 lines CSS); removed TitleFlourish/CrownIcon/HistoryHeader/HistoryProfileSidebar/MobileProfileStrip/HistoryBottomNav/SummaryBar/HistoryRow; framer-motion dropped; 458 tests pass.
-- Branch: nightly/2026-06-28-1406
+- Outcome: DS-R8 complete — StatsScreen migrated to DS components (644→401 lines TSX, 897→229 lines CSS); removed StatCard/StatsHeader/StatsProfileSidebar/MobileProfileStrip/StatsBottomNav/PlayTimeBar/*Placeholder/RecentResults; replaced with DsTopNav/DsScreenHeader/DsProfileSidebar/DsProfileStrip/DsTitleBlock/DsStatCard/DsPlayTimeBar/DsPlaceholder/DsBottomNav/DsSpinner/DsEmptyState/DsButton/FooterBar; framer-motion removed; 458 tests pass.
+- Branch: nightly/2026-06-28-1619
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-**Phase DS-R is in progress.** DS-R1 through DS-R7 are done. Next: DS-R8 — Migrate `StatsScreen`.
+**Phase DS-R is in progress.** DS-R1 through DS-R8 are done. Next: DS-R9 — Migrate `SessionsScreen`.
 
-DS-R8 task: `StatsScreen.tsx` + `.css`. Replace locally-defined sub-components with DS equivalents:
-- `StatIcon` / `StatCard` → `DsStatCard`
-- `StatsHeader` (desktop) → `DsTopNav`
-- `StatsHeader` (mobile) → `DsScreenHeader`
-- `StatsProfileSidebar` → `DsProfileSidebar`
-- `StatsBottomNav` → `DsBottomNav`
-- `PlayTimeBar` → `DsPlayTimeBar`
-- `*Placeholder` components → `DsPlaceholder`
-- `RecentResults` section → consider `DsHistoryRow` rows
-- Loading/error states → `DsSpinner` / `DsEmptyState`
-- Footer → `FooterBar`
+DS-R9 task: `SessionsScreen.tsx` + `.css`. Replace locally-defined header/back/badge/action markup with DS equivalents:
+- `SessionsHeader` → `DsScreenHeader` (mobile) / `DsTopNav` (desktop) or just `DsScreenHeader`
+- `SessionRow` → `DsSessionRow`
+- Any raw `<button>` styled as actions → `DsButton`
+- Any raw `<badge>`-like elements → `DsBadge`
+- `DsIcon` for icons
+- Loading/error → `DsSpinner` / `DsEmptyState`
+- Footer → `FooterBar` (if applicable)
 - Screen CSS: keep only layout/positioning; strip design styles
 - Check build + lint + ESLint DS gate + 458 tests still pass
 

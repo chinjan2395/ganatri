@@ -1,7 +1,24 @@
 // SCREEN SHELL: no reusable component definitions here.
 // Components → packages/ds | Screens → packages/web/src/screens
+import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import {
+  DsTopNav,
+  DsBottomNav,
+  DsScreenHeader,
+  DsProfileSidebar,
+  DsProfileStrip,
+  DsTitleBlock,
+  DsStatCard,
+  DsPlayTimeBar,
+  DsPlaceholder,
+  DsSpinner,
+  DsEmptyState,
+  DsButton,
+  FooterBar,
+  DsIcon,
+} from '@ganatri/ds';
+import type { DsTopNavItem, DsBottomNavTab } from '@ganatri/ds';
 import { useGame } from '../state/GameProvider';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 import type { GameHistoryEntry, PlayerStatsView } from '../protocol';
@@ -9,7 +26,6 @@ import logo from '../assets/ganatri-logo.png';
 import './StatsScreen.css';
 
 type NavScreen = 'main' | 'history' | 'stats' | 'leaderboard';
-type BottomNavTab = 'home' | 'history' | 'stats' | 'leaderboard' | 'profile';
 
 type StatsLoadState =
   | { status: 'loading' }
@@ -37,16 +53,6 @@ function formatAvgFinish(avg: number): string {
   return avg.toFixed(1);
 }
 
-function formatPlayTimeBar(ms: number): string {
-  if (!Number.isFinite(ms) || ms <= 0) return '— TOTAL PLAY TIME';
-  const totalSec = Math.round(ms / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  if (h > 0) return `${h}H ${m}M ${s}S TOTAL PLAY TIME`;
-  return `${m}M ${s}S TOTAL PLAY TIME`;
-}
-
 function formatDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
@@ -70,24 +76,7 @@ function finishLabel(entry: GameHistoryEntry): { text: string; className: string
   return { text: '—', className: 'st__result--neutral' };
 }
 
-function TitleFlourish(): React.ReactNode {
-  return (
-    <svg className="st__flourish" viewBox="0 0 48 12" aria-hidden="true">
-      <path d="M0 6c8-6 16-6 24 0M24 6c8 6 16 6 24 0" stroke="currentColor" strokeWidth="1" fill="none" />
-      <circle cx="24" cy="6" r="2" fill="currentColor" />
-    </svg>
-  );
-}
-
-function CrownIcon(): React.ReactNode {
-  return (
-    <svg className="st__crown" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M3 18h18v2H3v-2zm2.5-9L7 12l5-7 5 7 1.5-3L21 14H3l2.5-5z" fill="currentColor" />
-    </svg>
-  );
-}
-
-function StatIcon({ name }: { name: string }): React.ReactNode {
+function statIconFor(name: string): ReactNode {
   const props = { width: 22, height: 22, viewBox: '0 0 24 24', fill: 'none', 'aria-hidden': true as const };
   switch (name) {
     case 'games':
@@ -167,328 +156,41 @@ function StatIcon({ name }: { name: string }): React.ReactNode {
   }
 }
 
-interface StatCardProps {
-  label: string;
-  value: string | number;
-  icon: string;
-  accent?: boolean;
-  index: number;
-}
-
-function StatCard({ label, value, icon, accent, index }: StatCardProps): React.ReactNode {
-  return (
-    <motion.div
-      className={`st__card${accent ? ' st__card--accent' : ''}`}
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: 'spring', stiffness: 280, damping: 26, delay: index * 0.03 }}
-    >
-      <span className="st__card-icon"><StatIcon name={icon} /></span>
-      <span className="st__card-value">{value}</span>
-      <span className="st__card-label">{label}</span>
-    </motion.div>
-  );
-}
-
-interface StatsHeaderProps {
-  account: ReturnType<typeof useGame>['account'];
-  isDesktop: boolean;
-  onNavigate: (screen: NavScreen) => void;
-  onProfile: () => void;
-}
-
-function StatsHeader({ account, isDesktop, onNavigate, onProfile }: StatsHeaderProps): React.ReactNode {
-  const displayName = account?.displayName ?? (account?.loggedIn ? 'User' : 'Guest');
-  const avatarUrl = account?.avatarUrl ?? null;
-  const initial = displayName.charAt(0).toUpperCase();
-
-  const topNav: { id: NavScreen; label: string; icon: React.ReactNode }[] = [
-    { id: 'main', label: 'Home', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" fill="currentColor" /></svg> },
-    { id: 'history', label: 'History', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" fill="currentColor" /></svg> },
-    { id: 'stats', label: 'Stats', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 12h2v5H7zm4-3h2v8h-2zm4-3h2v11h-2z" fill="currentColor" /></svg> },
-    { id: 'leaderboard', label: 'Leaderboard', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M19 5h-2V3H7v2H5C3.9 5 3 5.9 3 7v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2z" fill="currentColor" /></svg> },
-  ];
-
-  if (!isDesktop) {
-    return (
-      <header className="st__header st__header--mobile">
-        <button type="button" className="st__back-btn" onClick={() => onNavigate('main')} aria-label="Back to home">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" fill="currentColor" />
-          </svg>
-        </button>
-        <div className="st__mobile-title-wrap">
-          <TitleFlourish />
-          <h1 className="st__mobile-title">YOUR STATS</h1>
-          <TitleFlourish />
-        </div>
-        <button type="button" className="st__profile-icon-btn" onClick={onProfile} aria-label="Profile">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor" />
-          </svg>
-        </button>
-      </header>
-    );
-  }
-
-  return (
-    <header className="st__header">
-      <div className="st__header-left">
-        <img src={logo} alt="Ganatri" className="st__header-logo-sm" />
-      </div>
-      <nav className="st__top-nav" aria-label="Main navigation">
-        {topNav.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={`st__top-nav-btn${item.id === 'stats' ? ' st__top-nav-btn--active' : ''}`}
-            onClick={() => (item.id === 'stats' ? undefined : onNavigate(item.id))}
-            aria-current={item.id === 'stats' ? 'page' : undefined}
-            disabled={item.id === 'stats'}
-          >
-            {item.icon}
-            <span>{item.label}</span>
-          </button>
-        ))}
-        <button type="button" className="st__top-nav-btn" onClick={onProfile}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor" />
-          </svg>
-          <span>Profile</span>
-        </button>
-      </nav>
-      <div className="st__header-right">
-        <button type="button" className="st__header-avatar-btn" onClick={onProfile} aria-label={`Profile: ${displayName}`}>
-          {avatarUrl ? (
-            <img className="st__header-avatar-img" src={avatarUrl} alt="" referrerPolicy="no-referrer" />
-          ) : (
-            <span className="st__header-avatar-initials" aria-hidden="true">{initial}</span>
-          )}
-        </button>
-      </div>
-    </header>
-  );
-}
-
-interface ProfileSidebarProps {
-  account: ReturnType<typeof useGame>['account'];
-  playerId: string | null;
-  loggedIn: boolean;
-  onNavigate: (screen: 'history' | 'leaderboard') => void;
-}
-
-function StatsProfileSidebar({ account, playerId, loggedIn, onNavigate }: ProfileSidebarProps): React.ReactNode {
-  const displayName = account?.displayName ?? (loggedIn ? 'User' : 'Guest');
-  const avatarUrl = account?.avatarUrl ?? null;
-  const initial = displayName.charAt(0).toUpperCase();
-
-  return (
-    <aside className="st__sidebar">
-      <div className="st__profile-card">
-        <div className="st__profile-crown" aria-hidden="true"><CrownIcon /></div>
-        <div className="st__profile-avatar-wrap">
-          {avatarUrl ? (
-            <img className="st__profile-avatar" src={avatarUrl} alt="" referrerPolicy="no-referrer" />
-          ) : (
-            <span className="st__profile-avatar st__profile-avatar--placeholder" aria-hidden="true">{initial}</span>
-          )}
-        </div>
-        <h2 className="st__profile-name">{displayName}</h2>
-        {playerId && <p className="st__profile-id">Player ID: {truncateId(playerId)}</p>}
-      </div>
-      <nav className="st__sidebar-nav" aria-label="Account navigation">
-        <button type="button" className="st__sidebar-nav-btn st__sidebar-nav-btn--active" disabled>Stats</button>
-        <button type="button" className="st__sidebar-nav-btn" onClick={() => onNavigate('history')}>Game History</button>
-        <button type="button" className="st__sidebar-nav-btn" onClick={() => onNavigate('leaderboard')}>Leaderboard</button>
-      </nav>
-    </aside>
-  );
-}
-
-function MobileProfileStrip({
-  account, playerId, loggedIn,
-}: { account: ReturnType<typeof useGame>['account']; playerId: string | null; loggedIn: boolean }): React.ReactNode {
-  const displayName = account?.displayName ?? (loggedIn ? 'User' : 'Guest');
-  const avatarUrl = account?.avatarUrl ?? null;
-  const initial = displayName.charAt(0).toUpperCase();
-
-  return (
-    <div className="st__mobile-profile">
-      <div className="st__mobile-profile-avatar-wrap">
-        {avatarUrl ? (
-          <img className="st__mobile-profile-avatar" src={avatarUrl} alt="" referrerPolicy="no-referrer" />
-        ) : (
-          <span className="st__mobile-profile-avatar st__mobile-profile-avatar--placeholder" aria-hidden="true">{initial}</span>
-        )}
-      </div>
-      <div className="st__mobile-profile-info">
-        <span className="st__mobile-profile-name">{displayName}</span>
-        {playerId && <span className="st__mobile-profile-id">ID: {truncateId(playerId)}</span>}
-      </div>
-    </div>
-  );
-}
-
-function StatsBottomNav({ onTab }: { onTab: (tab: BottomNavTab) => void }): React.ReactNode {
-  const tabs: { id: BottomNavTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'home', label: 'HOME', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" fill="currentColor" /></svg> },
-    { id: 'history', label: 'HISTORY', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" fill="currentColor" /></svg> },
-    { id: 'stats', label: 'STATS', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 12h2v5H7zm4-3h2v8h-2zm4-3h2v11h-2z" fill="currentColor" /></svg> },
-    { id: 'leaderboard', label: 'BOARD', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M19 5h-2V3H7v2H5C3.9 5 3 5.9 3 7v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2z" fill="currentColor" /></svg> },
-    { id: 'profile', label: 'PROFILE', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor" /></svg> },
-  ];
-
-  return (
-    <nav className="st__bottom-nav" aria-label="Main navigation">
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          type="button"
-          className={`st__bottom-nav-tab${tab.id === 'stats' ? ' st__bottom-nav-tab--active' : ''}`}
-          onClick={() => onTab(tab.id)}
-          aria-current={tab.id === 'stats' ? 'page' : undefined}
-        >
-          {tab.icon}
-          <span className="st__bottom-nav-label">{tab.label}</span>
-        </button>
-      ))}
-    </nav>
-  );
-}
-
-function PlayTimeBar({ ms }: { ms: number }): React.ReactNode {
-  return (
-    <div className="st__playtime-bar">
-      <svg className="st__playtime-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z" fill="currentColor" />
-      </svg>
-      <span className="st__playtime-text">{formatPlayTimeBar(ms)}</span>
-    </div>
-  );
-}
-
-function PerformancePlaceholder(): React.ReactNode {
-  return (
-    <div className="st__panel st__panel--placeholder">
-      <div className="st__panel-head">
-        <h3 className="st__panel-title">Performance Over Time</h3>
-        <span className="st__panel-dropdown" aria-disabled="true">Last 7 Days ▾</span>
-      </div>
-      <div className="st__chart-placeholder">
-        <svg className="st__chart-silhouette" viewBox="0 0 200 80" aria-hidden="true">
-          <polyline points="0,60 40,45 80,55 120,30 160,40 200,20" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.3" />
-        </svg>
-        <span className="st__coming-soon">Coming soon</span>
-      </div>
-    </div>
-  );
-}
-
-function FavoriteCardsPlaceholder(): React.ReactNode {
-  return (
-    <div className="st__panel st__panel--placeholder">
-      <h3 className="st__panel-title">Favorite Cards</h3>
-      <div className="st__cards-placeholder">
-        {[0, 1, 2, 3, 4].map((i) => (
-          <div key={i} className="st__card-silhouette" aria-hidden="true" />
-        ))}
-      </div>
-      <span className="st__coming-soon">Coming soon</span>
-    </div>
-  );
-}
-
-function GameModesPlaceholder(): React.ReactNode {
-  const modes = ['Classic', 'Points', 'Practice'];
-  return (
-    <div className="st__panel st__panel--placeholder">
-      <h3 className="st__panel-title">Game Modes Played</h3>
-      <div className="st__modes-row">
-        {modes.map((m) => (
-          <div key={m} className="st__mode-chip">
-            <div className="st__mode-circle" aria-hidden="true" />
-            <span className="st__mode-label">{m}</span>
-          </div>
-        ))}
-      </div>
-      <span className="st__coming-soon">Coming soon</span>
-    </div>
-  );
-}
-
-function AchievementsPlaceholder(): React.ReactNode {
-  const badges = ['First Win', 'Sharp Shooter', 'Safe Player'];
-  return (
-    <div className="st__panel st__panel--placeholder">
-      <h3 className="st__panel-title">Achievements</h3>
-      <div className="st__badges-row">
-        {badges.map((b) => (
-          <div key={b} className="st__badge-silhouette">
-            <div className="st__badge-shield" aria-hidden="true" />
-            <span className="st__badge-label">{b}</span>
-          </div>
-        ))}
-      </div>
-      <span className="st__coming-soon">Coming soon</span>
-      <button type="button" className="st__panel-link" disabled>View All Achievements</button>
-    </div>
-  );
-}
-
-function RecentResults({
-  historyState,
-  onViewAll,
-}: {
-  historyState: HistoryLoadState;
-  onViewAll: () => void;
-}): React.ReactNode {
-  return (
-    <div className="st__panel st__panel--recent">
-      <h3 className="st__panel-title">Recent Results</h3>
-      {historyState.status === 'loading' && <p className="st__panel-muted">Loading…</p>}
-      {historyState.status === 'error' && <p className="st__panel-muted">History unavailable</p>}
-      {(historyState.status === 'idle' || (historyState.status === 'ready' && historyState.games.length === 0)) && (
-        <p className="st__panel-muted">No games yet</p>
-      )}
-      {historyState.status === 'ready' && historyState.games.length > 0 && (
-        <ul className="st__recent-list">
-          {historyState.games.slice(0, 4).map((game) => {
-            const finish = finishLabel(game);
-            return (
-              <li key={game.id} className="st__recent-row">
-                <span className="st__recent-date">{formatDate(game.startedAt)}</span>
-                <span className={`st__recent-finish ${finish.className}`}>{finish.text}</span>
-                <span className="st__recent-score">Score {game.matchScore ?? 0}</span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      <button type="button" className="st__panel-link" onClick={onViewAll}>View All History</button>
-    </div>
-  );
-}
-
-function buildStatCards(stats: PlayerStatsView): { label: string; value: string | number; icon: string; accent?: boolean }[] {
+function buildStatCards(stats: PlayerStatsView): { label: string; value: string | number; icon: ReactNode; accent?: boolean }[] {
   return [
-    { label: 'Games Played', value: stats.gamesPlayed, icon: 'games' },
-    { label: 'Win Rate', value: formatPct(stats.winRate), icon: 'winrate' },
-    { label: 'Avg Finish', value: formatAvgFinish(stats.avgFinish), icon: 'podium' },
-    { label: 'Wins', value: stats.gamesWon, icon: 'check' },
-    { label: 'Losses', value: stats.gamesLost, icon: 'x' },
-    { label: 'Abandoned', value: stats.gamesAbandoned, icon: 'flag' },
-    { label: 'Total Captures', value: stats.totalCaptures, icon: 'cards' },
-    { label: 'Cuts Given', value: stats.cutsGiven, icon: 'scissors' },
-    { label: 'Cuts Received', value: stats.cutsReceived, icon: 'cut' },
-    { label: 'Times Safe', value: stats.timesSafe, icon: 'shield' },
-    { label: 'Best Match', value: stats.highestMatchScore, icon: 'cards' },
-    { label: 'Avg Match Score', value: stats.averageMatchScore.toFixed(1), icon: 'podium' },
-    { label: 'Ghost Finishes', value: stats.ghostFinishes, icon: 'shield' },
-    { label: 'Total Match Score', value: stats.totalMatchScore, icon: 'games' },
-    { label: 'Current Streak', value: stats.currentWinStreak, icon: 'flame', accent: true },
-    { label: 'Longest Streak', value: stats.longestWinStreak, icon: 'streak' },
+    { label: 'Games Played', value: stats.gamesPlayed, icon: statIconFor('games') },
+    { label: 'Win Rate', value: formatPct(stats.winRate), icon: statIconFor('winrate') },
+    { label: 'Avg Finish', value: formatAvgFinish(stats.avgFinish), icon: statIconFor('podium') },
+    { label: 'Wins', value: stats.gamesWon, icon: statIconFor('check') },
+    { label: 'Losses', value: stats.gamesLost, icon: statIconFor('x') },
+    { label: 'Abandoned', value: stats.gamesAbandoned, icon: statIconFor('flag') },
+    { label: 'Total Captures', value: stats.totalCaptures, icon: statIconFor('cards') },
+    { label: 'Cuts Given', value: stats.cutsGiven, icon: statIconFor('scissors') },
+    { label: 'Cuts Received', value: stats.cutsReceived, icon: statIconFor('cut') },
+    { label: 'Times Safe', value: stats.timesSafe, icon: statIconFor('shield') },
+    { label: 'Best Match', value: stats.highestMatchScore, icon: statIconFor('cards') },
+    { label: 'Avg Match Score', value: stats.averageMatchScore.toFixed(1), icon: statIconFor('podium') },
+    { label: 'Ghost Finishes', value: stats.ghostFinishes, icon: statIconFor('shield') },
+    { label: 'Total Match Score', value: stats.totalMatchScore, icon: statIconFor('games') },
+    { label: 'Current Streak', value: stats.currentWinStreak, icon: statIconFor('flame'), accent: true },
+    { label: 'Longest Streak', value: stats.longestWinStreak, icon: statIconFor('streak') },
   ];
 }
+
+const TOP_NAV_ITEMS: DsTopNavItem[] = [
+  { id: 'main', label: 'Home', icon: 'home' },
+  { id: 'history', label: 'History', icon: 'history' },
+  { id: 'stats', label: 'Stats', icon: 'stats' },
+  { id: 'leaderboard', label: 'Leaderboard', icon: 'leaderboard' },
+];
+
+const BOTTOM_NAV_TABS: DsBottomNavTab[] = [
+  { id: 'home', label: 'HOME', icon: 'home' },
+  { id: 'history', label: 'HISTORY', icon: 'history' },
+  { id: 'stats', label: 'STATS', icon: 'stats' },
+  { id: 'leaderboard', label: 'BOARD', icon: 'leaderboard' },
+  { id: 'profile', label: 'PROFILE', icon: 'profile' },
+];
 
 export function StatsScreen(): React.ReactNode {
   const { requestMyStats, requestHistory, setScreen, session, account } = useGame();
@@ -530,78 +232,108 @@ export function StatsScreen(): React.ReactNode {
     return () => { cancelled = true; };
   }, [loggedIn, requestHistory]);
 
-  function handleNavigate(screen: NavScreen): void {
-    setScreen(screen);
+  function handleNavigate(screen: string): void {
+    setScreen(screen as NavScreen);
   }
 
-  function handleBottomNav(tab: BottomNavTab): void {
+  function handleBottomNav(tab: string): void {
     if (tab === 'home' || tab === 'profile') setScreen('main');
     else if (tab === 'history') setScreen('history');
     else if (tab === 'leaderboard') setScreen('leaderboard');
   }
 
+  const displayName = account?.displayName ?? (loggedIn ? 'User' : 'Guest');
+  const avatarUrl = account?.avatarUrl ?? null;
+  const initial = displayName.charAt(0).toUpperCase();
   const hasStats = state.status === 'ready' && state.stats.gamesPlayed > 0;
 
   return (
     <div className="st__root">
-      <StatsHeader
-        account={account}
-        isDesktop={isDesktop}
-        onNavigate={handleNavigate}
-        onProfile={() => setScreen('main')}
-      />
+      {!isDesktop && (
+        <DsScreenHeader
+          title="YOUR STATS"
+          onBack={() => handleNavigate('main')}
+          trailing={
+            <button
+              type="button"
+              style={{ background: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+              onClick={() => setScreen('main')}
+              aria-label="Profile"
+            >
+              <DsIcon name="profile" size={22} aria-hidden />
+            </button>
+          }
+          backLabel="Back to home"
+        />
+      )}
+
+      {isDesktop && (
+        <DsTopNav
+          logo={<img src={logo} alt="Ganatri" style={{ width: 'min(140px, 28vw)', height: 'auto' }} />}
+          items={TOP_NAV_ITEMS}
+          activeId="stats"
+          onNavigate={handleNavigate}
+          avatarUrl={avatarUrl}
+          avatarInitial={initial}
+          avatarLabel={`Profile: ${displayName}`}
+          onAvatarClick={() => setScreen('main')}
+        />
+      )}
 
       <div className="st__layout">
         {isDesktop && (
-          <StatsProfileSidebar
-            account={account}
-            playerId={playerId}
-            loggedIn={loggedIn}
-            onNavigate={(s) => setScreen(s)}
+          <DsProfileSidebar
+            displayName={displayName}
+            avatarUrl={avatarUrl}
+            playerId={playerId ? truncateId(playerId) : null}
+            showCrown
+            navItems={[
+              { label: 'Stats', active: true, disabled: true },
+              { label: 'Game History', onClick: () => handleNavigate('history') },
+              { label: 'Leaderboard', onClick: () => handleNavigate('leaderboard') },
+            ]}
           />
         )}
 
         <main className="st__main">
           {!isDesktop && loggedIn && (
-            <MobileProfileStrip account={account} playerId={playerId} loggedIn={loggedIn} />
+            <DsProfileStrip
+              displayName={displayName}
+              avatarUrl={avatarUrl}
+              playerId={playerId ? truncateId(playerId) : null}
+            />
           )}
 
-          {isDesktop && (
-            <div className="st__title-block">
-              <div className="st__title-row">
-                <TitleFlourish />
-                <h1 className="st__page-title">YOUR STATS</h1>
-                <TitleFlourish />
-              </div>
-            </div>
-          )}
+          {isDesktop && <DsTitleBlock title="YOUR STATS" />}
 
           {state.status === 'loading' && (
             <div className="st__center">
-              <div className="spinner" />
-              <p className="muted">Loading your stats…</p>
+              <DsSpinner />
+              <p className="st__muted">Loading your stats…</p>
             </div>
           )}
 
           {state.status === 'error' && (
-            <div className="card-surface st__message">
-              <p>
-                {state.error === 'NOT_LOGGED_IN'
-                  ? 'Log in with Google to see your stats.'
-                  : 'Stats are currently unavailable. Please try again later.'}
-              </p>
-              <button type="button" className="secondary" onClick={() => setScreen('main')}>
+            <div className="st__message">
+              <DsEmptyState
+                message={
+                  state.error === 'NOT_LOGGED_IN'
+                    ? 'Log in with Google to see your stats.'
+                    : 'Stats are currently unavailable. Please try again later.'
+                }
+              />
+              <DsButton tone="secondary" onClick={() => setScreen('main')}>
                 Back to lobby
-              </button>
+              </DsButton>
             </div>
           )}
 
           {state.status === 'ready' && state.stats.gamesPlayed === 0 && (
-            <div className="card-surface st__message">
-              <p>No games played yet. Play a round and your stats will show up here!</p>
-              <button type="button" className="secondary" onClick={() => setScreen('main')}>
+            <div className="st__message">
+              <DsEmptyState message="No games played yet. Play a round and your stats will show up here!" />
+              <DsButton tone="secondary" onClick={() => setScreen('main')}>
                 Back to lobby
-              </button>
+              </DsButton>
             </div>
           )}
 
@@ -609,36 +341,61 @@ export function StatsScreen(): React.ReactNode {
             <>
               <div className="st__grid">
                 {buildStatCards(state.stats).map((card, i) => (
-                  <StatCard key={card.label} {...card} index={i} />
+                  <DsStatCard
+                    key={card.label}
+                    label={card.label}
+                    value={card.value}
+                    icon={card.icon}
+                    accent={card.accent}
+                    animationDelay={i * 0.03}
+                  />
                 ))}
               </div>
 
-              <PlayTimeBar ms={state.stats.totalPlayTimeMs} />
+              <DsPlayTimeBar ms={state.stats.totalPlayTimeMs} />
 
               <div className="st__middle-row">
-                <PerformancePlaceholder />
-                <FavoriteCardsPlaceholder />
+                <DsPlaceholder variant="performance" title="Performance Over Time" dropdownLabel="Last 7 Days ▾" />
+                <DsPlaceholder variant="cards" title="Favorite Cards" />
               </div>
 
               <div className="st__bottom-row">
-                <GameModesPlaceholder />
-                <RecentResults historyState={historyState} onViewAll={() => setScreen('history')} />
-                <AchievementsPlaceholder />
+                <DsPlaceholder variant="modes" title="Game Modes Played" />
+
+                <div className="st__panel--recent">
+                  <h3 className="st__panel-title">Recent Results</h3>
+                  {historyState.status === 'loading' && <p className="st__panel-muted">Loading…</p>}
+                  {historyState.status === 'error' && <p className="st__panel-muted">History unavailable</p>}
+                  {(historyState.status === 'idle' || (historyState.status === 'ready' && historyState.games.length === 0)) && (
+                    <p className="st__panel-muted">No games yet</p>
+                  )}
+                  {historyState.status === 'ready' && historyState.games.length > 0 && (
+                    <ul className="st__recent-list">
+                      {historyState.games.slice(0, 4).map((game) => {
+                        const finish = finishLabel(game);
+                        return (
+                          <li key={game.id} className="st__recent-row">
+                            <span className="st__recent-date">{formatDate(game.startedAt)}</span>
+                            <span className={`st__recent-finish ${finish.className}`}>{finish.text}</span>
+                            <span className="st__recent-score">Score {game.matchScore ?? 0}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  <button type="button" className="st__panel-link" onClick={() => setScreen('history')}>View All History</button>
+                </div>
+
+                <DsPlaceholder variant="achievements" title="Achievements" linkLabel="View All Achievements" />
               </div>
             </>
           )}
         </main>
       </div>
 
-      <StatsBottomNav onTab={handleBottomNav} />
+      <DsBottomNav tabs={BOTTOM_NAV_TABS} activeId="stats" onTab={handleBottomNav} />
 
-      {isDesktop && (
-        <footer className="st__footer-bar">
-          <span className="st__footer-suits">♠ ♥ ♦</span>
-          <span className="st__footer-tagline">Play smart. Play sharp. Win with Ganatri.</span>
-          <span className="st__footer-suits">♣ ♥ ♠</span>
-        </footer>
-      )}
+      {isDesktop && <FooterBar />}
     </div>
   );
 }
