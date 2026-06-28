@@ -204,6 +204,7 @@ jobs:
             --allowedTools Edit,Read,Write,Bash,Agent
 
       - name: Fail if Claude reported an error
+        id: check-claude
         if: steps.gate.outputs.run == 'true'
         run: bash .github/scripts/check-claude-result.sh "${{ steps.claude.outputs.execution_file }}"
 
@@ -271,6 +272,11 @@ jobs:
           echo "url=${PR_URL}" >> "$GITHUB_OUTPUT"
           echo "Pull request: ${PR_URL:-<none>}"
           if [ -z "$PR_URL" ]; then
+            {
+              echo "pr_error<<EOF"
+              printf '%s\n' "$PR_ERR"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
             exit 1
           fi
 
@@ -291,10 +297,70 @@ jobs:
           fi
           bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$MSG"
 
-      - name: Notify Slack — phase run failed
-        if: failure()
-        continue-on-error: true
+      - name: Capture failure details for Slack
+        id: failure-details
+        if: failure() && steps.gate.outputs.run == 'true'
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+          TASK: ${{ steps.gate.outputs.next_task }}
+          BRANCH: ${{ steps.branch.outputs.name }}
+          BASE_BRANCH: ${{ steps.branch.outputs.base }}
+          PR_ERROR: ${{ steps.pr.outputs.pr_error }}
         run: |
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" \
-            ":x: *Phase nightly failed* - something went wrong in the workflow. <${RUN_URL}|View run logs>"
+          FAILED_STEP="unknown"
+          if [ "${{ steps.check-claude.outcome }}" = "failure" ]; then
+            FAILED_STEP="Fail if Claude reported an error"
+          elif [ "${{ steps.claude.outcome }}" = "failure" ]; then
+            FAILED_STEP="Run Claude on next phase work unit"
+          elif [ "${{ steps.push.outcome }}" = "failure" ]; then
+            FAILED_STEP="Push phase work branch"
+          elif [ "${{ steps.pr.outcome }}" = "failure" ]; then
+            FAILED_STEP="Open Pull Request into phase branch"
+          fi
+
+          EXTRA=""
+          if [ -n "$PR_ERROR" ]; then
+            EXTRA="*PR create error*
+\`\`\`
+${PR_ERROR}
+\`\`\`"
+          fi
+
+          SUMMARY=$(TITLE="Phase nightly failed" \
+            WORKFLOW="phase-nightly" \
+            RUN_URL="$RUN_URL" \
+            FAILED_JOB="phase-nightly" \
+            FAILED_STEP="$FAILED_STEP" \
+            TASK="$TASK" \
+            BRANCH="$BRANCH" \
+            BASE_BRANCH="$BASE_BRANCH" \
+            EXECUTION_FILE="$EXECUTION_FILE" \
+            EXTRA="$EXTRA" \
+            bash .github/scripts/slack-build-failure-msg.sh)
+          {
+            echo "summary<<EOF"
+            printf '%s\n' "$SUMMARY"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Notify Slack — phase run failed
+        if: failure() && steps.gate.outputs.run == 'true'
+        continue-on-error: true
+        env:
+          FAILURE_SUMMARY: ${{ steps.failure-details.outputs.summary }}
+        run: |
+          if [ -n "$FAILURE_SUMMARY" ]; then
+            MSG="$FAILURE_SUMMARY"
+          else
+            RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            MSG=$(TITLE="Phase nightly failed" \
+              WORKFLOW="phase-nightly" \
+              RUN_URL="$RUN_URL" \
+              TASK="${{ steps.gate.outputs.next_task }}" \
+              BRANCH="${{ steps.branch.outputs.name }}" \
+              BASE_BRANCH="${{ steps.branch.outputs.base }}" \
+              EXECUTION_FILE="${{ steps.claude.outputs.execution_file }}" \
+              bash .github/scripts/slack-build-failure-msg.sh)
+          fi
+          bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$MSG"

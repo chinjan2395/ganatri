@@ -203,6 +203,10 @@ jobs:
     timeout-minutes: 45
     outputs:
       has_commits: ${{ steps.check-commits.outputs.has_commits }}
+      failure_summary: ${{ steps.failure-details.outputs.summary }}
+    env:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
     steps:
       - name: Checkout working branch
         uses: actions/checkout@v4
@@ -290,9 +294,11 @@ jobs:
             --allowedTools Edit,Read,Write,Bash,Agent
 
       - name: Fail if Claude reported an error
+        id: check-claude
         run: bash .github/scripts/check-claude-result.sh "${{ steps.claude.outputs.execution_file }}"
 
       - name: Push Claude's commits
+        id: push
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -308,6 +314,41 @@ jobs:
           else
             echo "has_commits=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Capture failure details for Slack
+        id: failure-details
+        if: failure()
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+          TASK: ${{ needs.setup-and-gate.outputs.next_task }}
+          BRANCH: ${{ needs.setup-and-gate.outputs.branch }}
+        run: |
+          FAILED_STEP="unknown"
+          if [ "${{ steps.check-claude.outcome }}" = "failure" ]; then
+            FAILED_STEP="Fail if Claude reported an error"
+          elif [ "${{ steps.claude.outcome }}" = "failure" ]; then
+            FAILED_STEP="Run Claude on next phase"
+          elif [ "${{ steps.push.outcome }}" = "failure" ]; then
+            FAILED_STEP="Push Claude's commits"
+          elif [ "${{ steps.check-commits.outcome }}" = "failure" ]; then
+            FAILED_STEP="Check for commits"
+          fi
+
+          SUMMARY=$(TITLE="Nightly build failed — Claude implementation" \
+            WORKFLOW="nightly" \
+            RUN_URL="$RUN_URL" \
+            FAILED_JOB="2 · Claude Implementation" \
+            FAILED_STEP="$FAILED_STEP" \
+            TASK="$TASK" \
+            BRANCH="$BRANCH" \
+            EXECUTION_FILE="$EXECUTION_FILE" \
+            bash .github/scripts/slack-build-failure-msg.sh)
+          {
+            echo "summary<<EOF"
+            printf '%s\n' "$SUMMARY"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
   # ─────────────────────────────────────────────────────────────
   # 3 · GENERATE REPORT
@@ -457,6 +498,8 @@ jobs:
     if: needs.setup-and-gate.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      failure_summary: ${{ steps.failure-details.outputs.summary }}
     env:
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
@@ -505,10 +548,16 @@ jobs:
           echo "url=${PR_URL}" >> "$GITHUB_OUTPUT"
           echo "Pull request: ${PR_URL:-<none>}"
           if [ -z "$PR_URL" ]; then
+            {
+              echo "pr_error<<EOF"
+              printf '%s\n' "$PR_ERR"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
             exit 1
           fi
 
       - name: Notify Slack — run finished
+        id: notify-finished
         continue-on-error: true
         env:
           RUN_COMMITS: ''  # needs.generate-report.outputs.commits — disabled with report generation
@@ -523,6 +572,43 @@ jobs:
             MSG=":information_source: *Nightly build finished* — no changes to review this time."
           fi
           bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$MSG"
+
+      - name: Capture failure details for Slack
+        id: failure-details
+        if: failure()
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TASK: ${{ needs.setup-and-gate.outputs.next_task }}
+          BRANCH: ${{ needs.setup-and-gate.outputs.branch }}
+          PR_ERROR: ${{ steps.pr.outputs.pr_error }}
+        run: |
+          FAILED_STEP="unknown"
+          if [ "${{ steps.pr.outcome }}" = "failure" ]; then
+            FAILED_STEP="Open Pull Request"
+          elif [ "${{ steps.notify-finished.outcome }}" = "failure" ]; then
+            FAILED_STEP="Notify Slack — run finished"
+          fi
+          EXTRA=""
+          if [ -n "$PR_ERROR" ]; then
+            EXTRA="*PR create error*
+\`\`\`
+${PR_ERROR}
+\`\`\`"
+          fi
+          SUMMARY=$(TITLE="Nightly build failed — publish" \
+            WORKFLOW="nightly" \
+            RUN_URL="$RUN_URL" \
+            FAILED_JOB="4 · Publish & Notify" \
+            FAILED_STEP="$FAILED_STEP" \
+            TASK="$TASK" \
+            BRANCH="$BRANCH" \
+            EXTRA="$EXTRA" \
+            bash .github/scripts/slack-build-failure-msg.sh)
+          {
+            echo "summary<<EOF"
+            printf '%s\n' "$SUMMARY"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
   # ─────────────────────────────────────────────────────────────
   # NOTIFY — FAILURE  (runs only when any prior job fails)
@@ -540,7 +626,29 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Notify Slack — run failed
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          CLAUDE_SUMMARY: ${{ needs.claude-implement.outputs.failure_summary }}
+          PUBLISH_SUMMARY: ${{ needs.publish-and-notify.outputs.failure_summary }}
+          NEXT_TASK: ${{ needs.setup-and-gate.outputs.next_task }}
+          BRANCH: ${{ needs.setup-and-gate.outputs.branch }}
         run: |
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" \
-            ":x: *Nightly build failed* — something went wrong in the workflow. <${RUN_URL}|View run logs>"
+          if [ -n "$CLAUDE_SUMMARY" ]; then
+            MSG="$CLAUDE_SUMMARY"
+          elif [ -n "$PUBLISH_SUMMARY" ]; then
+            MSG="$PUBLISH_SUMMARY"
+          else
+            FAILED_JOBS=()
+            [ "${{ needs.setup-and-gate.result }}" = "failure" ] && FAILED_JOBS+=("1 · Setup & Gate")
+            [ "${{ needs.claude-implement.result }}" = "failure" ] && FAILED_JOBS+=("2 · Claude Implementation")
+            [ "${{ needs.publish-and-notify.result }}" = "failure" ] && FAILED_JOBS+=("4 · Publish & Notify")
+            EXTRA="*Failed jobs:* ${FAILED_JOBS[*]:-unknown}"
+            MSG=$(TITLE="Nightly build failed" \
+              WORKFLOW="nightly" \
+              RUN_URL="$RUN_URL" \
+              TASK="$NEXT_TASK" \
+              BRANCH="$BRANCH" \
+              EXTRA="$EXTRA" \
+              bash .github/scripts/slack-build-failure-msg.sh)
+          fi
+          bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$MSG"
