@@ -1,0 +1,60 @@
+@keyframes ds-stat-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ds-stat-card {
+  background: var(--panel);
+  border: 1px solid rgba(231, 195, 74, 0.22);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 8px;
+  text-align: center;
+  animation: ds-stat-card-in 0.3s ease both;
+  animation-delay: var(--ds-stat-card-delay, 0s);
+}
+
+.ds-stat-card--accent {
+  border-color: rgba(231, 195, 74, 0.65);
+  box-shadow: var(--glow-gold), 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.ds-stat-card__icon {
+  color: var(--accent);
+  opacity: 0.85;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ds-stat-card__value {
+  font-family: var(--font-display), serif;
+  font-size: clamp(18px, 5vw, 26px);
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.1;
+}
+
+.ds-stat-card--accent .ds-stat-card__value {
+  color: var(--accent);
+  text-shadow: var(--glow-gold);
+}
+
+.ds-stat-card__label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  line-height: 1.2;
+}
