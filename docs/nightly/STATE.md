@@ -13,7 +13,7 @@
 Phase DS-R — Design System Consolidation
 
 ## Status
-IN_PROGRESS — DS-R6 complete (2026-06-28). DS-R7 is next.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+IN_PROGRESS — DS-R7 complete (2026-06-28). DS-R8 is next.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase 6i Data export (2026-06-25) — `download_my_data` event: server handler (getUserGameHistory + getPlayerStats in parallel, flattenHistoryEntry + mapStatsView), 4 integration tests; web DownloadMyDataAck type + downloadMyData() helper + GameProvider callback + LobbyScreen "Download My Data" button (DOM-append pattern, deferred revokeObjectURL). 458 tests pass (153 engine + 114 server + 191 db).
@@ -48,25 +48,25 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-28
-- Outcome: DS-R6 complete — LeaderboardScreen migrated to DS components (585→312 lines TSX, 791→211 lines CSS); removed all local sub-components; framer-motion dropped; 458 tests pass.
-- Branch: nightly/2026-06-28-1009
+- Outcome: DS-R7 complete — HistoryScreen migrated to DS components (506→280 lines TSX, 848→141 lines CSS); removed TitleFlourish/CrownIcon/HistoryHeader/HistoryProfileSidebar/MobileProfileStrip/HistoryBottomNav/SummaryBar/HistoryRow; framer-motion dropped; 458 tests pass.
+- Branch: nightly/2026-06-28-1406
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-**Phase DS-R is in progress.** DS-R1 through DS-R6 are done. Next: DS-R7 — Migrate `HistoryScreen`.
+**Phase DS-R is in progress.** DS-R1 through DS-R7 are done. Next: DS-R8 — Migrate `StatsScreen`.
 
-DS-R7 task: `HistoryScreen.tsx` + `.css`. Replace locally-defined sub-components with DS equivalents:
-- `TitleFlourish` + `CrownIcon` → `DsTitleBlock`
-- `HistoryHeader` (desktop) → `DsTopNav`
-- `HistoryHeader` (mobile) → `DsScreenHeader`
-- `HistoryProfileSidebar` → `DsProfileSidebar`
-- `MobileProfileStrip` → `DsProfileStrip`
-- `HistoryBottomNav` → `DsBottomNav`
-- `SummaryBar` → `DsSummaryBar`
-- `HistoryRow` → `DsHistoryRow`
+DS-R8 task: `StatsScreen.tsx` + `.css`. Replace locally-defined sub-components with DS equivalents:
+- `StatIcon` / `StatCard` → `DsStatCard`
+- `StatsHeader` (desktop) → `DsTopNav`
+- `StatsHeader` (mobile) → `DsScreenHeader`
+- `StatsProfileSidebar` → `DsProfileSidebar`
+- `StatsBottomNav` → `DsBottomNav`
+- `PlayTimeBar` → `DsPlayTimeBar`
+- `*Placeholder` components → `DsPlaceholder`
+- `RecentResults` section → consider `DsHistoryRow` rows
 - Loading/error states → `DsSpinner` / `DsEmptyState`
 - Footer → `FooterBar`
 - Screen CSS: keep only layout/positioning; strip design styles
