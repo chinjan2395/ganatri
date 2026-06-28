@@ -143,6 +143,7 @@ jobs:
           bash .github/scripts/slack-notify.sh "$SLACK_BOT_TOKEN" "$SLACK_CHANNEL_ID" "$TEXT"
 
       - name: Run Claude on next phase work unit
+        id: claude
         if: steps.gate.outputs.run == 'true'
         uses: anthropics/claude-code-action@v1
         with:
@@ -201,6 +202,10 @@ jobs:
             --model claude-sonnet-4-6
             --max-turns 150
             --allowedTools Edit,Read,Write,Bash,Agent
+
+      - name: Fail if Claude reported an error
+        if: steps.gate.outputs.run == 'true'
+        run: bash .github/scripts/check-claude-result.sh "${{ steps.claude.outputs.execution_file }}"
 
       - name: Extract run summary for Slack
         if: steps.gate.outputs.run == 'true'

@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Fail the workflow when Claude Code reports is_error or a non-success subtype.
+# anthropics/claude-code-action only checks subtype === "success" and can mark the
+# step green even when is_error is true in the SDK result message.
+set -euo pipefail
+
+EXECUTION_FILE="${1:?usage: check-claude-result.sh <execution_file>}"
+
+if [ ! -f "$EXECUTION_FILE" ]; then
+  echo "Claude execution file not found: $EXECUTION_FILE" >&2
+  exit 1
+fi
+
+RESULT=$(jq -c '[.[] | select(.type == "result")] | last' "$EXECUTION_FILE")
+
+if [ "$RESULT" = "null" ] || [ -z "$RESULT" ]; then
+  echo "No result message in Claude execution output" >&2
+  exit 1
+fi
+
+IS_ERROR=$(echo "$RESULT" | jq -r '.is_error // false')
+SUBTYPE=$(echo "$RESULT" | jq -r '.subtype // "unknown"')
+
+if [ "$IS_ERROR" = "true" ] || [ "$SUBTYPE" != "success" ]; then
+  echo "Claude run failed (subtype=${SUBTYPE}, is_error=${IS_ERROR})" >&2
+  DETAIL=$(echo "$RESULT" | jq -r 'if .result then .result elif .errors then (.errors | join(", ")) else empty end')
+  if [ -n "$DETAIL" ]; then
+    echo "Details: ${DETAIL}" >&2
+  fi
+  echo "$RESULT" | jq . >&2
+  exit 1
+fi
+
+echo "Claude run succeeded (subtype=${SUBTYPE}, turns=$(echo "$RESULT" | jq -r '.num_turns // 0'))"
