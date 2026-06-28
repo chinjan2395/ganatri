@@ -104,3 +104,25 @@ export type { DsProfileSidebarProps, DsProfileNavItem } from './components/Profi
 
 export { DsProfileStrip } from './components/ProfileStrip';
 export type { DsProfileStripProps } from './components/ProfileStrip';
+
+// Data rows
+export { DsRankRow } from './components/RankRow';
+export type { DsRankRowProps } from './components/RankRow';
+
+export { DsStatCard } from './components/StatCard';
+export type { DsStatCardProps } from './components/StatCard';
+
+export { DsSummaryBar } from './components/SummaryBar';
+export type { DsSummaryBarProps } from './components/SummaryBar';
+
+export { DsHistoryRow } from './components/HistoryRow';
+export type { DsHistoryRowProps, DsHistoryRowPlayer, DsHistoryOutcome } from './components/HistoryRow';
+
+export { DsSessionRow } from './components/SessionRow';
+export type { DsSessionRowProps } from './components/SessionRow';
+
+export { DsPlayTimeBar } from './components/PlayTimeBar';
+export type { DsPlayTimeBarProps } from './components/PlayTimeBar';
+
+export { DsPlaceholder } from './components/Placeholder';
+export type { DsPlaceholderProps, DsPlaceholderVariant } from './components/Placeholder';

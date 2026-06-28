@@ -1,0 +1,24 @@
+.ds-playtime-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid rgba(231, 195, 74, 0.25);
+  border-radius: 10px;
+}
+
+.ds-playtime-bar__icon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.ds-playtime-bar__text {
+  font-family: var(--font-display), serif;
+  font-size: clamp(12px, 3vw, 15px);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
