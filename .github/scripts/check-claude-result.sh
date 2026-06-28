@@ -28,6 +28,22 @@ if [ "$IS_ERROR" = "true" ] || [ "$SUBTYPE" != "success" ]; then
     echo "Details: ${DETAIL}" >&2
   fi
   echo "$RESULT" | jq . >&2
+
+  if [ -n "${GITHUB_OUTPUT:-}" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    SUMMARY=$(TITLE="Claude implementation failed" \
+      FAILED_STEP="Fail if Claude reported an error" \
+      EXECUTION_FILE="$EXECUTION_FILE" \
+      bash "$SCRIPT_DIR/slack-build-failure-msg.sh" 2>/dev/null || true)
+    if [ -n "$SUMMARY" ]; then
+      {
+        echo "failure_summary<<EOF"
+        printf '%s\n' "$SUMMARY"
+        echo "EOF"
+      } >> "$GITHUB_OUTPUT"
+    fi
+  fi
+
   exit 1
 fi
 
