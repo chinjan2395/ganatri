@@ -5,6 +5,10 @@
 
 set -e
 
+# Always run from repo root, regardless of caller cwd
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT"
+
 # Colors for output
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
@@ -31,9 +35,22 @@ cleanup() {
 # Trap signals
 trap cleanup SIGINT SIGTERM EXIT
 
-# Check if node_modules exists
+# Ensure node_modules and workspace symlinks (e.g. @ganatri/ds) are present
+needs_install=false
 if [ ! -d "node_modules" ]; then
-  echo -e "${YELLOW}Installing dependencies...${NC}"
+  needs_install=true
+else
+  for pkg_json in packages/*/package.json; do
+    pkg_name="$(node -pe "require('./$pkg_json').name")"
+    if [ ! -e "node_modules/$pkg_name" ]; then
+      needs_install=true
+      break
+    fi
+  done
+fi
+
+if [ "$needs_install" = true ]; then
+  echo -e "${YELLOW}Installing dependencies (workspace links missing or stale)...${NC}"
   npm install
 fi
 
