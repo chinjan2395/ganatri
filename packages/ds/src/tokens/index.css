@@ -20,6 +20,9 @@
   --chip-blue:     #1d4ed8;
   --chip-green:    #15803d;
 
+  /* ─── Accent (primary interactive colour = gold) ────────────────── */
+  --accent:        #e7c34a;
+
   /* ─── Surfaces ───────────────────────────────────────────────────── */
   --panel:         rgba(10, 26, 16, 0.85);
   --panel-2:       rgba(18, 44, 28, 0.75);

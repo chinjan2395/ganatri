@@ -1,0 +1,128 @@
+/* ============================================================
+   DsTopNav — Desktop sticky top navigation bar
+   Hidden on mobile (<900px); shown on desktop (≥900px).
+   ============================================================ */
+
+.ds-top-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(10, 26, 16, 0.97);
+  border-bottom: 1px solid rgba(231, 195, 74, 0.22);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  flex-shrink: 0;
+}
+
+@media (min-width: 900px) {
+  .ds-top-nav {
+    padding: 12px 32px;
+  }
+}
+
+/* ── Left slot ─────────────────────────────────────────────── */
+
+.ds-top-nav__left {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ── Center nav ────────────────────────────────────────────── */
+
+.ds-top-nav__nav {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .ds-top-nav__nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    justify-content: center;
+    margin: 0 16px;
+  }
+}
+
+.ds-top-nav__btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: transparent;
+  background-image: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: none;
+  min-height: unset;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.ds-top-nav__btn:hover:not(:disabled) {
+  color: var(--text);
+  background: rgba(231, 195, 74, 0.08);
+  filter: none;
+  box-shadow: none;
+}
+
+.ds-top-nav__btn--active {
+  color: var(--accent);
+  border-color: rgba(231, 195, 74, 0.5);
+  background: rgba(231, 195, 74, 0.12);
+  cursor: default;
+}
+
+/* ── Right slot ────────────────────────────────────────────── */
+
+.ds-top-nav__right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.ds-top-nav__avatar-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(231, 195, 74, 0.5);
+  overflow: hidden;
+  padding: 0;
+  background: var(--panel-2);
+  cursor: pointer;
+  box-shadow: none;
+  min-height: unset;
+}
+
+.ds-top-nav__avatar-btn:hover {
+  border-color: var(--accent);
+  filter: none;
+  box-shadow: var(--glow-gold);
+}
+
+.ds-top-nav__avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ds-top-nav__avatar-initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 15px;
+}

@@ -13,7 +13,7 @@
 Phase DS-R — Design System Consolidation
 
 ## Status
-IN_PROGRESS — DS-R2 complete (2026-06-28). DS-R3 is next.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+IN_PROGRESS — DS-R3 complete (2026-06-28). DS-R4 is next.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase 6i Data export (2026-06-25) — `download_my_data` event: server handler (getUserGameHistory + getPlayerStats in parallel, flattenHistoryEntry + mapStatsView), 4 integration tests; web DownloadMyDataAck type + downloadMyData() helper + GameProvider callback + LobbyScreen "Download My Data" button (DOM-append pattern, deferred revokeObjectURL). 458 tests pass (153 engine + 114 server + 191 db).
@@ -48,14 +48,19 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-28
-- Outcome: Phase DS-R2 complete — DsModal (overlay/dialog shell, WCAG focus-trap + Escape handler, backdrop-click-to-close, DsIcon close button) + DsTitleBlock (flourish+crown+heading, sm/md/lg sizes) added to packages/ds; stories for both; 458 tests still pass.
-- Branch: nightly/2026-06-28-0502
+- Outcome: Phase DS-R3 complete — DsTopNav (desktop sticky header with logo/nav/avatar), DsBottomNav (mobile fixed tab bar, hidden ≥900px), DsScreenHeader (mobile back-button header + DsTitleBlock + optional trailing) added to packages/ds; stories for all three; `--accent` token added to DS tokens/index.css; 458 tests still pass.
+- Branch: nightly/2026-06-28-0628
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-**Phase DS-R is in progress.** DS-R1 and DS-R2 are done. Next: DS-R3 — `DsTopNav`, `DsBottomNav`, `DsScreenHeader` (desktop top nav from LeaderboardHeader, mobile tab bar from LeaderboardBottomNav, mobile screen header with back + DsTitleBlock + trailing slot). Reference files: `packages/web/src/screens/LeaderboardScreen.tsx` + `LeaderboardScreen.css`. Consumes DS-R1 (DsIcon, DsAvatar).
+**Phase DS-R is in progress.** DS-R1, DS-R2, DS-R3 are done. Next: DS-R4 — `DsProfileCard`, `DsProfileSidebar`, `DsProfileStrip`.
+- Reference: `LeaderboardProfileSidebar` in `packages/web/src/screens/LeaderboardScreen.tsx` (lines ~253–308).
+- `DsProfileCard`: avatar (DsAvatar) + name + optional player ID + stat pairs grid (rank / win%) + optional nav buttons column.
+- `DsProfileSidebar`: wraps DsProfileCard in `<aside>` + sidebar nav buttons row (history/stats/leaderboard); desktop-only positioning.
+- `DsProfileStrip`: compact horizontal strip version for History/Stats mobile headers (avatar + name + key stat).
+- All consume DsAvatar, DsIcon, DsTitleBlock as needed.
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.

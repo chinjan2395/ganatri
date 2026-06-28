@@ -1,0 +1,61 @@
+/* ============================================================
+   DsScreenHeader — Mobile screen header
+   Sticky; includes back button, centered title, optional
+   trailing slot. Mobile-only variant of the navigation header.
+   ============================================================ */
+
+.ds-screen-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  background: rgba(10, 26, 16, 0.97);
+  border-bottom: 1px solid rgba(231, 195, 74, 0.22);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  flex-shrink: 0;
+}
+
+/* ── Back button ───────────────────────────────────────────── */
+
+.ds-screen-header__back {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: transparent;
+  background-image: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  box-shadow: none;
+  min-height: unset;
+  border-radius: 8px;
+}
+
+.ds-screen-header__back:hover {
+  background: rgba(231, 195, 74, 0.1);
+  filter: none;
+  box-shadow: none;
+}
+
+/* ── Trailing slot ─────────────────────────────────────────── */
+
+.ds-screen-header__trailing {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  color: var(--accent);
+}
