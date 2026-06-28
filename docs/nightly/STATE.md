@@ -13,7 +13,7 @@
 Phase DS-R — Design System Consolidation
 
 ## Status
-IN_PROGRESS — DS-R8 complete (2026-06-28). DS-R9 is next.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+IN_PROGRESS — DS-R9 complete (2026-06-28). DS-R10 is next.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase 6i Data export (2026-06-25) — `download_my_data` event: server handler (getUserGameHistory + getPlayerStats in parallel, flattenHistoryEntry + mapStatsView), 4 integration tests; web DownloadMyDataAck type + downloadMyData() helper + GameProvider callback + LobbyScreen "Download My Data" button (DOM-append pattern, deferred revokeObjectURL). 458 tests pass (153 engine + 114 server + 191 db).
@@ -48,25 +48,24 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-28
-- Outcome: DS-R8 complete — StatsScreen migrated to DS components (644→401 lines TSX, 897→229 lines CSS); removed StatCard/StatsHeader/StatsProfileSidebar/MobileProfileStrip/StatsBottomNav/PlayTimeBar/*Placeholder/RecentResults; replaced with DsTopNav/DsScreenHeader/DsProfileSidebar/DsProfileStrip/DsTitleBlock/DsStatCard/DsPlayTimeBar/DsPlaceholder/DsBottomNav/DsSpinner/DsEmptyState/DsButton/FooterBar; framer-motion removed; 458 tests pass.
-- Branch: nightly/2026-06-28-1619
+- Outcome: DS-R9 complete — SessionsScreen migrated to DS components (247 lines TSX, 197→137 lines CSS); removed SessionsHeader/SessionRow local sub-components + inline SVGs; replaced with DsTopNav/DsScreenHeader/DsSessionRow/DsButton/DsSpinner/DsEmptyState/DsAlert/DsBottomNav/FooterBar; added mobile DsBottomNav (previously absent); CSS stripped of all design styles; 458 tests pass.
+- Branch: nightly/2026-06-28-1941
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-**Phase DS-R is in progress.** DS-R1 through DS-R8 are done. Next: DS-R9 — Migrate `SessionsScreen`.
+**Phase DS-R is in progress.** DS-R1 through DS-R9 are done. Next: DS-R10 — Migrate `LobbyScreen` (the largest).
 
-DS-R9 task: `SessionsScreen.tsx` + `.css`. Replace locally-defined header/back/badge/action markup with DS equivalents:
-- `SessionsHeader` → `DsScreenHeader` (mobile) / `DsTopNav` (desktop) or just `DsScreenHeader`
-- `SessionRow` → `DsSessionRow`
-- Any raw `<button>` styled as actions → `DsButton`
-- Any raw `<badge>`-like elements → `DsBadge`
-- `DsIcon` for icons
-- Loading/error → `DsSpinner` / `DsEmptyState`
-- Footer → `FooterBar` (if applicable)
-- Screen CSS: keep only layout/positioning; strip design styles
-- Check build + lint + ESLint DS gate + 458 tests still pass
+DS-R10 task: `LobbyScreen.tsx` + `.css`. This is the largest migration. Key replacements:
+- `LobbyHeader` → `DsTopNav`
+- Create/join inputs → `DsField` + `DsButton`
+- Dividers → `DsDivider` (add to DS if missing)
+- `ProfilePanel` / `HowToPlayModal` → `DsModal`
+- `MobileBottomNav` → `DsBottomNav`
+- `QuickActions` / `RecentlyPlayed` / `DesktopSidebar` → `DsCard` / `DsListRow` / `DsAvatar` / `DsButton`
+- All icons → `DsIcon`
+- Preserve all state/handlers: create/join/rejoin/Google login/blocked-users/invite system/recently-played/download-my-data
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.

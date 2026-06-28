@@ -1,6 +1,18 @@
 // SCREEN SHELL: no reusable component definitions here.
 // Components → packages/ds | Screens → packages/web/src/screens
 import { useEffect, useState } from 'react';
+import {
+  DsTopNav,
+  DsBottomNav,
+  DsScreenHeader,
+  DsSessionRow,
+  DsButton,
+  DsSpinner,
+  DsEmptyState,
+  DsAlert,
+  FooterBar,
+} from '@ganatri/ds';
+import type { DsTopNavItem, DsBottomNavTab } from '@ganatri/ds';
 import { useGame } from '../state/GameProvider';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 import type { AuthSessionView } from '../protocol';
@@ -21,82 +33,21 @@ function formatDate(iso: string): string {
   });
 }
 
-interface SessionsHeaderProps {
-  onNavigate: (screen: NavScreen) => void;
-}
+const NAV_ITEMS: DsTopNavItem[] = [
+  { id: 'main', label: 'Home', icon: 'home' },
+  { id: 'history', label: 'History', icon: 'history' },
+  { id: 'stats', label: 'Stats', icon: 'stats' },
+  { id: 'leaderboard', label: 'Leaderboard', icon: 'leaderboard' },
+  { id: 'sessions', label: 'Sessions', icon: 'settings' },
+];
 
-function SessionsHeader({ onNavigate }: SessionsHeaderProps): React.ReactNode {
-  const isDesktop = useIsDesktop();
-
-  if (!isDesktop) {
-    return (
-      <header className="sess__header sess__header--mobile">
-        <button type="button" className="sess__back-btn" onClick={() => onNavigate('main')} aria-label="Back to home">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" fill="currentColor" />
-          </svg>
-        </button>
-        <div className="sess__title-wrap">
-          <span className="sess__eyebrow">Security</span>
-          <h1 className="sess__title">Sessions</h1>
-        </div>
-      </header>
-    );
-  }
-
-  return (
-    <header className="sess__header">
-      <div className="sess__brand">
-        <img src={logo} alt="Ganatri" className="sess__logo" />
-      </div>
-      <nav className="sess__nav" aria-label="Main navigation">
-        <button type="button" className="sess__nav-btn" onClick={() => onNavigate('main')}>Home</button>
-        <button type="button" className="sess__nav-btn" onClick={() => onNavigate('history')}>History</button>
-        <button type="button" className="sess__nav-btn" onClick={() => onNavigate('stats')}>Stats</button>
-        <button type="button" className="sess__nav-btn" onClick={() => onNavigate('leaderboard')}>Leaderboard</button>
-        <button type="button" className="sess__nav-btn sess__nav-btn--active" disabled>Sessions</button>
-      </nav>
-    </header>
-  );
-}
-
-interface SessionRowProps {
-  session: AuthSessionView;
-  busy: boolean;
-  onRevoke: (sessionId: string) => void;
-  onLogoutCurrent: () => void;
-}
-
-function SessionRow({ session, busy, onRevoke, onLogoutCurrent }: SessionRowProps): React.ReactNode {
-  return (
-    <article className={`sess__card${session.current ? ' sess__card--current' : ''}`}>
-      <div className="sess__card-main">
-        <div className="sess__card-topline">
-          <span className="sess__device">{session.userAgent}</span>
-          <span className={`sess__badge${session.current ? ' sess__badge--current' : ''}`}>
-            {session.current ? 'Current device' : 'Active'}
-          </span>
-        </div>
-        <div className="sess__meta">
-          <span>Created {formatDate(session.createdAt)}</span>
-          <span>Last seen {formatDate(session.lastSeenAt)}</span>
-          <span>Expires {formatDate(session.expiresAt)}</span>
-        </div>
-      </div>
-      <div className="sess__card-actions">
-        {session.current ? (
-          <button type="button" className="secondary" onClick={onLogoutCurrent}>
-            Log out
-          </button>
-        ) : (
-          <button type="button" className="secondary" onClick={() => onRevoke(session.id)} disabled={busy}>
-            Revoke
-          </button>
-        )}
-      </div>
-    </article>
-  );
-}
+const BOTTOM_TABS: DsBottomNavTab[] = [
+  { id: 'home', label: 'HOME', icon: 'home' },
+  { id: 'history', label: 'HISTORY', icon: 'history' },
+  { id: 'stats', label: 'STATS', icon: 'stats' },
+  { id: 'leaderboard', label: 'BOARD', icon: 'leaderboard' },
+  { id: 'profile', label: 'PROFILE', icon: 'profile' },
+];
 
 export function SessionsScreen(): React.ReactNode {
   const {
@@ -107,6 +58,7 @@ export function SessionsScreen(): React.ReactNode {
     revokeOtherAuthSessions,
     setScreen,
   } = useGame();
+  const isDesktop = useIsDesktop();
   const [sessions, setSessions] = useState<AuthSessionView[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -173,12 +125,45 @@ export function SessionsScreen(): React.ReactNode {
     setError('Unable to revoke other sessions.');
   }
 
+  function handleNavigate(id: string): void {
+    setScreen(id as NavScreen);
+  }
+
+  function handleBottomNav(tab: string): void {
+    if (tab === 'home' || tab === 'profile') setScreen('main');
+    else setScreen(tab as NavScreen);
+  }
+
+  const displayName = account?.displayName ?? 'User';
+  const avatarUrl = account?.avatarUrl ?? null;
+  const initial = displayName.charAt(0).toUpperCase();
+
   const currentSession = sessions.find((session) => session.current) ?? null;
   const otherSessions = sessions.filter((session) => !session.current);
 
   return (
     <div className="sess">
-      <SessionsHeader onNavigate={setScreen} />
+      {!isDesktop && (
+        <DsScreenHeader
+          title="SESSIONS"
+          onBack={() => setScreen('main')}
+          backLabel="Back to home"
+        />
+      )}
+
+      {isDesktop && (
+        <DsTopNav
+          logo={<img src={logo} alt="Ganatri" style={{ width: 'min(140px, 28vw)', height: 'auto' }} />}
+          items={NAV_ITEMS}
+          activeId="sessions"
+          onNavigate={handleNavigate}
+          avatarUrl={avatarUrl}
+          avatarInitial={initial}
+          avatarLabel={`Profile: ${displayName}`}
+          onAvatarClick={() => setScreen('main')}
+        />
+      )}
+
       <main className="sess__main">
         <section className="sess__hero">
           <span className="sess__eyebrow">Account Security</span>
@@ -195,23 +180,30 @@ export function SessionsScreen(): React.ReactNode {
               <h3 className="sess__panel-title">Active Sessions</h3>
               <p className="sess__panel-copy">Sessions expire automatically after 30 days of inactivity.</p>
             </div>
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => void handleRevokeOthers()}
+            <DsButton
+              tone="secondary"
+              label="Log out other devices"
               disabled={bulkBusy || otherSessions.length === 0}
-            >
-              Log out other devices
-            </button>
+              onClick={() => void handleRevokeOthers()}
+            />
           </div>
 
-          {loading && <div className="sess__empty">Loading sessions…</div>}
-          {!loading && error && <div className="sess__error">{error}</div>}
+          {loading && <div className="sess__center"><DsSpinner /></div>}
+
+          {!loading && error && (
+            <DsAlert tone="danger" title="Error" description={error} />
+          )}
+
           {!loading && !error && currentSession && (
             <div className="sess__section">
               <h4 className="sess__section-title">This device</h4>
-              <SessionRow
-                session={currentSession}
+              <DsSessionRow
+                sessionId={currentSession.id}
+                userAgent={currentSession.userAgent}
+                current={currentSession.current}
+                createdAt={formatDate(currentSession.createdAt)}
+                lastSeenAt={formatDate(currentSession.lastSeenAt)}
+                expiresAt={formatDate(currentSession.expiresAt)}
                 busy={false}
                 onRevoke={() => undefined}
                 onLogoutCurrent={logout}
@@ -223,15 +215,20 @@ export function SessionsScreen(): React.ReactNode {
             <div className="sess__section">
               <h4 className="sess__section-title">Other devices</h4>
               {otherSessions.length === 0 ? (
-                <div className="sess__empty">No other active devices.</div>
+                <DsEmptyState message="No other active devices." />
               ) : (
                 <div className="sess__list">
                   {otherSessions.map((session) => (
-                    <SessionRow
+                    <DsSessionRow
                       key={session.id}
-                      session={session}
+                      sessionId={session.id}
+                      userAgent={session.userAgent}
+                      current={session.current}
+                      createdAt={formatDate(session.createdAt)}
+                      lastSeenAt={formatDate(session.lastSeenAt)}
+                      expiresAt={formatDate(session.expiresAt)}
                       busy={busySessionId === session.id}
-                      onRevoke={(sessionId) => void handleRevoke(sessionId)}
+                      onRevoke={(id) => void handleRevoke(id)}
                       onLogoutCurrent={logout}
                     />
                   ))}
@@ -241,6 +238,10 @@ export function SessionsScreen(): React.ReactNode {
           )}
         </section>
       </main>
+
+      <DsBottomNav tabs={BOTTOM_TABS} activeId="profile" onTab={handleBottomNav} />
+
+      {isDesktop && <FooterBar />}
     </div>
   );
 }
