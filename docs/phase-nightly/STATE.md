@@ -59,9 +59,9 @@ _(none)_
 
 ## Last Run
 
-- Date: 2026-06-26
-- Outcome: Manual Phase 9 implementation complete. Created phase/9-scoring branch from phase-9-scoring-system. Ready for phase-nightly Phase 9g run.
-- Branch: phase/9-scoring (3 commits: 2f5da12, 495f3a2, 85e684b)
+- Date: 2026-06-29
+- Outcome: Phase 9 fully complete; implemented DS-R13 (GameScreen migration to @ganatri/ds) as next priority — DsSpinner/DsBadge/DsButton replace raw elements; DsButtonProps extended with PTT touch handlers; CSS selector fixed to .ds-button. 462 tests pass.
+- Branch/PR: phase-nightly/2026-06-29-1704
 
 ## Blockers / Needs Human Input
 

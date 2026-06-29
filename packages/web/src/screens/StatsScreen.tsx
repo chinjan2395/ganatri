@@ -254,14 +254,13 @@ export function StatsScreen(): React.ReactNode {
           title="YOUR STATS"
           onBack={() => handleNavigate('main')}
           trailing={
-            <button
-              type="button"
-              style={{ background: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+            <DsButton
+              tone="ghost"
               onClick={() => setScreen('main')}
               aria-label="Profile"
             >
               <DsIcon name="profile" size={22} aria-hidden />
-            </button>
+            </DsButton>
           }
           backLabel="Back to home"
         />
@@ -383,7 +382,7 @@ export function StatsScreen(): React.ReactNode {
                       })}
                     </ul>
                   )}
-                  <button type="button" className="st__panel-link" onClick={() => setScreen('history')}>View All History</button>
+                  <DsButton tone="ghost" className="st__panel-link" onClick={() => setScreen('history')}>View All History</DsButton>
                 </div>
 
                 <DsPlaceholder variant="achievements" title="Achievements" linkLabel="View All Achievements" />
