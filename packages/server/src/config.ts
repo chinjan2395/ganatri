@@ -105,3 +105,12 @@ export function isValidAdminSecret(secret: string): boolean {
   if (!required) return true; // no secret required
   return secret === required;
 }
+
+/**
+ * Returns true unless SCORING_ENABLED is explicitly set to 'false'.
+ * This gate can disable scoring computation and persistence at game-end
+ * without a code deploy (set SCORING_ENABLED=false and restart).
+ */
+export function isScoringEnabled(): boolean {
+  return process.env['SCORING_ENABLED'] !== 'false';
+}

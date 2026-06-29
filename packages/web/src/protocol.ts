@@ -513,6 +513,12 @@ export interface AdminKpiStats {
     completed: number;
     abandoned: number;
   }>;
+  /** Average XP granted per day in the window (completed games only). Null when no data. */
+  avgXpGrantedPerDay: number | null;
+  /** Average match score by player count for completed games in the window. */
+  avgMatchScoreByPlayerCount: Array<{ playerCount: number; avgMatchScore: number; gameCount: number }>;
+  /** Average ranked_rating_delta for completed vs abandoned games. */
+  abandonRatingImpact: { avgRatingDeltaCompleted: number | null; avgRatingDeltaAbandoned: number | null };
 }
 
 export type AdminGetKpiStatsAck =

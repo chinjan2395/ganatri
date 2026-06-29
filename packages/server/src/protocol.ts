@@ -608,6 +608,9 @@ export interface AdminKpiStats {
     completed: number;
     abandoned: number;
   }>;
+  avgXpGrantedPerDay: number | null;
+  avgMatchScoreByPlayerCount: Array<{ playerCount: number; avgMatchScore: number; gameCount: number }>;
+  abandonRatingImpact: { avgRatingDeltaCompleted: number | null; avgRatingDeltaAbandoned: number | null };
 }
 
 /** Ack for admin_get_kpi_stats. Requires admin auth and persistence. */

@@ -1108,7 +1108,6 @@ export class MemoryPersistence implements GamePersistence {
 
   async getAdminKpiStats(windowDays = 7): Promise<AdminKpiStats> {
     const cutoffMs = Date.now() - windowDays * 24 * 60 * 60 * 1000;
-    const cutoff = new Date(cutoffMs);
 
     // Collect per-day buckets.
     const byDate = new Map<string, { total: number; completed: number; abandoned: number; totalDurationMs: number; durationCount: number }>();
@@ -1156,8 +1155,51 @@ export class MemoryPersistence implements GamePersistence {
     }
     const avgDurationMs = weightedCount > 0 ? weightedSum / weightedCount : null;
 
-    // Suppress unused variable warning
-    void cutoff;
+    // avgXpGrantedPerDay
+    let totalXp = 0;
+    for (const [, gp] of this.gamePlayers) {
+      const game = this.games.get(gp.gameId);
+      if (!game || game.endedAt == null || game.endedAt.getTime() < cutoffMs) continue;
+      if (game.isAbandoned || gp.xpEarned == null) continue;
+      totalXp += gp.xpEarned;
+    }
+    const avgXpGrantedPerDay = totalXp > 0 && windowDays > 0 ? totalXp / windowDays : null;
+
+    // avgMatchScoreByPlayerCount
+    const matchScoreByPlayerCount = new Map<number, { sum: number; count: number; gameIds: Set<string> }>();
+    for (const [, gp] of this.gamePlayers) {
+      const game = this.games.get(gp.gameId);
+      if (!game || game.endedAt == null || game.endedAt.getTime() < cutoffMs) continue;
+      if (game.isAbandoned || gp.matchScore == null) continue;
+      const bucket = matchScoreByPlayerCount.get(game.playerCount) ?? { sum: 0, count: 0, gameIds: new Set() };
+      bucket.sum += gp.matchScore;
+      bucket.count += 1;
+      bucket.gameIds.add(game.id);
+      matchScoreByPlayerCount.set(game.playerCount, bucket);
+    }
+    const avgMatchScoreByPlayerCount = [...matchScoreByPlayerCount.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([pc, b]) => ({ playerCount: pc, avgMatchScore: b.sum / b.count, gameCount: b.gameIds.size }));
+
+    // abandonRatingImpact
+    let completedRatingSum = 0, completedRatingCount = 0;
+    let abandonedRatingSum = 0, abandonedRatingCount = 0;
+    for (const [, gp] of this.gamePlayers) {
+      const game = this.games.get(gp.gameId);
+      if (!game || game.endedAt == null || game.endedAt.getTime() < cutoffMs) continue;
+      if (gp.rankedRatingDelta == null) continue;
+      if (game.isAbandoned) {
+        abandonedRatingSum += gp.rankedRatingDelta;
+        abandonedRatingCount += 1;
+      } else {
+        completedRatingSum += gp.rankedRatingDelta;
+        completedRatingCount += 1;
+      }
+    }
+    const abandonRatingImpact = {
+      avgRatingDeltaCompleted: completedRatingCount > 0 ? completedRatingSum / completedRatingCount : null,
+      avgRatingDeltaAbandoned: abandonedRatingCount > 0 ? abandonedRatingSum / abandonedRatingCount : null,
+    };
 
     return {
       windowDays,
@@ -1167,6 +1209,9 @@ export class MemoryPersistence implements GamePersistence {
       abandonmentRate,
       avgDurationMs,
       dailyBreakdown,
+      avgXpGrantedPerDay,
+      avgMatchScoreByPlayerCount,
+      abandonRatingImpact,
     };
   }
 

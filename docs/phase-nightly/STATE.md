@@ -25,11 +25,11 @@ Phase 9 — Scoring, Rating & XP Progression
 
 ## Status
 
-IN_PROGRESS — Phase 9 sub-phases 9a–9g fully complete; 9h partially complete (admin detail/export/defaults done; KPI analytics + rollout guardrails remain). All 458 tests pass.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+IN_PROGRESS — Phase 9 sub-phases 9a–9h fully complete. All 462 tests pass. Awaiting owner review of final phase/9-scoring → main PR.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Current Sub-Phase Cursor
 
-9h — Admin, exports, analytics, and rollout safety (remaining: KPI scoring analytics + rollout guardrails)
+9h — Admin, exports, analytics, and rollout safety (COMPLETE)
 
 ## Phase TODO Queue
 
@@ -50,7 +50,7 @@ the Current Sub-Phase Cursor and the Phase 9 section in `docs/DEVELOPMENT_PLAN.m
 - [x] End screen shows a scoring breakdown.
 - [x] Lobby/profile surfaces current level and rating.
 - [x] History/export surfaces stored per-match scoring without recomputing from old event logs.
-- [x] DB, server, and web tests pass. (153 engine + 114 server + 191 db = 458 total)
+- [x] DB, server, and web tests pass. (153 engine + 114 server + 195 db = 462 total)
 - [ ] Owner has reviewed the final `phase/9-scoring` to `main` PR.
 
 ## Completed Sub-Phases
@@ -62,13 +62,13 @@ the Current Sub-Phase Cursor and the Phase 9 section in `docs/DEVELOPMENT_PLAN.m
 - 9e — Web state and socket helpers
 - 9f — Match UX: in-game score and end screen
 - 9g — Lobby, profile, history, leaderboard, and stats integration
-- 9h (partial) — Admin user detail + export + backfill defaults done; KPI analytics + rollout guardrails remain
+- 9h — Admin user detail + export + backfill defaults + KPI scoring analytics + rollout guardrails (complete)
 
 ## Last Run
 
 - Date: 2026-06-29
-- Outcome: Phase 9 reviewed — 9a–9g fully complete, 9h partially done (KPI analytics + rollout guardrails remain). Meta-TODO processed. 458 tests pass.
-- Branch/PR: phase-nightly/2026-06-29-1146
+- Outcome: Phase 9h fully completed — KPI scoring analytics (avgXpGrantedPerDay, avgMatchScoreByPlayerCount, abandonRatingImpact) + rollout guardrail (SCORING_ENABLED env flag) implemented and reviewed. 462 tests pass.
+- Branch/PR: phase-nightly/2026-06-29-1201
 
 ## Blockers / Needs Human Input
 
@@ -76,7 +76,4 @@ _(none)_
 
 ## Notes for Next Run
 
-Phase 9 implementation is substantially complete (9a–9g done via regular nightly). Remaining work in 9h:
-- **KPI scoring analytics** (optional): XP granted/day, average match score by player count, abandon-rate impact on rating. Requires `getAdminKpiStats` extension in `packages/db` + `ADMIN_GET_KPI_STATS` handler + admin UI.
-- **Rollout guardrails**: feature flag or config gate for scoring UI while backend stabilizes. Low priority — scoring is already live.
-- Once both are done (or decided not to build), mark `STATUS = COMPLETE` and open the final `phase/9-scoring → main` PR for owner review.
+Phase 9 implementation is fully complete (9a–9h done). The only remaining acceptance item is owner review of the final `phase/9-scoring → main` PR. Once the owner approves, set `STATUS = COMPLETE` and merge.

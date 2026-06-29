@@ -91,6 +91,14 @@ describe('admin_get_kpi_stats', () => {
       expect(ack.stats.totalGames).toBe(0);
       expect(ack.stats.abandonmentRate).toBe(0);
       expect(ack.stats.avgDurationMs).toBeNull();
+      // Scoring KPI fields — null/empty when no scored games.
+      expect(ack.stats.avgXpGrantedPerDay).toBeNull();
+      expect(Array.isArray(ack.stats.avgMatchScoreByPlayerCount)).toBe(true);
+      expect(ack.stats.avgMatchScoreByPlayerCount).toHaveLength(0);
+      expect(ack.stats.abandonRatingImpact).toMatchObject({
+        avgRatingDeltaCompleted: null,
+        avgRatingDeltaAbandoned: null,
+      });
     } finally {
       client.disconnect();
     }

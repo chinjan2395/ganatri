@@ -2,7 +2,7 @@
 
 **Last updated date:** See `docs/LAST_UPDATED.txt`. This file focuses on phase/task status; timestamps are tracked in a separate, low-overhead file to reduce read/write cost in SDK agent workflows.
 
-All 458 tests passing (153 engine + 114 server + 191 db).
+All 462 tests passing (153 engine + 114 server + 195 db).
 
 ---
 
@@ -609,7 +609,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 **Goal:** Add a server-authoritative scoring system based on [POINTS_SYSTEM.md](/Users/chinjanpatel/Documents/ganatri/docs/POINTS_SYSTEM.md): placement still determines the winner, but each match now also produces (1) a per-match **Match Score**, (2) a persistent **Ranked Rating** delta, and (3) persistent **XP / level progression** for logged-in players.
 
-**Status:** 🟡 In progress — 9a–9g complete; 9h (admin/export/analytics) pending
+**Status:** ✅ Complete — 9a–9h all done
 
 ### Architecture decisions
 
@@ -729,9 +729,9 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | ---- | ------ | ----- |
 | Admin user detail: show progression summary | ✅ | `rankedRating`, `level`, `totalXp`, `highestMatchScore`, recent ledger entries |
 | Admin export: include progression and per-match scoring fields | ✅ | `matchScore`, `xpEarned`, `rankedRatingDelta` already in `ExportGamePlayerView` + `exportGamesData`; JSON export is audit-friendly |
-| KPI follow-up: optional scoring analytics | ⬜ | XP granted/day, average match score by player count, abandon-rate impact on rating |
+| KPI follow-up: optional scoring analytics | ✅ | Web: `AdminKpiStats` in `protocol.ts` extended with `avgXpGrantedPerDay`, `avgMatchScoreByPlayerCount`, `abandonRatingImpact`; `AnalyticsPage.tsx` gains "Scoring Analytics" `AdminPanel` with 3-tile stat grid (Avg XP/Day, Avg Rating Delta Completed/Abandoned) + "Match Score by Player Count" list; `formatDelta` helper; build green. DB: three new fields in `AdminKpiStats` type + Pg + Memory impls; 4 new contract tests (191→195 db tests). |
 | Backfill / default strategy for existing users | ✅ | `progressionViewOf(null)` in handlers.ts already returns defaults (rating=0, xp=0, level=1); no backfill needed |
-| Rollout guardrails | ⬜ | Feature flag or config gate for scoring UI while backend stabilizes |
+| Rollout guardrails | ✅ | `isScoringEnabled()` in `packages/server/src/config.ts` (reads `SCORING_ENABLED` env at call time); guard wraps scoring block in `recordGameEnd` in `persistence.ts`; `SCORING_ENABLED` comment added to `.env.example` |
 
 ### Recommended implementation order
 
@@ -863,7 +863,7 @@ Migrate reusable sub-components from `RoomScreen.tsx` into `packages/ds`. Each c
 | Phase                        | Status                                                                                  |
 | ---------------------------- | --------------------------------------------------------------------------------------- |
 | Phase 1 — Engine             | ✅ Complete (153 tests)                                                                  |
-| Phase 2 — Server             | ✅ Complete (108 tests; TURN_TIMEOUT + sanitization + grace expiry broadcast + DRY refactor + freeze fix + DB write-through + OAuth/history/retention + flat history wire-contract fix + `get_my_stats` + `get_leaderboard` + `myEntry` in leaderboard ack + time-windowed leaderboard + `timeWindow` runtime validation + `update_display_name` + admin secret check + `admin_get_stats` live ops endpoint + session-persistence flow fixes + `get_recent_players` + invitation system + `get_blocked_users` + `admin_get_kpi_stats` KPI endpoint + `admin_search_users`/`admin_get_user_stats` user management + `admin_export_data` + `delete_account` right-to-erasure + active session management + OAuth cookie bootstrap) |
+| Phase 2 — Server             | ✅ Complete (114 tests; TURN_TIMEOUT + sanitization + grace expiry broadcast + DRY refactor + freeze fix + DB write-through + OAuth/history/retention + flat history wire-contract fix + `get_my_stats` + `get_leaderboard` + `myEntry` in leaderboard ack + time-windowed leaderboard + `timeWindow` runtime validation + `update_display_name` + admin secret check + `admin_get_stats` live ops endpoint + session-persistence flow fixes + `get_recent_players` + invitation system + `get_blocked_users` + `admin_get_kpi_stats` KPI endpoint + `admin_search_users`/`admin_get_user_stats` user management + `admin_export_data` + `delete_account` right-to-erasure + active session management + OAuth cookie bootstrap) |
 | Phase 3 — Web Client         | ✅ Complete (player names wired, all components functional)                              |
 | Phase 4 — Polish             | ✅ Complete (animations, mobile polish; deployment user-handled via Render + Cloudflare) |
 | Phase 5 — Voice Chat         | 🟡 Core + cross-browser fixes + Perfect Negotiation recovery + Cloudflare TURN; smoke test pending |
@@ -875,6 +875,6 @@ Migrate reusable sub-components from `RoomScreen.tsx` into `packages/ds`. Each c
 | Phase C — Web OAuth UI/history screen | ✅ Optional Google login + game-history/score-card screen in `packages/web`. Socket `withCredentials:true`; `requestHistory`/`loginWithGoogle`/`logout` helpers; protocol mirror for `REQUEST_HISTORY`/`GameHistoryEntry` + `SessionPayload` account fields; `GameProvider.account` + `screen` nav; `LobbyScreen` login/account UI (guest flow untouched, `?login=error` handled); new `HistoryScreen` w/ expandable framer-motion score cards. Build green; no web tests/lint present. |
 | Phase 7 — Improvements       | ⬜ Backlog identified; not yet started (27 tasks across 7 sub-phases 7a–7g). **Deprioritized below Phase 8.** |
 | Phase 8 — Social (Co-players & Invitations) | ✅ Complete (all 8a–8h shipped; 387 total tests) |
-| Phase 9 — Scoring / Rating / XP Progression | 🟡 9a–9h (admin detail/export/defaults) complete. Remaining: optional KPI analytics + rollout guardrails. |
+| Phase 9 — Scoring / Rating / XP Progression | ✅ Complete. 9a–9h all shipped: scoring engine, DB persistence, protocol, web UI, KPI analytics (scoring metrics in AdminKpiStats), rollout guardrail (SCORING_ENABLED flag). 462 total tests. |
 | Phase DS — Design System Package (`packages/ds`) | ✅ Complete. DS-A ✅ scaffold, DS-B ✅ 10 primitives migrated, DS-C ✅ 14 components extracted + renamed to generic names + RoomScreen 1476→439 lines, DS-D ✅ imports clean + Storybook visual check passed, DS-E ✅ ESLint rule + convention comments + lint script + CI gate all active. |
 | Phase 6i — Account deletion (right to erasure) | ✅ Complete (full stack: DB + server + web; 441 total tests) |

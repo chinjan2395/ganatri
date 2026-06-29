@@ -15,6 +15,11 @@ function formatDuration(ms: number): string {
   return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
 }
 
+function formatDelta(val: number | null): string {
+  if (val === null) return '—';
+  return (val > 0 ? '+' : '') + val.toFixed(1);
+}
+
 export function AnalyticsPage({ kpiStats, kpiLoading, kpiError }: AnalyticsPageProps) {
   const cards = kpiStats
     ? MOCK_KPI_CARDS.map(card => {
@@ -65,6 +70,45 @@ export function AnalyticsPage({ kpiStats, kpiLoading, kpiError }: AnalyticsPageP
           </div>
         )}
       </AdminPanel>
+      {kpiStats && (
+        <AdminPanel title="Scoring Analytics">
+          <div className="admin__stats-grid admin__kpi-tiles">
+            <div className="admin__stat">
+              <span className="admin__stat-value">
+                {kpiStats.avgXpGrantedPerDay !== null
+                  ? Math.round(kpiStats.avgXpGrantedPerDay).toLocaleString()
+                  : '—'}
+              </span>
+              <span className="admin__stat-label">Avg XP/Day (7d)</span>
+            </div>
+            <div className="admin__stat">
+              <span className="admin__stat-value">{formatDelta(kpiStats.abandonRatingImpact.avgRatingDeltaCompleted)}</span>
+              <span className="admin__stat-label">Avg Rating Delta (Completed)</span>
+            </div>
+            <div className="admin__stat">
+              <span className="admin__stat-value">{formatDelta(kpiStats.abandonRatingImpact.avgRatingDeltaAbandoned)}</span>
+              <span className="admin__stat-label">Avg Rating Delta (Abandoned)</span>
+            </div>
+          </div>
+          <div style={{ marginTop: '1rem' }}>
+            <p className="admin__stat-label" style={{ marginBottom: '0.5rem', fontWeight: 600 }}>
+              Match Score by Player Count
+            </p>
+            {kpiStats.avgMatchScoreByPlayerCount.length === 0 ? (
+              <p className="admin__hint">No scored games in window.</p>
+            ) : (
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {kpiStats.avgMatchScoreByPlayerCount.map(entry => (
+                  <li key={entry.playerCount} className="admin__hint" style={{ marginBottom: '0.25rem' }}>
+                    {entry.playerCount}P games: avg score {entry.avgMatchScore.toFixed(1)} ({entry.gameCount}{' '}
+                    {entry.gameCount === 1 ? 'game' : 'games'})
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </AdminPanel>
+      )}
     </div>
   );
 }

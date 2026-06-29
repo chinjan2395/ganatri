@@ -26,6 +26,7 @@ import type {
 import type { GameEvent, GameState } from '@ganatri/engine';
 import { getSessionByPlayerId } from './store.js';
 import { scoreFinishedGame } from './scoring.js';
+import { isScoringEnabled } from './config.js';
 
 // ---------------------------------------------------------------------------
 // Lazy singleton + test hook
@@ -253,28 +254,33 @@ export function recordGameEnd(
         await p.updateRoomStatus(roomId, isAbandoned ? 'ABANDONED' : 'DONE', new Date());
       }
 
-      const previousProgressionByUserId: Record<string, PlayerProgression | undefined> = {};
-      for (const player of players) {
-        if (!player.userId) continue;
-        try {
-          previousProgressionByUserId[player.userId] = (await p.getPlayerProgression(player.userId)) ?? undefined;
-        } catch (err) {
-          console.error(`[persistence] getPlayerProgression failed for ${player.userId}:`, err);
+      if (isScoringEnabled()) {
+        const previousProgressionByUserId: Record<string, PlayerProgression | undefined> = {};
+        for (const player of players) {
+          if (!player.userId) continue;
+          try {
+            previousProgressionByUserId[player.userId] = (await p.getPlayerProgression(player.userId)) ?? undefined;
+          } catch (err) {
+            console.error(`[persistence] getPlayerProgression failed for ${player.userId}:`, err);
+          }
         }
+
+        const scoredPlayers = scoreFinishedGame({
+          state,
+          events: log,
+          isAbandoned,
+          userIdByPlayerId: Object.fromEntries(
+            state.seating.map((pid) => [pid, getSessionByPlayerId(pid)?.userId ?? null])
+          ),
+          previousProgressionByUserId,
+        });
+
+        await p.applyGameScoring({ gameId, scoredPlayers });
+        await writePlayerStats(p, players, log, state, durationMs, isAbandoned, scoredPlayers);
+      } else {
+        // Scoring disabled: still write play-time and counting stats, just without scoring columns.
+        await writePlayerStats(p, players, log, state, durationMs, isAbandoned, []);
       }
-
-      const scoredPlayers = scoreFinishedGame({
-        state,
-        events: log,
-        isAbandoned,
-        userIdByPlayerId: Object.fromEntries(
-          state.seating.map((pid) => [pid, getSessionByPlayerId(pid)?.userId ?? null])
-        ),
-        previousProgressionByUserId,
-      });
-
-      await p.applyGameScoring({ gameId, scoredPlayers });
-      await writePlayerStats(p, players, log, state, durationMs, isAbandoned, scoredPlayers);
     } catch (err) {
       console.error(`[persistence] recordGameEnd failed for ${roomCode}:`, err);
     } finally {
