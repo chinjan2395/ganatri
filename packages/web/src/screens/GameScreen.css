@@ -33,15 +33,6 @@
   align-items: center;
 }
 
-.game__score-pill {
-  padding: 4px 10px;
-  border: 1px solid rgba(255, 215, 0, 0.4);
-  border-radius: 999px;
-  background: rgba(17, 17, 17, 0.72);
-  color: #f6deb0;
-  font-size: 0.8rem;
-}
-
 /* ── HUD: transparent row of independent pills ── */
 .game__hud {
   display: flex;
@@ -63,14 +54,6 @@
   border-radius: 20px;
   backdrop-filter: blur(4px);
   flex-shrink: 0;
-}
-.hud__phase-number {
-  font-family: var(--font-display);
-  font-size: 8px;
-  letter-spacing: 1.5px;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  line-height: 1;
 }
 .hud__phase-name {
   font-family: var(--font-display);
@@ -520,7 +503,7 @@
   gap: 10px;
 }
 
-.action-bar__buttons > button {
+.action-bar__buttons > .ds-button {
   flex: 1;
   white-space: nowrap;
   min-height: 44px;

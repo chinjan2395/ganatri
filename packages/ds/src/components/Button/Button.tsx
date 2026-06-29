@@ -16,6 +16,13 @@ export interface DsButtonProps {
   className?: string;
   /** tooltip / aria title */
   title?: string;
+  // Touch / pointer event handlers for PTT-style interactions
+  onMouseDown?: () => void;
+  onMouseUp?: () => void;
+  onMouseLeave?: () => void;
+  onTouchStart?: (e: React.TouchEvent<HTMLButtonElement>) => void;
+  onTouchEnd?: (e: React.TouchEvent<HTMLButtonElement>) => void;
+  onTouchCancel?: (e: React.TouchEvent<HTMLButtonElement>) => void;
 }
 
 export function DsButton({
@@ -28,6 +35,12 @@ export function DsButton({
   type = 'button',
   className,
   title,
+  onMouseDown,
+  onMouseUp,
+  onMouseLeave,
+  onTouchStart,
+  onTouchEnd,
+  onTouchCancel,
 }: DsButtonProps): ReactNode {
   const cls = [
     'ds-button',
@@ -43,6 +56,12 @@ export function DsButton({
       disabled={disabled}
       onClick={onClick}
       title={title}
+      onMouseDown={onMouseDown}
+      onMouseUp={onMouseUp}
+      onMouseLeave={onMouseLeave}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchCancel}
     >
       {children ?? label}
     </button>
