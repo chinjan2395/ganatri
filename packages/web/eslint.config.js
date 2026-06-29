@@ -32,4 +32,26 @@ export default tseslint.config(
       }],
     },
   },
+  {
+    // Ban raw <button> and <input> in player-facing screen files.
+    // AdminScreen and DesignSystemScreen are explicitly excluded.
+    files: ['src/screens/**/*.{ts,tsx}'],
+    ignores: [
+      'src/screens/AdminScreen.tsx',
+      'src/screens/DesignSystemScreen.tsx',
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "JSXOpeningElement[name.name='button']",
+          message: 'Use DsButton from @ganatri/ds instead of a raw <button> in screen files.',
+        },
+        {
+          selector: "JSXOpeningElement[name.name='input']",
+          message: 'Use DsField from @ganatri/ds instead of a raw <input> in screen files.',
+        },
+      ],
+    },
+  },
 );

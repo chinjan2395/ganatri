@@ -1002,8 +1002,8 @@ export function LobbyScreen(): React.ReactNode {
       ) : (
         <header className="lobby__mobile-header">
           <img src={logo} alt="Ganatri" className="lobby__header-logo" />
-          <button
-            type="button"
+          <DsButton
+            tone="ghost"
             className="lobby__mobile-avatar-btn"
             aria-label={displayName}
             onClick={() => setProfileOpen(true)}
@@ -1020,7 +1020,7 @@ export function LobbyScreen(): React.ReactNode {
                 {avatarInitial}
               </span>
             )}
-          </button>
+          </DsButton>
         </header>
       )}
 

@@ -16,6 +16,8 @@ export interface DsButtonProps {
   className?: string;
   /** tooltip / aria title */
   title?: string;
+  /** Accessible label for icon-only buttons */
+  'aria-label'?: string;
   // Touch / pointer event handlers for PTT-style interactions
   onMouseDown?: () => void;
   onMouseUp?: () => void;
@@ -35,6 +37,7 @@ export function DsButton({
   type = 'button',
   className,
   title,
+  'aria-label': ariaLabel,
   onMouseDown,
   onMouseUp,
   onMouseLeave,
@@ -56,6 +59,7 @@ export function DsButton({
       disabled={disabled}
       onClick={onClick}
       title={title}
+      aria-label={ariaLabel}
       onMouseDown={onMouseDown}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseLeave}
