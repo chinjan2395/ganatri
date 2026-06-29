@@ -1132,6 +1132,92 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
       // avgDurationMs must be (1000+2000)/2 = 1500, NOT (1000+2000+0)/3 = 1000
       expect(stats.avgDurationMs).toBeCloseTo(1_500, 1);
     });
+
+    // New scoring KPI fields -------------------------------------------------
+
+    it('scoring fields are null/empty/null when no games exist', async () => {
+      const stats = await repo.getAdminKpiStats(7);
+      expect(stats.avgXpGrantedPerDay).toBeNull();
+      expect(stats.avgMatchScoreByPlayerCount).toEqual([]);
+      expect(stats.abandonRatingImpact).toEqual({
+        avgRatingDeltaCompleted: null,
+        avgRatingDeltaAbandoned: null,
+      });
+    });
+
+    it('computes scoring KPI fields correctly from scored games', async () => {
+      const recentEnded = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000); // yesterday
+
+      // Create a 2-player completed game with scoring data.
+      const u1 = await freshUser('ScoredA');
+      const u2 = await freshUser('ScoredB');
+      const code = `S${Math.random().toString(36).slice(2, 6).toUpperCase()}`.slice(0, 6);
+      const room = await repo.recordRoomCreated({ roomCode: code, hostUserId: u1 });
+      const game = await repo.recordGameStarted({
+        roomId: room.id,
+        seed: 'kpi-score-seed',
+        seatingOrder: [u1, u2],
+        startedAt: new Date(recentEnded.getTime() - 60_000),
+        playerCount: 2,
+      });
+      await repo.recordGameFinished({
+        gameId: game.id,
+        endedAt: recentEnded,
+        durationMs: 60_000,
+        isAbandoned: false,
+        winnerId: u1,
+        players: [
+          { userId: u1, seatIndex: 0, displayName: 'ScoredA', finalRank: 1, wasCut: false, captureCount: 5, result: 'WIN' },
+          { userId: u2, seatIndex: 1, displayName: 'ScoredB', finalRank: 2, wasCut: false, captureCount: 2, result: 'LOSS' },
+        ],
+      });
+
+      // Apply scoring for both players.
+      await repo.applyGameScoring({
+        gameId: game.id,
+        scoredPlayers: [
+          {
+            seatIndex: 0,
+            userId: u1,
+            matchScore: 40,
+            xpEarned: 50,
+            rankedRatingDelta: 20,
+            matchScoreBreakdown: [],
+            ratingBreakdown: [],
+            xpBreakdown: [],
+            ghostFinish: false,
+            progressionAfter: null,
+          },
+          {
+            seatIndex: 1,
+            userId: u2,
+            matchScore: 10,
+            xpEarned: 20,
+            rankedRatingDelta: -20,
+            matchScoreBreakdown: [],
+            ratingBreakdown: [],
+            xpBreakdown: [],
+            ghostFinish: false,
+            progressionAfter: null,
+          },
+        ],
+      });
+
+      const stats = await repo.getAdminKpiStats(7);
+
+      // avgXpGrantedPerDay: total XP = 50 + 20 = 70, divided by 7 days = 10
+      expect(stats.avgXpGrantedPerDay).toBeCloseTo(10, 5);
+
+      // avgMatchScoreByPlayerCount: 2-player game, avg match score = (40 + 10) / 2 = 25, 1 game
+      expect(stats.avgMatchScoreByPlayerCount).toHaveLength(1);
+      expect(stats.avgMatchScoreByPlayerCount[0]!.playerCount).toBe(2);
+      expect(stats.avgMatchScoreByPlayerCount[0]!.avgMatchScore).toBeCloseTo(25, 5);
+      expect(stats.avgMatchScoreByPlayerCount[0]!.gameCount).toBe(1);
+
+      // abandonRatingImpact: completed avg = (20 + -20) / 2 = 0, no abandoned data
+      expect(stats.abandonRatingImpact.avgRatingDeltaCompleted).toBeCloseTo(0, 5);
+      expect(stats.abandonRatingImpact.avgRatingDeltaAbandoned).toBeNull();
+    });
   });
 
   // exportGamesData ----------------------------------------------------------
