@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { DsCard } from '../Card/Card';
 import './ActivityPanel.css';
 
 export interface ActivityEntry {
@@ -18,7 +19,7 @@ export function ActivityPanel({
   onTabChange,
 }: ActivityPanelProps): ReactNode {
   return (
-    <div className="room__activity-panel">
+    <DsCard className="room__activity-panel">
       <div className="room__activity-tabs">
         <button
           type="button"
@@ -72,6 +73,6 @@ export function ActivityPanel({
           ➤
         </button>
       </div>
-    </div>
+    </DsCard>
   );
 }

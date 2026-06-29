@@ -24,7 +24,7 @@
     padding-bottom: 0;
     overflow: hidden;
     height: 100dvh;
-    --lobby-header-logo-width: min(400px, 28vw);
+    --lobby-header-logo-width: min(120px, 28vw);
     --lobby-header-logo-overlap-y: 64%;
     --lobby-header-logo-body-pad: calc(var(--lobby-header-logo-width) * 0.427);
   }
@@ -75,10 +75,10 @@
   gap: 8px;
   padding: 10px 16px;
   overflow: visible;
-  background: rgba(10, 26, 16, 0.97);
-  border-bottom: 1px solid rgba(231, 195, 74, 0.22);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: transparent;
+  border-bottom: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 @media (min-width: 900px) {
@@ -193,6 +193,11 @@
     padding: 0 20px;
   }
 
+  .lobby__cj-col > .ds-button,
+  .lobby__cj-col > .lobby__join-form {
+    margin-top: auto;
+  }
+
   .lobby__cj-col:first-child {
     padding-left: 0;
   }
@@ -231,10 +236,29 @@
   }
 }
 
+.lobby__cj-col > .ds-button,
+.lobby__join-form .ds-button {
+  min-height: 48px;
+}
+
+.lobby__cj-col > .ds-button {
+  width: 100%;
+}
+
 .lobby__join-form {
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: stretch;
+}
+
+.lobby__join-form .ds-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.lobby__join-form .ds-button {
+  flex-shrink: 0;
+  align-self: stretch;
 }
 
 .lobby__error {

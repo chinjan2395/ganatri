@@ -48,9 +48,9 @@ small full-stack vertical slices that mirror the history slice.
 Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — skip in nightly runs.
 
 ## Last Run
-- Date: 2026-06-29
-- Outcome: Phase 6j partial — `PgPersistence.applyGameScoring` batch optimization (playerProgression + scoreLedger inserts batched from N per-player queries to 2 batch operations); 8 new contract tests for `applyGameScoring`/`getPlayerProgression`/`getScoreHistory` (4 contracts × 2 impls); 470 tests pass (153 engine + 114 server + 203 db, up from 462).
-- Branch: nightly/2026-06-29-2009
+- Date: 2026-06-30
+- Outcome: DS-R15–R17 complete — RoomScreen raw patterns → DsBadge/DsTitleBlock/DsCard; DS room components (DetailsSidebar, ActivityPanel, VoiceChatPanel, SocialPanel) wrapped with DsCard; LobbyScreen + all screens using DsTopNav now have FeltBackdrop/FooterBar/CornerDecor and transparent headers (no hard background disconnecting header from body). 0 TS errors.
+- Branch: feat/ds-r15-r17-design-consistency
 
 ## Blockers / Needs Human Input
 _(none)_

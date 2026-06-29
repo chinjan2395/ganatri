@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { DsCard } from '../Card/Card';
 import './VoiceChatPanel.css';
 
 export interface VoiceParticipant {
@@ -60,9 +61,9 @@ export function VoiceChatPanel({
 }: VoiceChatPanelProps): ReactNode {
   if (permissionDenied) {
     return (
-      <div className="room__voice-section">
+      <DsCard className="room__voice-section">
         <div className="room__voice-denied">🎤 Microphone blocked — voice chat unavailable</div>
-      </div>
+      </DsCard>
     );
   }
 
@@ -85,7 +86,7 @@ export function VoiceChatPanel({
   ].filter(Boolean).join(' ');
 
   return (
-    <div className="room__voice-section">
+    <DsCard className="room__voice-section">
       <div className="room__voice-header">
         <h3 className="room__voice-title">VOICE CHAT</h3>
         <div className="room__voice-meta">
@@ -187,6 +188,6 @@ export function VoiceChatPanel({
           </button>
         </div>
       </div>
-    </div>
+    </DsCard>
   );
 }
