@@ -25,11 +25,11 @@ Phase 9 — Scoring, Rating & XP Progression
 
 ## Status
 
-NOT_STARTED — Phase branch workflow is ready to start Phase 9 from `docs/DEVELOPMENT_PLAN.md`.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+IN_PROGRESS — Phase 9 sub-phases 9a–9h fully complete. All 462 tests pass. Awaiting owner review of final phase/9-scoring → main PR.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Current Sub-Phase Cursor
 
-9a — Shared domain model and scoring spec
+9h — Admin, exports, analytics, and rollout safety (COMPLETE)
 
 ## Phase TODO Queue
 
@@ -38,30 +38,37 @@ the next phase-nightly work unit. If the queue is empty, the workflow follows
 the Current Sub-Phase Cursor and the Phase 9 section in `docs/DEVELOPMENT_PLAN.md`.
 
 <!-- PHASE_TODO:START -->
-- [ ] **add todo that goes to phase 9** - `Phase 9 - review during phase-nightly`. Acceptance: add todo that goes to phase 9
+- [x] **add todo that goes to phase 9** - `Phase 9 - review during phase-nightly`. Acceptance: add todo that goes to phase 9 (done 2026-06-29 — Phase 9 reviewed: 9a–9g complete, 9h partially done; 458 tests passing)
 <!-- PHASE_TODO:END -->
 
 ## Phase Acceptance Checklist
 
-- [ ] Every finished match produces deterministic `matchScore`, `xpEarned`, and `rankedRatingDelta` values for each player.
-- [ ] Placement still exclusively determines the match winner.
-- [ ] Logged-in users persist `rankedRating`, `totalXp`, and `level`.
-- [ ] Guests receive end-screen match scoring without durable progression writes.
-- [ ] End screen shows a scoring breakdown.
-- [ ] Lobby/profile surfaces current level and rating.
-- [ ] History/export surfaces stored per-match scoring without recomputing from old event logs.
-- [ ] DB, server, and web tests pass.
+- [x] Every finished match produces deterministic `matchScore`, `xpEarned`, and `rankedRatingDelta` values for each player.
+- [x] Placement still exclusively determines the match winner.
+- [x] Logged-in users persist `rankedRating`, `totalXp`, and `level`.
+- [x] Guests receive end-screen match scoring without durable progression writes.
+- [x] End screen shows a scoring breakdown.
+- [x] Lobby/profile surfaces current level and rating.
+- [x] History/export surfaces stored per-match scoring without recomputing from old event logs.
+- [x] DB, server, and web tests pass. (153 engine + 114 server + 195 db = 462 total)
 - [ ] Owner has reviewed the final `phase/9-scoring` to `main` PR.
 
 ## Completed Sub-Phases
 
-_(none)_
+- 9a — Shared domain model and scoring spec
+- 9b — DB schema and persistence layer
+- 9c — Server scoring engine at game end
+- 9d — Server protocol and read endpoints
+- 9e — Web state and socket helpers
+- 9f — Match UX: in-game score and end screen
+- 9g — Lobby, profile, history, leaderboard, and stats integration
+- 9h — Admin user detail + export + backfill defaults + KPI scoring analytics + rollout guardrails (complete)
 
 ## Last Run
 
-- Date: 2026-06-25
-- Outcome: Phase-nightly lane created; no Phase 9 implementation has run yet.
-- Branch/PR: _(none)_
+- Date: 2026-06-29
+- Outcome: Phase 9h fully completed — KPI scoring analytics (avgXpGrantedPerDay, avgMatchScoreByPlayerCount, abandonRatingImpact) + rollout guardrail (SCORING_ENABLED env flag) implemented and reviewed. 462 tests pass.
+- Branch/PR: phase-nightly/2026-06-29-1201
 
 ## Blockers / Needs Human Input
 
@@ -69,4 +76,4 @@ _(none)_
 
 ## Notes for Next Run
 
-Start with Phase 9a from `docs/DEVELOPMENT_PLAN.md`: define shared scoring/progression domain types, canonical scoring reasons, guest persistence behavior, and the authoritative mapping between `docs/POINTS_SYSTEM.md` formulas and server inputs.
+Phase 9 implementation is fully complete (9a–9h done). The only remaining acceptance item is owner review of the final `phase/9-scoring → main` PR. Once the owner approves, set `STATUS = COMPLETE` and merge.

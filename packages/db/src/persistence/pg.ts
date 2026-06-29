@@ -1190,6 +1190,64 @@ export class PgPersistence implements GamePersistence {
     }
     const avgDurationMs = weightedCount > 0 ? weightedSum / weightedCount : null;
 
+    // Query A — avgXpGrantedPerDay
+    const xpResult = await this.db.execute(sql`
+      SELECT COALESCE(SUM(gp.xp_earned), 0) AS total_xp
+      FROM game_players gp
+      JOIN games g ON g.id = gp.game_id
+      WHERE g.ended_at IS NOT NULL
+        AND g.ended_at >= ${cutoff}
+        AND g.is_abandoned = false
+        AND gp.xp_earned IS NOT NULL
+    `);
+    const totalXp = Number((xpResult.rows[0] as { total_xp: number | string } | undefined)?.total_xp ?? 0);
+    const avgXpGrantedPerDay = totalXp > 0 && windowDays > 0 ? totalXp / windowDays : null;
+
+    // Query B — avgMatchScoreByPlayerCount
+    const matchScoreResult = await this.db.execute(sql`
+      SELECT
+        g.player_count,
+        AVG(gp.match_score)::float AS avg_match_score,
+        COUNT(DISTINCT g.id)::int AS game_count
+      FROM games g
+      JOIN game_players gp ON gp.game_id = g.id
+      WHERE g.ended_at IS NOT NULL
+        AND g.ended_at >= ${cutoff}
+        AND g.is_abandoned = false
+        AND gp.match_score IS NOT NULL
+      GROUP BY g.player_count
+      ORDER BY g.player_count ASC
+    `);
+    const avgMatchScoreByPlayerCount = (matchScoreResult.rows as Array<{
+      player_count: number | string;
+      avg_match_score: number | string;
+      game_count: number | string;
+    }>).map((r) => ({
+      playerCount: Number(r.player_count),
+      avgMatchScore: Number(r.avg_match_score),
+      gameCount: Number(r.game_count),
+    }));
+
+    // Query C — abandonRatingImpact
+    const ratingResult = await this.db.execute(sql`
+      SELECT
+        AVG(gp.ranked_rating_delta) FILTER (WHERE g.is_abandoned = false) AS avg_delta_completed,
+        AVG(gp.ranked_rating_delta) FILTER (WHERE g.is_abandoned = true) AS avg_delta_abandoned
+      FROM game_players gp
+      JOIN games g ON g.id = gp.game_id
+      WHERE g.ended_at IS NOT NULL
+        AND g.ended_at >= ${cutoff}
+        AND gp.ranked_rating_delta IS NOT NULL
+    `);
+    const ratingRow = ratingResult.rows[0] as {
+      avg_delta_completed: number | string | null;
+      avg_delta_abandoned: number | string | null;
+    } | undefined;
+    const abandonRatingImpact = {
+      avgRatingDeltaCompleted: ratingRow?.avg_delta_completed != null ? Number(ratingRow.avg_delta_completed) : null,
+      avgRatingDeltaAbandoned: ratingRow?.avg_delta_abandoned != null ? Number(ratingRow.avg_delta_abandoned) : null,
+    };
+
     return {
       windowDays,
       totalGames,
@@ -1198,6 +1256,9 @@ export class PgPersistence implements GamePersistence {
       abandonmentRate,
       avgDurationMs,
       dailyBreakdown,
+      avgXpGrantedPerDay,
+      avgMatchScoreByPlayerCount,
+      abandonRatingImpact,
     };
   }
 
