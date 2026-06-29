@@ -11,6 +11,8 @@ import {
   DsEmptyState,
   DsAlert,
   FooterBar,
+  FeltBackdrop,
+  CornerDecor,
 } from '@ganatri/ds';
 import type { DsTopNavItem, DsBottomNavTab } from '@ganatri/ds';
 import { useGame } from '../state/GameProvider';
@@ -143,6 +145,7 @@ export function SessionsScreen(): React.ReactNode {
 
   return (
     <div className="sess">
+      <FeltBackdrop />
       {!isDesktop && (
         <DsScreenHeader
           title="SESSIONS"
@@ -241,7 +244,8 @@ export function SessionsScreen(): React.ReactNode {
 
       <DsBottomNav tabs={BOTTOM_TABS} activeId="profile" onTab={handleBottomNav} />
 
-      {isDesktop && <FooterBar />}
+      <FooterBar />
+      <CornerDecor />
     </div>
   );
 }
