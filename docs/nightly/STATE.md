@@ -13,7 +13,7 @@
 Phase DS-R — Design System Consolidation
 
 ## Status
-IN_PROGRESS — DS-R10 complete (2026-06-29). DS-R11 is next.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+IN_PROGRESS — DS-R11 complete (2026-06-29). DS-R12 is next.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase 6i Data export (2026-06-25) — `download_my_data` event: server handler (getUserGameHistory + getPlayerStats in parallel, flattenHistoryEntry + mapStatsView), 4 integration tests; web DownloadMyDataAck type + downloadMyData() helper + GameProvider callback + LobbyScreen "Download My Data" button (DOM-append pattern, deferred revokeObjectURL). 458 tests pass (153 engine + 114 server + 191 db).
@@ -48,23 +48,22 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-29
-- Outcome: DS-R10 complete — LobbyScreen migrated to DS components (1433→1109 lines TSX, 1638→1023 lines CSS); new DsDivider DS component; DsField/DsButton/DsAvatar/DsCard extended with new props; removed LobbyHeader/MobileBottomNav/ProfilePanel/HowToPlayModal local sub-components + inline SVGs; replaced with DsTopNav/DsBottomNav/DsModal/DsField/DsButton/DsIcon/DsAvatar/DsDivider/DsCard/DsEmptyState; framer-motion removed; 458 tests pass.
-- Branch: nightly/2026-06-29-0450
+- Outcome: DS-R11 complete — EndScreen migrated (108→99 lines TSX, 87→106 lines CSS); removed framer-motion; replaced raw buttons with DsButton (primary/secondary); replaced emoji trophy with DsIcon; added DsAvatar for winner; rankings via DsListRow; CSS keyframe animations replace framer-motion; all props/logic/scoring wiring preserved; 458 tests pass.
+- Branch: nightly/2026-06-29-1116
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-**Phase DS-R is in progress.** DS-R1 through DS-R10 are done. Next: DS-R11 — Migrate `EndScreen`.
+**Phase DS-R is in progress.** DS-R1 through DS-R11 are done. Next: DS-R12 — Finalize `RoomScreen`.
 
-DS-R11 task: `components/EndScreen.tsx` + `.css`. Key replacements:
-- `DsModal`/`DsCard` shell
-- Rankings via `DsRankRow`/`DsListRow`
-- Buttons via `DsButton`
-- Trophy/winner via `DsIcon`/`DsAvatar`
-- Keep `playerNames` wiring
+DS-R12 task: `packages/web/src/screens/RoomScreen.tsx` + `.css`. Key replacements:
+- `room__start-btn` / mobile `room__action-btn` / `room__leave-btn` → `DsButton` (+ `DsIcon`)
+- Player badge + share/invite SVGs → `DsIcon`
+- `room__error` → `DsAlert`
+- No inline `<svg>` or styled `<button>` left
 
-Note: DS now includes `DsDivider` (added in DS-R10). DsField, DsButton, DsAvatar, DsCard all have extended props (type/className/title/online) as of DS-R10.
+Note: DS includes `DsDivider` (DS-R10), `DsField`/`DsButton`/`DsAvatar`/`DsCard` with extended props (type/className/title/online) as of DS-R10.
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.

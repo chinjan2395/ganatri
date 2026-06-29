@@ -6,21 +6,22 @@
   padding: 24px;
   text-align: center;
 }
+
 .end__logo {
   width: min(200px, 50vw);
   filter: drop-shadow(0 0 16px rgba(231, 195, 74, 0.3));
 }
+
 .end__title {
   font-size: clamp(30px, 9vw, 56px);
   margin: 0;
 }
 
 .end__spotlight {
-  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   padding: 22px 40px 18px;
   border-radius: 18px;
   background:
@@ -28,22 +29,41 @@
     linear-gradient(180deg, rgba(29, 51, 38, 0.9), rgba(20, 38, 27, 0.9));
   border: 1px solid rgba(231, 195, 74, 0.5);
   box-shadow: var(--glow-gold), 0 10px 30px rgba(0, 0, 0, 0.55);
+  animation: end-spotlight-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
-.end__trophy {
-  font-size: 48px;
+
+@keyframes end-spotlight-in {
+  from { opacity: 0; transform: scale(0.7); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.end__trophy-icon {
+  color: var(--gold-rim);
   filter: drop-shadow(0 0 12px rgba(231, 195, 74, 0.7));
 }
+
+.end__winner-avatar {
+  margin-top: 2px;
+}
+
 .end__winner-name {
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 22px;
   color: var(--gold-rim);
 }
+
 .end__winner-label {
   text-transform: uppercase;
   letter-spacing: 2px;
   font-size: 11px;
   color: var(--text-dim);
+}
+
+.end__summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .end__rankings {
@@ -55,32 +75,43 @@
   flex-direction: column;
   gap: 8px;
 }
+
 .end__row {
-  display: grid;
-  grid-template-columns: 40px 1fr auto;
-  align-items: center;
-  gap: 10px;
-  background: linear-gradient(180deg, var(--panel-2), var(--panel));
-  padding: 10px 14px;
   border-radius: 10px;
   border: 1px solid rgba(231, 195, 74, 0.2);
+  overflow: hidden;
+  animation: end-row-in 0.3s ease both;
 }
+
+@keyframes end-row-in {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
 .end__row--loser {
   background: rgba(226, 92, 92, 0.18);
   border: 1px solid var(--danger);
 }
+
 .end__place {
-  font-size: 18px;
-}
-.end__player {
-  text-align: left;
+  font-size: 14px;
   font-weight: 600;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
 }
+
+.end__place--loser {
+  color: var(--danger);
+}
+
 .end__you {
   color: var(--accent);
 }
-.end__label {
-  font-size: 11px;
-  text-transform: uppercase;
-  color: var(--text-dim);
+
+.end__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
