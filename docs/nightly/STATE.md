@@ -10,12 +10,13 @@
 > (Current Phase → next NOT_STARTED/IN_PROGRESS item) apply.
 
 ## Current Phase
-Phase DS-R — Design System Consolidation
+Phase 6i/6j — Privacy, retention & compliance / Operations & hardening
 
 ## Status
-IN_PROGRESS — DS-R12 complete (2026-06-29). DS-R13 is next.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+NOT_STARTED  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
+- [x] Phase DS-R — Design System Consolidation (2026-06-29) — DS-R1 through DS-R14 complete. All player-facing screens consume `@ganatri/ds` only. ESLint gate bans raw `<button>/<input>` in screen files (excludes AdminScreen + DesignSystemScreen). `DsButton` extended with `aria-label` prop. 462 tests pass (153 engine + 114 server + 195 db).
 - [x] Phase 6i Data export (2026-06-25) — `download_my_data` event: server handler (getUserGameHistory + getPlayerStats in parallel, flattenHistoryEntry + mapStatsView), 4 integration tests; web DownloadMyDataAck type + downloadMyData() helper + GameProvider callback + LobbyScreen "Download My Data" button (DOM-append pattern, deferred revokeObjectURL). 458 tests pass (153 engine + 114 server + 191 db).
 - [x] Phase 1 — Rules Engine (153 tests passing)
 - [x] Phase 2 — Server (44 tests passing)
@@ -48,23 +49,26 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-29
-- Outcome: DS-R12 complete — RoomScreen finalized; replaced all inline SVGs with DsIcon (people/share), raw buttons with DsButton (primary/outline/danger), room__error divs with DsAlert; removed local useIsDesktop definition (now imported from hooks/); stripped visual CSS from replaced elements; 458 tests pass.
-- Branch: nightly/2026-06-29-1602
+- Outcome: DS-R14 complete — Added `aria-label` prop to `DsButton`; replaced residual raw `<button>` in StatsScreen (2) and LobbyScreen (1) with `DsButton tone="ghost"`; extended ESLint gate with `no-restricted-syntax` banning `<button>/<input>` in screen files (AdminScreen + DesignSystemScreen excluded); 0 TS errors; ESLint 0 errors; 462 tests pass (153 + 114 + 195). Phase DS-R is COMPLETE.
+- Branch: nightly/2026-06-29-1817
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-**Phase DS-R is in progress.** DS-R1 through DS-R12 are done. Next: DS-R13 — Finalize `GameScreen`.
+**Phase DS-R is COMPLETE.** Next phase: 6i/6j — Privacy, retention & compliance / Operations & hardening.
 
-DS-R13 task: `packages/web/src/screens/GameScreen.tsx` + `.css`. Key replacements:
-- HUD phase/scoreboard pills → `DsBadge`/`DsCard`
-- Voice icon/mode buttons → `DsButton` + `DsIcon`
-- Leave button → `DsButton`
-- Loading state → `DsSpinner`
-- Leave game-specific components as-is (`Card`/`Hand`/`Part1Board`/`Part2Board`/`OpponentSeat`/`CapturedPile`/`TurnTimer`/`CutAnimation`)
+Phase 6i remaining work (from DEVELOPMENT_PLAN.md):
+- Privacy policy & consent (cookie/localStorage disclosure)
+- Data retention policies: analytics-event purge (analytics table not yet built)
+- PII handling & encryption at rest
 
-Note: DS includes `DsDivider` (DS-R10), `DsField`/`DsButton`/`DsAvatar`/`DsCard` with extended props (type/className/title/online) as of DS-R10.
+Phase 6j remaining work:
+- Automated backups & restore drills
+- DB monitoring & alerting
+- Connection-pool sizing for scale
+- Cost & free-tier monitoring
+- Performance: query plans & N+1 guards
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.
