@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cardId, type CardId, type Card as CardModel, type GameEvent, type Phase } from '@ganatri/engine';
+import { DsSpinner, DsBadge, DsButton } from '@ganatri/ds';
 import { useGame } from '../state/GameProvider';
 import { useVoiceChatContext, useVoiceSpeaking } from '../state/VoiceChatProvider';
 import { OpponentSeat } from '../components/OpponentSeat';
@@ -171,7 +172,7 @@ export function GameScreen(): React.ReactNode {
   if (!view || !session) {
     return (
       <div className="center-screen">
-        <div className="spinner" />
+        <DsSpinner size={40} />
         <p className="muted">Loading game…</p>
       </div>
     );
@@ -223,7 +224,7 @@ export function GameScreen(): React.ReactNode {
       <header className="game__hud">
         {/* Phase pill */}
         <div className="hud__phase">
-          <span className="hud__phase-number">{view.phase === 'PART_1' ? 'PART 1' : 'PART 2'}</span>
+          <DsBadge label={view.phase === 'PART_1' ? 'PART 1' : 'PART 2'} tone="default" />
           <span className="hud__phase-name">{view.phase === 'PART_1' ? 'Capture' : 'Cut'}</span>
         </div>
 
@@ -235,9 +236,11 @@ export function GameScreen(): React.ReactNode {
         {latestMatchScoring.length > 0 && (
           <div className="game__scoreboard">
             {latestMatchScoring.map((entry) => (
-              <span key={entry.playerId} className="game__score-pill">
-                {(entry.playerId === view.you ? 'You' : nameFor(entry.playerId))}: {entry.matchScore}
-              </span>
+              <DsBadge
+                key={entry.playerId}
+                label={`${entry.playerId === view.you ? 'You' : nameFor(entry.playerId)}: ${entry.matchScore}`}
+                tone="default"
+              />
             ))}
           </div>
         )}
@@ -246,41 +249,44 @@ export function GameScreen(): React.ReactNode {
         {!voice.permissionDenied && (
           <div className="game__voice-bar">
             {/* Mic button: hold for PTT, click for open-mic mute toggle */}
-            <button
+            <DsButton
+              tone="ghost"
               className={`game__voice-icon${voice.mode === 'open' && voice.muted ? ' game__voice-icon--off' : ''}${voice.mode === 'ptt' && voice.pttActive ? ' game__voice-icon--active' : ''}`}
               onMouseDown={() => { if (voice.mode === 'ptt') voice.setPttActive(true); }}
               onMouseUp={() => { if (voice.mode === 'ptt') voice.setPttActive(false); }}
               onMouseLeave={() => { if (voice.mode === 'ptt') voice.setPttActive(false); }}
               onTouchStart={(e) => { if (voice.mode === 'ptt') { e.preventDefault(); voice.setPttActive(true); } }}
               onTouchEnd={(e) => { if (voice.mode === 'ptt') { e.preventDefault(); voice.setPttActive(false); } }}
-              onTouchCancel={() => { if (voice.mode === 'ptt') voice.setPttActive(false); }}
+              onTouchCancel={(_e) => { if (voice.mode === 'ptt') voice.setPttActive(false); }}
               onClick={() => { if (voice.mode === 'open') voice.toggleMute(); }}
               title={voice.mode === 'ptt' ? 'Hold to talk (Space)' : (voice.muted ? 'Unmute mic' : 'Mute mic')}
             >
               {voice.mode === 'ptt' ? (voice.pttActive ? '🎙️' : '🔇') : (voice.muted ? '🔇' : '🎙️')}
-            </button>
+            </DsButton>
             {/* Speaker / deafen */}
-            <button
+            <DsButton
+              tone="ghost"
               className={`game__voice-icon${voice.deafened ? ' game__voice-icon--off' : ''}`}
               onClick={voice.toggleDeafen}
               title={voice.deafened ? 'Undeafen' : 'Deafen (mute audio output)'}
             >
               {voice.deafened ? '🔈' : '🔊'}
-            </button>
+            </DsButton>
             {/* Mode toggle */}
-            <button
+            <DsButton
+              tone="ghost"
               className="game__voice-mode"
               onClick={voice.toggleMode}
               title="Toggle push-to-talk / open mic"
             >
               {voice.mode === 'ptt' ? 'PTT' : 'MIC'}
-            </button>
+            </DsButton>
           </div>
         )}
 
-        <button className="secondary game__leave" onClick={() => { void leaveRoom(); }}>
+        <DsButton tone="secondary" className="game__leave" onClick={() => { void leaveRoom(); }}>
           Leave
-        </button>
+        </DsButton>
       </header>
 
       {/* ── Players row — all players (you centred) as floating avatars ── */}
@@ -410,12 +416,12 @@ export function GameScreen(): React.ReactNode {
                   <span>Play this card?</span>
                 </div>
                 <div className="action-bar__buttons">
-                  <button className="secondary" onClick={handState.action.onCancel} disabled={handState.action.submitting}>
+                  <DsButton tone="secondary" onClick={handState.action.onCancel} disabled={handState.action.submitting}>
                     Cancel
-                  </button>
-                  <button onClick={handState.action.onConfirm} disabled={handState.action.submitting}>
+                  </DsButton>
+                  <DsButton onClick={handState.action.onConfirm} disabled={handState.action.submitting}>
                     {handState.action.submitting ? '…' : 'Yes, lock it in'}
-                  </button>
+                  </DsButton>
                 </div>
               </>
             ) : (
@@ -428,9 +434,9 @@ export function GameScreen(): React.ReactNode {
                         {handState.action.optionLabel}
                       </span>
                       {handState.action.multipleOptions && (
-                        <button className="secondary action-bar__cycle" onClick={handState.action.onCycle}>
+                        <DsButton tone="secondary" className="action-bar__cycle" onClick={handState.action.onCycle}>
                           Next option
-                        </button>
+                        </DsButton>
                       )}
                     </>
                   ) : (
@@ -438,12 +444,12 @@ export function GameScreen(): React.ReactNode {
                   )}
                 </div>
                 <div className="action-bar__buttons">
-                  <button className="secondary" onClick={handState.action.onCancel} disabled={handState.action.submitting}>
+                  <DsButton tone="secondary" onClick={handState.action.onCancel} disabled={handState.action.submitting}>
                     Cancel
-                  </button>
-                  <button onClick={handState.action.onConfirm} disabled={handState.action.submitting}>
+                  </DsButton>
+                  <DsButton onClick={handState.action.onConfirm} disabled={handState.action.submitting}>
                     {handState.action.submitting ? '…' : handState.action.hasCapture ? 'Capture' : 'Play'}
-                  </button>
+                  </DsButton>
                 </div>
               </>
             )}
