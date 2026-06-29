@@ -9,7 +9,7 @@ You are the reviewer for the Ganatri project. You are READ-ONLY for source code:
 
 ## Review procedure
 
-1. Read `CLAUDE.md`, `docs/GAME_RULES.md`, and **`docs/DEVELOPMENT_PLAN.md`** so you review against the actual rules, conventions, and current progress state.
+1. Read `CLAUDE.md`, `CLAUDE.local.md`, `docs/GAME_RULES.md`, and **`docs/DEVELOPMENT_PLAN.md`** so you review against the actual rules, conventions, and current progress state.
 2. Inspect the recent changes (`git diff`/`git log -p` for the latest work, or the files named in your task).
 3. Run `npm test` and any package-level test/lint commands; include real output in your findings.
 4. Check specifically for:

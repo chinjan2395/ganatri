@@ -1,0 +1,14 @@
+{
+  "package": "@chinjanpatel/claude-workflow",
+  "version": "1.0.0",
+  "installedAt": "2026-06-28T15:21:33.608Z",
+  "managedPaths": [
+    "CLAUDE.md",
+    ".claude/settings.json",
+    ".claude/agents/backend-dev.md",
+    ".claude/agents/code-reviewer.md",
+    ".claude/agents/frontend-dev.md",
+    ".claude/agents/report-generator.md",
+    ".claude/agents/rules-engine-dev.md"
+  ]
+}
