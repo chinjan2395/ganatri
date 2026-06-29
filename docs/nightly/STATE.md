@@ -13,7 +13,7 @@
 Phase DS-R — Design System Consolidation
 
 ## Status
-IN_PROGRESS — DS-R11 complete (2026-06-29). DS-R12 is next.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+IN_PROGRESS — DS-R12 complete (2026-06-29). DS-R13 is next.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase 6i Data export (2026-06-25) — `download_my_data` event: server handler (getUserGameHistory + getPlayerStats in parallel, flattenHistoryEntry + mapStatsView), 4 integration tests; web DownloadMyDataAck type + downloadMyData() helper + GameProvider callback + LobbyScreen "Download My Data" button (DOM-append pattern, deferred revokeObjectURL). 458 tests pass (153 engine + 114 server + 191 db).
@@ -48,21 +48,22 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-29
-- Outcome: DS-R11 complete — EndScreen migrated (108→99 lines TSX, 87→106 lines CSS); removed framer-motion; replaced raw buttons with DsButton (primary/secondary); replaced emoji trophy with DsIcon; added DsAvatar for winner; rankings via DsListRow; CSS keyframe animations replace framer-motion; all props/logic/scoring wiring preserved; 458 tests pass.
-- Branch: nightly/2026-06-29-1116
+- Outcome: DS-R12 complete — RoomScreen finalized; replaced all inline SVGs with DsIcon (people/share), raw buttons with DsButton (primary/outline/danger), room__error divs with DsAlert; removed local useIsDesktop definition (now imported from hooks/); stripped visual CSS from replaced elements; 458 tests pass.
+- Branch: nightly/2026-06-29-1602
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-**Phase DS-R is in progress.** DS-R1 through DS-R11 are done. Next: DS-R12 — Finalize `RoomScreen`.
+**Phase DS-R is in progress.** DS-R1 through DS-R12 are done. Next: DS-R13 — Finalize `GameScreen`.
 
-DS-R12 task: `packages/web/src/screens/RoomScreen.tsx` + `.css`. Key replacements:
-- `room__start-btn` / mobile `room__action-btn` / `room__leave-btn` → `DsButton` (+ `DsIcon`)
-- Player badge + share/invite SVGs → `DsIcon`
-- `room__error` → `DsAlert`
-- No inline `<svg>` or styled `<button>` left
+DS-R13 task: `packages/web/src/screens/GameScreen.tsx` + `.css`. Key replacements:
+- HUD phase/scoreboard pills → `DsBadge`/`DsCard`
+- Voice icon/mode buttons → `DsButton` + `DsIcon`
+- Leave button → `DsButton`
+- Loading state → `DsSpinner`
+- Leave game-specific components as-is (`Card`/`Hand`/`Part1Board`/`Part2Board`/`OpponentSeat`/`CapturedPile`/`TurnTimer`/`CutAnimation`)
 
 Note: DS includes `DsDivider` (DS-R10), `DsField`/`DsButton`/`DsAvatar`/`DsCard` with extended props (type/className/title/online) as of DS-R10.
 
