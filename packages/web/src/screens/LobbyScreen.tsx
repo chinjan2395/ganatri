@@ -7,7 +7,7 @@ import type { CoPlayerView, BlockedUserView, GetBlockedUsersAck, LeaderboardEntr
 import logo from '../assets/ganatri-logo.png';
 import {
   DsTopNav, DsBottomNav, DsModal, DsDivider, DsField, DsButton, DsIcon,
-  DsAvatar, DsCard, DsEmptyState,
+  DsAvatar, DsCard, DsEmptyState, FeltBackdrop, FooterBar, CornerDecor,
 } from '@ganatri/ds';
 import type { DsTopNavItem, DsBottomNavTab } from '@ganatri/ds';
 import './LobbyScreen.css';
@@ -96,7 +96,6 @@ function CreateJoinPanel({
             }}
           >
             <DsField
-              label="Room code"
               value={code}
               placeholder="Enter room code"
               maxLength={8}
@@ -983,6 +982,12 @@ export function LobbyScreen(): React.ReactNode {
 
   return (
     <div className="lobby__root">
+      <FeltBackdrop />
+      <div className="room__particles" aria-hidden="true">
+        {Array.from({ length: 8 }, (_, i) => (
+          <span key={i} className="room__particle" />
+        ))}
+      </div>
       {/* Desktop sticky header */}
       {isDesktop ? (
         <DsTopNav
@@ -1104,6 +1109,8 @@ export function LobbyScreen(): React.ReactNode {
           <p>The first player leads any card. You must follow suit if you can. If everyone follows, the highest card of the led suit wins the trick — those cards are cancelled. If you can&apos;t follow suit, play any card as a &quot;cut&quot; — the trick ends immediately, and the holder of the highest led-suit card picks up all table cards. The cutter leads next. The last player holding cards loses!</p>
         </DsModal>
       )}
+      <FooterBar />
+      <CornerDecor />
     </div>
   );
 }

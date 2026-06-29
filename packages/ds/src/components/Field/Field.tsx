@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import './Field.css';
 
 export interface DsFieldProps {
-  label: string;
+  label?: string;
   value?: string;
   placeholder?: string;
   helper?: string;
@@ -44,7 +44,7 @@ export function DsField({
 
   return (
     <label className="ds-field">
-      <span className="ds-field__label">{label}</span>
+      {label !== undefined ? <span className="ds-field__label">{label}</span> : null}
       <input
         ref={inputRef}
         type={type}

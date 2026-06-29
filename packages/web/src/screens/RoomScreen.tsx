@@ -16,6 +16,9 @@ import {
   DsButton,
   DsIcon,
   DsAlert,
+  DsBadge,
+  DsTitleBlock,
+  DsCard,
 } from '@ganatri/ds';
 import type { FriendEntry, SeatData } from '@ganatri/ds';
 import { useGame } from '../state/GameProvider';
@@ -294,10 +297,10 @@ export function RoomScreen(): React.ReactNode {
               activeTab={activeTab}
               onTabChange={setActiveTab}
             />
-            <section className="room__status-panel room__status-panel--lower">
-              <h3 className="room__friends-heading">PLAYERS</h3>
+            <DsCard className="room__status-panel room__status-panel--lower">
+              <DsTitleBlock title="PLAYERS" size="sm" />
               <StatusPanel playerCount={room.players.length} elapsedSeconds={elapsed} />
-            </section>
+            </DsCard>
             <VoiceChatPanel
               participants={voiceParticipants}
               mode={voice.mode}
@@ -342,17 +345,12 @@ export function RoomScreen(): React.ReactNode {
       />
       <div className="room__mobile-body">
         <img src={logo} alt="Ganatri" className="room__logo-mobile" />
-        <div className="room__player-badge">
-          <span className="room__player-badge-icon">
-            <DsIcon name="people" />
-          </span>
-          {room.players.length} PLAYER ROOM
-        </div>
+        <DsBadge label={`${room.players.length} PLAYER ROOM`} />
         <OvalTable seats={seats} />
-        <section className="room__friends-panel room__status-panel">
-          <h3 className="room__friends-heading">PLAYERS</h3>
+        <DsCard className="room__friends-panel room__status-panel">
+          <DsTitleBlock title="PLAYERS" size="sm" />
           <StatusPanel playerCount={room.players.length} elapsedSeconds={elapsed} />
-        </section>
+        </DsCard>
         {isHost && canStart && (
           <DsButton
             tone="primary"
@@ -396,7 +394,7 @@ export function RoomScreen(): React.ReactNode {
           Leave Room
         </DsButton>
         {isHost && (
-          <p className="room__host-footer muted">♛ You are the host</p>
+          <DsBadge label="♛ You are the host" tone="info" />
         )}
         <CornerDecor />
       </div>

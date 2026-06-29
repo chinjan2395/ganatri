@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { DsCard } from '../Card/Card';
 import './DetailsSidebar.css';
 
 export interface DetailsSidebarProps {
@@ -120,7 +121,7 @@ export function DetailsSidebar({
   onShareLink,
 }: DetailsSidebarProps): ReactNode {
   return (
-    <aside className="room__details-sidebar">
+    <DsCard className="room__details-sidebar">
       <h3 className="room__details-heading">ROOM DETAILS</h3>
       <div className="room__details-rows">
         <div className="room__details-row">
@@ -207,6 +208,6 @@ export function DetailsSidebar({
           Share Link
         </button>
       </div>
-    </aside>
+    </DsCard>
   );
 }

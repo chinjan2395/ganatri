@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import { DsCard } from '../Card/Card';
 import './SocialPanel.css';
 
 export interface FriendEntry {
@@ -134,14 +135,14 @@ export function SocialPanel({
   if (!isLoggedIn) {
     return (
       <>
-        <section className="room__friends-panel">
+        <DsCard className="room__friends-panel">
           <h3 className="room__friends-heading">FRIENDS ONLINE</h3>
           <p className="room__friends-empty muted">Sign in to invite friends</p>
-        </section>
-        <section className="room__friends-panel">
+        </DsCard>
+        <DsCard className="room__friends-panel">
           <h3 className="room__friends-heading">RECENT OPPONENTS</h3>
           <p className="room__friends-empty muted">Sign in to see recent opponents</p>
-        </section>
+        </DsCard>
       </>
     );
   }
@@ -149,21 +150,21 @@ export function SocialPanel({
   if (isLoading) {
     return (
       <>
-        <section className="room__friends-panel">
+        <DsCard className="room__friends-panel">
           <h3 className="room__friends-heading">FRIENDS ONLINE</h3>
           <FriendsPanelSkeleton />
-        </section>
-        <section className="room__friends-panel">
+        </DsCard>
+        <DsCard className="room__friends-panel">
           <h3 className="room__friends-heading">RECENT OPPONENTS</h3>
           <FriendsPanelSkeleton />
-        </section>
+        </DsCard>
       </>
     );
   }
 
   return (
     <>
-      <section className="room__friends-panel">
+      <DsCard className="room__friends-panel">
         <h3 className="room__friends-heading">FRIENDS ONLINE</h3>
         {onlineFriends.length === 0 ? (
           <p className="room__friends-empty muted">No friends online</p>
@@ -175,8 +176,8 @@ export function SocialPanel({
         <button type="button" className="secondary room__friends-view-all" onClick={onViewAllFriends}>
           View All Friends ›
         </button>
-      </section>
-      <section className="room__friends-panel">
+      </DsCard>
+      <DsCard className="room__friends-panel">
         <h3 className="room__friends-heading">RECENT OPPONENTS</h3>
         {recentOpponents.length === 0 ? (
           <p className="room__friends-empty muted">No recent opponents</p>
@@ -188,7 +189,7 @@ export function SocialPanel({
         <button type="button" className="secondary room__friends-view-all" onClick={onViewAllOpponents}>
           View All ›
         </button>
-      </section>
+      </DsCard>
     </>
   );
 }

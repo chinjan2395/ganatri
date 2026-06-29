@@ -48,9 +48,9 @@ small full-stack vertical slices that mirror the history slice.
 Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — skip in nightly runs.
 
 ## Last Run
-- Date: 2026-06-29
-- Outcome: DS-R14 complete — Added `aria-label` prop to `DsButton`; replaced residual raw `<button>` in StatsScreen (2) and LobbyScreen (1) with `DsButton tone="ghost"`; extended ESLint gate with `no-restricted-syntax` banning `<button>/<input>` in screen files (AdminScreen + DesignSystemScreen excluded); 0 TS errors; ESLint 0 errors; 462 tests pass (153 + 114 + 195). Phase DS-R is COMPLETE.
-- Branch: nightly/2026-06-29-1817
+- Date: 2026-06-30
+- Outcome: DS-R15–R17 complete — RoomScreen raw patterns → DsBadge/DsTitleBlock/DsCard; DS room components (DetailsSidebar, ActivityPanel, VoiceChatPanel, SocialPanel) wrapped with DsCard; LobbyScreen + all screens using DsTopNav now have FeltBackdrop/FooterBar/CornerDecor and transparent headers (no hard background disconnecting header from body). 0 TS errors.
+- Branch: feat/ds-r15-r17-design-consistency
 
 ## Blockers / Needs Human Input
 _(none)_
