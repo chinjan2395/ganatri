@@ -1,5 +1,6 @@
 /* ============================================================
-   LobbyScreen — Casino-themed redesign
+   LobbyScreen — page layout only.
+   DS components handle all design colors/backgrounds/badge/card/button/modal/nav styling.
    Mobile-first; single breakpoint at 900px for desktop.
    ============================================================ */
 
@@ -62,9 +63,9 @@
   gap: 16px;
 }
 
-/* ── Header ───────────────────────────────────────────────────── */
+/* ── Mobile header ────────────────────────────────────────────── */
 
-.lobby__header {
+.lobby__mobile-header {
   position: sticky;
   top: 0;
   z-index: 50;
@@ -80,53 +81,38 @@
   -webkit-backdrop-filter: blur(8px);
 }
 
-.lobby__header-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  position: relative;
-  z-index: 61;
-  flex-shrink: 0;
+@media (min-width: 900px) {
+  .lobby__mobile-header {
+    display: none;
+  }
 }
 
-.lobby__header-center {
+/* Logo — used in both mobile header and DsTopNav logo slot */
+.lobby__header-logo {
+  display: block;
+  width: var(--lobby-header-logo-width);
+  height: auto;
+  filter: drop-shadow(0 0 12px rgba(231, 195, 74, 0.35));
   position: absolute;
   left: 50%;
   bottom: 0;
   transform: translate(-50%, var(--lobby-header-logo-overlap-y));
-  width: var(--lobby-header-logo-width);
-  z-index: 60;
   pointer-events: none;
-}
-
-.lobby__header-logo {
-  display: block;
-  width: 100%;
-  height: auto;
-  filter: drop-shadow(0 0 12px rgba(231, 195, 74, 0.35));
-}
-
-.lobby__header-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  position: relative;
-  z-index: 61;
-  flex-shrink: 0;
+  z-index: 60;
 }
 
 @media (min-width: 900px) {
-  .lobby__header {
-    padding: 14px 32px;
-  }
-
   .lobby__header-logo {
     filter: drop-shadow(0 0 32px rgba(231, 195, 74, 0.5));
+    /* In desktop DsTopNav the logo slot is inline, so clear the absolute positioning */
+    position: static;
+    transform: none;
+    width: min(160px, 18vw);
   }
 }
 
-.lobby__header-avatar {
+/* Mobile avatar button (in .lobby__mobile-header) */
+.lobby__mobile-avatar-btn {
   width: 38px;
   height: 38px;
   border-radius: 50%;
@@ -137,9 +123,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  transition: border-color 0.15s;
 }
 
-.lobby__header-avatar-img {
+.lobby__mobile-avatar-btn:hover {
+  border-color: rgba(231, 195, 74, 0.8);
+}
+
+.lobby__mobile-avatar-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -147,51 +140,11 @@
   display: block;
 }
 
-.lobby__header-avatar-initials {
+.lobby__mobile-avatar-initials {
   font-weight: 700;
   font-size: 16px;
   color: var(--accent);
   line-height: 1;
-}
-
-.lobby__header-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.lobby__header-rewards-btn {
-  font-size: 12px;
-  padding: 5px 14px;
-  height: auto;
-  min-height: unset;
-  opacity: 0.5;
-  cursor: not-allowed;
-  letter-spacing: 0.05em;
-}
-
-.lobby__header-icon-btn {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  min-height: unset;
-  background: transparent;
-  border: 1px solid rgba(231, 195, 74, 0.2);
-  border-radius: 50%;
-  color: var(--accent);
-  transition: background 0.15s;
-}
-
-.lobby__header-icon-btn:hover:not(:disabled) {
-  background: rgba(231, 195, 74, 0.1);
-  filter: none;
-  box-shadow: none;
 }
 
 /* ── Logo (rejoin screen only) ──────────────────────────────── */
@@ -205,25 +158,14 @@
 
 /* ── Create / Join panel ──────────────────────────────────────── */
 
+/* DsCard handles background/border/shadow; we just add the gap layout */
 .lobby__create-join-card {
-  background: var(--panel);
-  border: 1px solid rgba(231, 195, 74, 0.3);
-  border-radius: 12px;
-  box-shadow: var(--glow-gold), 0 8px 30px rgba(0, 0, 0, 0.4);
-  padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
-.lobby__name-input-top {
-  width: 100%;
-  box-sizing: border-box;
-  text-align: center;
-  font-size: 15px;
-}
-
-/* On mobile, the split is a column (stacked). On desktop, it's a two-column grid. */
+/* On mobile the split is a column (stacked). On desktop, it's two-column. */
 .lobby__cj-split {
   display: flex;
   flex-direction: column;
@@ -260,22 +202,6 @@
   }
 }
 
-/* Vertical divider — hidden on mobile, shown on desktop */
-.lobby__cj-divider {
-  display: none;
-}
-
-@media (min-width: 900px) {
-  .lobby__cj-divider {
-    display: block;
-    width: 1px;
-    background: rgba(231, 195, 74, 0.25);
-    flex-shrink: 0;
-    align-self: stretch;
-    margin: 4px 0;
-  }
-}
-
 .lobby__cj-heading {
   font-family: 'Cinzel', serif;
   font-size: 13px;
@@ -305,59 +231,10 @@
   }
 }
 
-/* "— OR JOIN WITH A CODE —" divider — shown on mobile, hidden on desktop */
-.lobby__or-divider {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  text-align: center;
-}
-
-.lobby__or-text {
-  font-size: 12px;
-  color: var(--text-dim);
-  white-space: nowrap;
-}
-
-@media (min-width: 900px) {
-  .lobby__or-divider {
-    display: none;
-  }
-}
-
-.lobby__create-btn {
-  width: 100%;
-  font-size: 14px;
-  letter-spacing: 0.08em;
-  padding: 13px 16px;
-}
-
-.lobby__create-btn-plus {
-  font-size: 18px;
-  font-weight: 900;
-  margin-right: 4px;
-  line-height: 1;
-}
-
 .lobby__join-form {
   display: flex;
   gap: 8px;
   align-items: center;
-}
-
-.lobby__code-input {
-  flex: 1;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  font-size: 14px;
-  min-width: 0;
-}
-
-.lobby__join-btn {
-  flex-shrink: 0;
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  padding: 10px 16px;
 }
 
 .lobby__error {
@@ -387,53 +264,18 @@
   grid-template-columns: repeat(4, 1fr);
 }
 
+/* DsButton handles most styling; we customize the tile layout */
 .lobby__qa-tile {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 14px 10px;
-  background: var(--panel);
-  border: 1px solid rgba(231, 195, 74, 0.2);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: background 0.15s;
+  flex-direction: column !important;
+  gap: 6px !important;
+  padding: 14px 10px !important;
   text-align: center;
-  /* Override the default gold gradient button style */
-  background-image: none;
-  color: var(--text);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  box-shadow: none;
-  text-shadow: none;
-  min-height: unset;
-  height: auto;
-}
-
-.lobby__qa-tile:hover:not(:disabled) {
-  background: rgba(231, 195, 74, 0.08);
-  filter: none;
-  box-shadow: none;
+  min-height: unset !important;
+  height: auto !important;
 }
 
 .lobby__qa-tile--disabled {
   opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.lobby__qa-icon {
-  width: 24px;
-  height: 24px;
-  color: var(--accent);
-  flex-shrink: 0;
-}
-
-@media (min-width: 900px) {
-  .lobby__qa-icon {
-    width: 28px;
-    height: 28px;
-  }
 }
 
 .lobby__qa-label {
@@ -483,26 +325,11 @@
 }
 
 .rp__view-all-btn {
-  font-size: 11px;
-  padding: 4px 10px;
-  height: auto;
-  min-height: unset;
-  background: transparent;
-  background-image: none;
-  border: 1px solid rgba(231, 195, 74, 0.3);
-  color: var(--accent);
-  border-radius: 6px;
-  cursor: pointer;
+  font-size: 11px !important;
+  padding: 4px 10px !important;
+  height: auto !important;
+  min-height: unset !important;
   letter-spacing: 0.06em;
-  text-shadow: none;
-  box-shadow: none;
-  transition: background 0.15s;
-}
-
-.rp__view-all-btn:hover:not(:disabled) {
-  background: rgba(231, 195, 74, 0.08);
-  filter: none;
-  box-shadow: none;
 }
 
 .rp__empty {
@@ -599,58 +426,6 @@
   pointer-events: none;
 }
 
-/* Avatar */
-.rp__avatar-wrap {
-  position: relative;
-  width: 44px;
-  height: 44px;
-  flex-shrink: 0;
-}
-
-.rp__avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1px solid rgba(231, 195, 74, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.rp__avatar--large {
-  width: 60px;
-  height: 60px;
-}
-
-.rp__desktop-card .rp__avatar-wrap {
-  width: 60px;
-  height: 60px;
-}
-
-.rp__desktop-card .rp__avatar {
-  width: 60px;
-  height: 60px;
-}
-
-.rp__avatar-initials {
-  background: var(--panel-2);
-  color: var(--accent);
-  font-weight: 700;
-  font-size: 17px;
-}
-
-.rp__online-dot {
-  position: absolute;
-  bottom: 1px;
-  right: 1px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #3ddc84;
-  border: 2px solid var(--bg);
-}
-
 /* Text */
 .rp__name {
   font-size: 13px;
@@ -673,37 +448,16 @@
 
 /* Invite button */
 .rp__invite-btn {
-  font-size: 11px;
-  padding: 4px 10px;
-  height: auto;
-  min-height: unset;
-  border-radius: 6px;
-  background: var(--accent);
-  background-image: none;
-  color: #12101c;
-  border: none;
-  font-weight: 700;
-  cursor: pointer;
-  transition: opacity 0.15s;
-  box-shadow: none;
-  text-shadow: none;
-  letter-spacing: 0.05em;
+  font-size: 11px !important;
+  padding: 4px 10px !important;
+  height: auto !important;
+  min-height: unset !important;
+  border-radius: 6px !important;
   position: relative;
 }
 
-.rp__invite-btn:hover:not(:disabled) {
-  opacity: 0.85;
-  filter: none;
-  box-shadow: none;
-}
-
-.rp__invite-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
 .rp__invite-btn--loading {
-  color: transparent;
+  color: transparent !important;
 }
 
 .rp__invite-btn--loading::after {
@@ -799,14 +553,12 @@
   }
 }
 
+/* DsCard handles card background/border; these override the layout inside */
 .sidebar__section {
-  background: var(--panel);
-  border: 1px solid rgba(231, 195, 74, 0.2);
-  border-radius: 12px;
-  padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 0;
+  padding: 18px;
 }
 
 .sidebar__heading {
@@ -860,23 +612,9 @@
   text-align: center;
 }
 
+/* DsAvatar in sidebar — override size-derived border only */
 .sidebar__player-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1px solid rgba(231, 195, 74, 0.3);
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.sidebar__player-avatar--initials {
-  background: var(--panel-2);
-  color: var(--accent);
-  font-weight: 700;
-  font-size: 12px;
 }
 
 .sidebar__player-name {
@@ -920,11 +658,11 @@
 }
 
 .sidebar__link-btn {
-  width: 100%;
-  font-size: 11px;
-  padding: 8px 12px;
-  height: auto;
-  min-height: unset;
+  width: 100% !important;
+  font-size: 11px !important;
+  padding: 8px 12px !important;
+  height: auto !important;
+  min-height: unset !important;
   letter-spacing: 0.06em;
   text-align: center;
   margin-top: 10px;
@@ -951,147 +689,11 @@
   50% { opacity: 0.35; }
 }
 
-/* ── Mobile Bottom Nav ────────────────────────────────────────── */
+/* ── Profile modal body (used inside DsModal) ─────────────────── */
 
-.lobby__bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: rgba(10, 26, 16, 0.97);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-top: 1px solid rgba(231, 195, 74, 0.22);
-  display: flex;
-  padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px));
-  z-index: 100;
-}
-
-@media (min-width: 900px) {
-  .lobby__bottom-nav {
-    display: none;
-  }
-}
-
-.lobby__bottom-nav-tab {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  padding: 4px 6px;
-  background: transparent;
-  background-image: none;
-  border: none;
-  color: rgba(255, 255, 255, 0.45);
-  cursor: pointer;
-  transition: color 0.15s;
-  box-shadow: none;
-  text-shadow: none;
-  min-height: unset;
-  height: auto;
-  border-radius: 0;
-}
-
-.lobby__bottom-nav-tab:hover:not(:disabled) {
-  color: rgba(255, 255, 255, 0.7);
-  filter: none;
-  box-shadow: none;
-  background: transparent;
-}
-
-.lobby__bottom-nav-tab:active:not(:disabled) {
-  transform: none;
-}
-
-.lobby__bottom-nav-tab--active {
-  color: var(--accent);
-}
-
-.lobby__bottom-nav-label {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  line-height: 1;
-}
-
-/* ── Profile Panel overlay ────────────────────────────────────── */
-
-.lobby__profile-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  z-index: 200;
-  display: flex;
-  align-items: flex-end;
-}
-
-@media (min-width: 900px) {
-  .lobby__profile-overlay {
-    align-items: center;
-    justify-content: flex-end;
-    padding-right: 24px;
-  }
-}
-
-.lobby__profile-panel {
-  background: var(--panel);
-  border-radius: 16px 16px 0 0;
-  padding: 24px 20px calc(24px + env(safe-area-inset-bottom, 0px));
-  max-height: 85vh;
-  overflow-y: auto;
-  width: 100%;
-}
-
-@media (min-width: 900px) {
-  .lobby__profile-panel {
-    border-radius: 14px;
-    padding: 24px;
-    max-height: 90vh;
-    width: 360px;
-  }
-}
-
-.lobby__profile-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.lobby__profile-title {
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--accent);
-  margin: 0;
-  text-transform: uppercase;
-}
-
-.lobby__profile-close {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  padding: 0;
-  min-height: unset;
-  background: rgba(255, 255, 255, 0.06);
-  background-image: none;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: var(--text);
-  line-height: 1;
-  text-shadow: none;
-  box-shadow: none;
-}
-
-.lobby__profile-close:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  filter: none;
-  box-shadow: none;
+.lobby__panel {
+  border: 1px solid rgba(231, 195, 74, 0.4);
+  box-shadow: var(--glow-gold), 0 8px 30px rgba(0, 0, 0, 0.5);
 }
 
 .lobby__profile-body {
@@ -1108,7 +710,6 @@
 }
 
 /* ── Progression block (level badge + XP bar + rating) ─────────── */
-
 
 .lobby__progression {
   display: flex;
@@ -1194,54 +795,7 @@
   padding-left: 2px;
 }
 
-/* ── How To Play modal ────────────────────────────────────────── */
-
-.lobby__modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  z-index: 200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.lobby__modal-panel {
-  background: var(--panel);
-  border: 1px solid rgba(231, 195, 74, 0.25);
-  border-radius: 14px;
-  padding: 28px 24px;
-  max-width: 480px;
-  width: 90vw;
-  max-height: 85vh;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.lobby__modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.lobby__modal-title {
-  font-family: 'Cinzel', serif;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--accent);
-  margin: 0;
-  text-transform: uppercase;
-}
-
-.lobby__modal-body {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
+/* ── How To Play modal content (inside DsModal) ───────────────── */
 
 .lobby__modal-phase {
   font-size: 13px;
@@ -1252,51 +806,13 @@
   margin: 0 0 6px;
 }
 
-.lobby__modal-body p {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.8);
-  line-height: 1.6;
-  margin: 0;
-}
-
-.lobby__modal-close-btn {
-  align-self: center;
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  padding: 10px 32px;
-}
-
-/* ── Account / Profile (used inside ProfilePanel) ─────────────── */
-
-.lobby__panel {
-  border: 1px solid rgba(231, 195, 74, 0.4);
-  box-shadow: var(--glow-gold), 0 8px 30px rgba(0, 0, 0, 0.5);
-}
+/* ── Account / Profile body styles ─────────────────────────────── */
 
 .lobby__account-info {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-.lobby__avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1px solid rgba(231, 195, 74, 0.5);
-  flex-shrink: 0;
-  display: block;
-}
-
-.lobby__avatar--placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--panel-2);
-  color: var(--accent);
-  font-weight: 700;
-  font-size: 16px;
+  flex-wrap: wrap;
 }
 
 .lobby__account-name {
@@ -1316,25 +832,12 @@
 }
 
 .lobby__name-edit-btn {
-  font-size: 11px;
-  padding: 2px 8px;
-  height: auto;
-  min-height: unset;
-  background: transparent;
-  background-image: none;
-  border: 1px solid rgba(231, 195, 74, 0.35);
-  color: var(--accent);
-  border-radius: 4px;
-  cursor: pointer;
+  font-size: 11px !important;
+  padding: 2px 8px !important;
+  height: auto !important;
+  min-height: unset !important;
+  border-radius: 4px !important;
   line-height: 1.4;
-  text-shadow: none;
-  box-shadow: none;
-}
-
-.lobby__name-edit-btn:hover:not(:disabled) {
-  background: rgba(231, 195, 74, 0.1);
-  filter: none;
-  box-shadow: none;
 }
 
 .lobby__name-edit {
@@ -1342,28 +845,12 @@
   flex-direction: column;
   gap: 6px;
   flex: 1;
-}
-
-.lobby__name-input {
-  font-size: 14px;
-  padding: 4px 8px;
-  height: auto;
-  min-height: unset;
-  width: 100%;
-  box-sizing: border-box;
+  min-width: 0;
 }
 
 .lobby__name-edit-actions {
   display: flex;
   gap: 6px;
-}
-
-.lobby__name-save-btn,
-.lobby__name-cancel-btn {
-  font-size: 12px;
-  padding: 3px 10px;
-  height: auto;
-  min-height: unset;
 }
 
 .lobby__name-edit-error {
@@ -1382,27 +869,12 @@
 }
 
 .lobby__blocked-toggle {
-  font-size: 12px;
-  padding: 4px 10px;
-  height: auto;
-  min-height: unset;
-  background: transparent;
-  background-image: none;
-  border: 1px solid rgba(231, 195, 74, 0.3);
-  color: var(--accent);
-  border-radius: 6px;
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.15s;
-  width: 100%;
-  text-shadow: none;
-  box-shadow: none;
-}
-
-.lobby__blocked-toggle:hover:not(:disabled) {
-  background: rgba(231, 195, 74, 0.08);
-  filter: none;
-  box-shadow: none;
+  font-size: 12px !important;
+  padding: 4px 10px !important;
+  height: auto !important;
+  min-height: unset !important;
+  text-align: left !important;
+  width: 100% !important;
 }
 
 .lobby__blocked-panel {
@@ -1440,26 +912,12 @@
 }
 
 .lobby__unblock-btn {
-  font-size: 11px;
-  padding: 3px 10px;
-  height: auto;
-  min-height: unset;
-  background: transparent;
-  background-image: none;
-  border: 1px solid rgba(231, 195, 74, 0.4);
-  color: var(--accent);
-  border-radius: 5px;
-  cursor: pointer;
+  font-size: 11px !important;
+  padding: 3px 10px !important;
+  height: auto !important;
+  min-height: unset !important;
+  border-radius: 5px !important;
   flex-shrink: 0;
-  transition: background 0.15s;
-  text-shadow: none;
-  box-shadow: none;
-}
-
-.lobby__unblock-btn:hover:not(:disabled) {
-  background: rgba(231, 195, 74, 0.1);
-  filter: none;
-  box-shadow: none;
 }
 
 .lobby__blocked-empty {
@@ -1477,45 +935,30 @@
   text-align: center;
 }
 
-/* ── Delete account section ───────────────────────────────────── */
+/* ── Data export section ───────────────────────────────────────── */
 
 .lobby__data-export-section {
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid rgba(255,255,255,0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
+
 .lobby__data-export-btn {
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.3);
-  border-radius: 6px;
-  color: rgba(255,255,255,0.7);
-  cursor: pointer;
-  font-size: 0.85rem;
-  padding: 0.45rem 0.9rem;
-  width: 100%;
-  text-align: left;
-  transition: border-color 0.15s, color 0.15s;
-  min-height: unset;
-  height: auto;
-  box-shadow: none;
-  text-shadow: none;
-  background-image: none;
+  width: 100% !important;
+  text-align: left !important;
+  font-size: 0.85rem !important;
+  padding: 0.45rem 0.9rem !important;
+  height: auto !important;
+  min-height: unset !important;
 }
-.lobby__data-export-btn:hover:not(:disabled) {
-  border-color: rgba(255,255,255,0.5);
-  color: #fff;
-  filter: none;
-  box-shadow: none;
-}
-.lobby__data-export-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+
 .lobby__data-export-error {
   color: #f87171;
   font-size: 0.8rem;
   margin-top: 0.35rem;
 }
+
+/* ── Delete account section ───────────────────────────────────── */
 
 .lobby__delete-section {
   margin-top: 16px;
@@ -1524,26 +967,16 @@
 }
 
 .lobby__delete-btn {
-  background: none;
-  border: none;
-  padding: 0;
-  font-size: 12px;
-  color: #ef4444;
-  cursor: pointer;
+  font-size: 12px !important;
+  padding: 3px 10px !important;
+  height: auto !important;
+  min-height: unset !important;
+  background: none !important;
+  border: none !important;
+  color: #ef4444 !important;
   text-decoration: underline;
   text-underline-offset: 2px;
-  min-height: unset;
-  height: auto;
-  box-shadow: none;
-  text-shadow: none;
-  background-image: none;
-  transition: color 0.15s;
-}
-
-.lobby__delete-btn:hover:not(:disabled) {
-  color: #f87171;
-  filter: none;
-  box-shadow: none;
+  box-shadow: none !important;
 }
 
 .lobby__delete-confirm {
@@ -1567,61 +1000,19 @@
 }
 
 .lobby__confirm-yes-btn {
-  font-size: 12px;
-  padding: 6px 14px;
-  height: auto;
-  min-height: unset;
-  background: #ef4444;
-  background-image: none;
-  border: none;
-  border-radius: 6px;
-  color: #fff;
-  cursor: pointer;
-  font-weight: 700;
-  text-shadow: none;
-  box-shadow: none;
-  transition: background 0.15s;
+  font-size: 12px !important;
+  padding: 6px 14px !important;
+  height: auto !important;
+  min-height: unset !important;
   flex-shrink: 0;
-}
-
-.lobby__confirm-yes-btn:hover:not(:disabled) {
-  background: #dc2626;
-  filter: none;
-  box-shadow: none;
-}
-
-.lobby__confirm-yes-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .lobby__confirm-cancel-btn {
-  font-size: 12px;
-  padding: 6px 14px;
-  height: auto;
-  min-height: unset;
-  background: transparent;
-  background-image: none;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: rgba(255, 255, 255, 0.65);
-  cursor: pointer;
-  text-shadow: none;
-  box-shadow: none;
-  transition: border-color 0.15s, color 0.15s;
+  font-size: 12px !important;
+  padding: 6px 14px !important;
+  height: auto !important;
+  min-height: unset !important;
   flex-shrink: 0;
-}
-
-.lobby__confirm-cancel-btn:hover:not(:disabled) {
-  border-color: rgba(255, 255, 255, 0.4);
-  color: rgba(255, 255, 255, 0.9);
-  filter: none;
-  box-shadow: none;
-}
-
-.lobby__confirm-cancel-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .lobby__delete-error {
@@ -1629,10 +1020,4 @@
   color: #ef4444;
   margin: 0;
   font-weight: 600;
-}
-
-/* ── Legacy / utility classes still used in rejoin early return ── */
-
-.lobby__or {
-  font-size: 13px;
 }

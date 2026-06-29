@@ -13,7 +13,7 @@
 Phase DS-R — Design System Consolidation
 
 ## Status
-IN_PROGRESS — DS-R9 complete (2026-06-28). DS-R10 is next.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+IN_PROGRESS — DS-R10 complete (2026-06-29). DS-R11 is next.  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase 6i Data export (2026-06-25) — `download_my_data` event: server handler (getUserGameHistory + getPlayerStats in parallel, flattenHistoryEntry + mapStatsView), 4 integration tests; web DownloadMyDataAck type + downloadMyData() helper + GameProvider callback + LobbyScreen "Download My Data" button (DOM-append pattern, deferred revokeObjectURL). 458 tests pass (153 engine + 114 server + 191 db).
@@ -47,25 +47,24 @@ small full-stack vertical slices that mirror the history slice.
 Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — skip in nightly runs.
 
 ## Last Run
-- Date: 2026-06-28
-- Outcome: DS-R9 complete — SessionsScreen migrated to DS components (247 lines TSX, 197→137 lines CSS); removed SessionsHeader/SessionRow local sub-components + inline SVGs; replaced with DsTopNav/DsScreenHeader/DsSessionRow/DsButton/DsSpinner/DsEmptyState/DsAlert/DsBottomNav/FooterBar; added mobile DsBottomNav (previously absent); CSS stripped of all design styles; 458 tests pass.
-- Branch: nightly/2026-06-28-1941
+- Date: 2026-06-29
+- Outcome: DS-R10 complete — LobbyScreen migrated to DS components (1433→1109 lines TSX, 1638→1023 lines CSS); new DsDivider DS component; DsField/DsButton/DsAvatar/DsCard extended with new props; removed LobbyHeader/MobileBottomNav/ProfilePanel/HowToPlayModal local sub-components + inline SVGs; replaced with DsTopNav/DsBottomNav/DsModal/DsField/DsButton/DsIcon/DsAvatar/DsDivider/DsCard/DsEmptyState; framer-motion removed; 458 tests pass.
+- Branch: nightly/2026-06-29-0450
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-**Phase DS-R is in progress.** DS-R1 through DS-R9 are done. Next: DS-R10 — Migrate `LobbyScreen` (the largest).
+**Phase DS-R is in progress.** DS-R1 through DS-R10 are done. Next: DS-R11 — Migrate `EndScreen`.
 
-DS-R10 task: `LobbyScreen.tsx` + `.css`. This is the largest migration. Key replacements:
-- `LobbyHeader` → `DsTopNav`
-- Create/join inputs → `DsField` + `DsButton`
-- Dividers → `DsDivider` (add to DS if missing)
-- `ProfilePanel` / `HowToPlayModal` → `DsModal`
-- `MobileBottomNav` → `DsBottomNav`
-- `QuickActions` / `RecentlyPlayed` / `DesktopSidebar` → `DsCard` / `DsListRow` / `DsAvatar` / `DsButton`
-- All icons → `DsIcon`
-- Preserve all state/handlers: create/join/rejoin/Google login/blocked-users/invite system/recently-played/download-my-data
+DS-R11 task: `components/EndScreen.tsx` + `.css`. Key replacements:
+- `DsModal`/`DsCard` shell
+- Rankings via `DsRankRow`/`DsListRow`
+- Buttons via `DsButton`
+- Trophy/winner via `DsIcon`/`DsAvatar`
+- Keep `playerNames` wiring
+
+Note: DS now includes `DsDivider` (added in DS-R10). DsField, DsButton, DsAvatar, DsCard all have extended props (type/className/title/online) as of DS-R10.
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.

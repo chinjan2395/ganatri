@@ -1,0 +1,34 @@
+.ds-divider {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted, rgba(231,195,74,0.45));
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  gap: 12px;
+}
+.ds-divider--horizontal {
+  flex-direction: row;
+}
+.ds-divider--vertical {
+  flex-direction: column;
+  align-self: stretch;
+  width: 1px;
+}
+.ds-divider--horizontal::before,
+.ds-divider--horizontal::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--text-muted, rgba(231,195,74,0.45));
+}
+.ds-divider--vertical::before,
+.ds-divider--vertical::after {
+  content: '';
+  flex: 1;
+  width: 1px;
+  background: var(--text-muted, rgba(231,195,74,0.45));
+}
+.ds-divider__label {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
