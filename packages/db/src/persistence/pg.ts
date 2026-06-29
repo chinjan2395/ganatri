@@ -670,7 +670,22 @@ export class PgPersistence implements GamePersistence {
         .limit(1);
       if (existingLedger.length > 0) return;
 
+      // Batch containers — filled during the loop, flushed after.
+      const progressionValues: Array<{
+        userId: string;
+        rankedRating: number;
+        totalXp: number;
+        level: number;
+        highestMatchScore: number;
+        totalMatchScore: number;
+        ghostFinishes: number;
+        updatedAt: Date;
+      }> = [];
+      const allLedgerRows: ReturnType<typeof toLedgerRows> = [];
+
       for (const player of input.scoredPlayers) {
+        // Per-player UPDATE kept serial: each row has different values and a
+        // CASE WHEN batch expression would add complexity for only 2–4 rows.
         await tx
           .update(gamePlayers)
           .set({
@@ -684,35 +699,44 @@ export class PgPersistence implements GamePersistence {
           continue;
         }
 
+        // Collect for batch upsert below.
+        progressionValues.push({
+          userId: player.userId,
+          rankedRating: player.progressionAfter.rankedRating,
+          totalXp: player.progressionAfter.totalXp,
+          level: player.progressionAfter.level,
+          highestMatchScore: player.progressionAfter.highestMatchScore,
+          totalMatchScore: player.progressionAfter.totalMatchScore,
+          ghostFinishes: player.progressionAfter.ghostFinishes,
+          updatedAt: player.progressionAfter.updatedAt,
+        });
+
+        // Collect for batch insert below.
+        allLedgerRows.push(...toLedgerRows(input.gameId, player));
+      }
+
+      // Single batch upsert for all player_progression rows.
+      if (progressionValues.length > 0) {
         await tx
           .insert(playerProgression)
-          .values({
-            userId: player.userId,
-            rankedRating: player.progressionAfter.rankedRating,
-            totalXp: player.progressionAfter.totalXp,
-            level: player.progressionAfter.level,
-            highestMatchScore: player.progressionAfter.highestMatchScore,
-            totalMatchScore: player.progressionAfter.totalMatchScore,
-            ghostFinishes: player.progressionAfter.ghostFinishes,
-            updatedAt: player.progressionAfter.updatedAt,
-          })
+          .values(progressionValues)
           .onConflictDoUpdate({
             target: playerProgression.userId,
             set: {
-              rankedRating: player.progressionAfter.rankedRating,
-              totalXp: player.progressionAfter.totalXp,
-              level: player.progressionAfter.level,
-              highestMatchScore: player.progressionAfter.highestMatchScore,
-              totalMatchScore: player.progressionAfter.totalMatchScore,
-              ghostFinishes: player.progressionAfter.ghostFinishes,
-              updatedAt: player.progressionAfter.updatedAt,
+              rankedRating: sql`excluded.ranked_rating`,
+              totalXp: sql`excluded.total_xp`,
+              level: sql`excluded.level`,
+              highestMatchScore: sql`excluded.highest_match_score`,
+              totalMatchScore: sql`excluded.total_match_score`,
+              ghostFinishes: sql`excluded.ghost_finishes`,
+              updatedAt: sql`excluded.updated_at`,
             },
           });
+      }
 
-        const ledgerRows = toLedgerRows(input.gameId, player);
-        if (ledgerRows.length > 0) {
-          await tx.insert(scoreLedger).values(ledgerRows);
-        }
+      // Single batch insert for all score_ledger rows.
+      if (allLedgerRows.length > 0) {
+        await tx.insert(scoreLedger).values(allLedgerRows);
       }
     });
   }

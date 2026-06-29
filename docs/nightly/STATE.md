@@ -13,7 +13,7 @@
 Phase 6i/6j — Privacy, retention & compliance / Operations & hardening
 
 ## Status
-NOT_STARTED  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+IN_PROGRESS  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase DS-R — Design System Consolidation (2026-06-29) — DS-R1 through DS-R14 complete. All player-facing screens consume `@ganatri/ds` only. ESLint gate bans raw `<button>/<input>` in screen files (excludes AdminScreen + DesignSystemScreen). `DsButton` extended with `aria-label` prop. 462 tests pass (153 engine + 114 server + 195 db).
@@ -49,26 +49,27 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-29
-- Outcome: DS-R14 complete — Added `aria-label` prop to `DsButton`; replaced residual raw `<button>` in StatsScreen (2) and LobbyScreen (1) with `DsButton tone="ghost"`; extended ESLint gate with `no-restricted-syntax` banning `<button>/<input>` in screen files (AdminScreen + DesignSystemScreen excluded); 0 TS errors; ESLint 0 errors; 462 tests pass (153 + 114 + 195). Phase DS-R is COMPLETE.
-- Branch: nightly/2026-06-29-1817
+- Outcome: Phase 6j partial — `PgPersistence.applyGameScoring` batch optimization (playerProgression + scoreLedger inserts batched from N per-player queries to 2 batch operations); 8 new contract tests for `applyGameScoring`/`getPlayerProgression`/`getScoreHistory` (4 contracts × 2 impls); 470 tests pass (153 engine + 114 server + 203 db, up from 462).
+- Branch: nightly/2026-06-29-2009
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-**Phase DS-R is COMPLETE.** Next phase: 6i/6j — Privacy, retention & compliance / Operations & hardening.
+**Phase 6i/6j is IN_PROGRESS.** Phase 6j "Performance: query plans & N+1 guards" item is done (applyGameScoring batch optimization + 8 new contract tests).
 
-Phase 6i remaining work (from DEVELOPMENT_PLAN.md):
-- Privacy policy & consent (cookie/localStorage disclosure)
-- Data retention policies: analytics-event purge (analytics table not yet built)
-- PII handling & encryption at rest
+Remaining Phase 6i work:
+- Privacy policy & consent (cookie/localStorage disclosure) — requires human decision on policy content; may be skipped
+- Data retention policies: analytics-event purge still TODO (blocked: no analytics table yet)
+- PII handling & encryption at rest — mostly infrastructure/host level (Neon provides at-rest encryption)
 
-Phase 6j remaining work:
-- Automated backups & restore drills
-- DB monitoring & alerting
-- Connection-pool sizing for scale
-- Cost & free-tier monitoring
-- Performance: query plans & N+1 guards
+Remaining Phase 6j work (mostly infrastructure, require human setup):
+- Automated backups & restore drills — Neon provides automated backups; restore drills need human
+- DB monitoring & alerting — external tooling (Neon dashboard, Render metrics)
+- Connection-pool sizing for scale — configuration; see `DATABASE_URL` + `PG_POOL_MAX` env if added
+- Cost & free-tier monitoring — operational
+
+**Recommendation for next run:** Move on to the next phase. All technically actionable items in 6i/6j are done (applyGameScoring optimization, existing retention pruning). Remaining items are operational/infrastructure/legal and require human input. Mark 6i/6j COMPLETE (the technically implementable parts) and advance to Phase 7 improvements.
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.
