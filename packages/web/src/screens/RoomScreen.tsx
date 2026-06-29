@@ -13,27 +13,16 @@ import {
   FooterBar,
   CornerDecor,
   FeltBackdrop,
+  DsButton,
+  DsIcon,
+  DsAlert,
 } from '@ganatri/ds';
 import type { FriendEntry, SeatData } from '@ganatri/ds';
 import { useGame } from '../state/GameProvider';
 import { useVoiceChatContext, useVoiceSpeaking } from '../state/VoiceChatProvider';
+import { useIsDesktop } from '../hooks/useIsDesktop';
 import logo from '../assets/ganatri-logo.png';
 import './RoomScreen.css';
-
-// ---------------------------------------------------------------------------
-// Hook: useIsDesktop
-// ---------------------------------------------------------------------------
-
-function useIsDesktop(): boolean {
-  const [v, setV] = useState(() => window.matchMedia('(min-width: 900px)').matches);
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 900px)');
-    const handler = (e: MediaQueryListEvent): void => setV(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-  return v;
-}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -275,15 +264,16 @@ export function RoomScreen(): React.ReactNode {
                 <OvalTable seats={seats} />
               </div>
               {isHost && canStart && (
-                <button
+                <DsButton
+                  tone="primary"
                   className="room__start-btn room__start--ready"
                   onClick={() => void handleStart()}
                   disabled={busy}
                 >
                   Start Game
-                </button>
+                </DsButton>
               )}
-              {err && <div className="room__error">{err}</div>}
+              {err && <DsAlert tone="danger" title="Error" description={err} />}
             </div>
           </main>
 
@@ -354,12 +344,7 @@ export function RoomScreen(): React.ReactNode {
         <img src={logo} alt="Ganatri" className="room__logo-mobile" />
         <div className="room__player-badge">
           <span className="room__player-badge-icon">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.7" />
-              <circle cx="17" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M3 19c0-2.8 2.7-4.5 6-4.5s6 1.7 6 4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-              <path d="M16 14.5c2.2.4 4 1.8 4 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
+            <DsIcon name="people" />
           </span>
           {room.players.length} PLAYER ROOM
         </div>
@@ -369,13 +354,14 @@ export function RoomScreen(): React.ReactNode {
           <StatusPanel playerCount={room.players.length} elapsedSeconds={elapsed} />
         </section>
         {isHost && canStart && (
-          <button
+          <DsButton
+            tone="primary"
             className="room__start-btn room__start--ready"
             onClick={() => void handleStart()}
             disabled={busy}
           >
             Start Game
-          </button>
+          </DsButton>
         )}
         <VoiceChatPanel
           participants={voiceParticipants}
@@ -391,41 +377,24 @@ export function RoomScreen(): React.ReactNode {
           onPttUp={() => voice.setPttActive(false)}
         />
         <div className="room__action-row">
-          <button type="button" className="room__action-btn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.7" />
-              <circle cx="17" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M3 19c0-2.8 2.7-4.5 6-4.5s6 1.7 6 4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-              <path d="M16 14.5c2.2.4 4 1.8 4 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
+          <DsButton type="button" tone="outline" className="room__action-btn">
+            <DsIcon name="people" />
             Invite Friends
-          </button>
-          <button type="button" className="room__action-btn" onClick={handleShare}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path
-                d="M10 13a5 5 0 0 0 7.54.54l2-2a5 5 0 0 0-7.07-7.07l-1.12 1.12"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
-              <path
-                d="M14 11a5 5 0 0 0-7.54-.54l-2 2a5 5 0 0 0 7.07 7.07l1.12-1.12"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
-            </svg>
+          </DsButton>
+          <DsButton type="button" tone="outline" className="room__action-btn" onClick={handleShare}>
+            <DsIcon name="share" />
             Share Link
-          </button>
+          </DsButton>
         </div>
-        {err && <div className="room__error">{err}</div>}
-        <button
-          className="danger room__leave-btn"
+        {err && <DsAlert tone="danger" title="Error" description={err} />}
+        <DsButton
+          tone="danger"
+          className="room__leave-btn"
           onClick={() => void leaveRoom()}
           disabled={busy}
         >
           Leave Room
-        </button>
+        </DsButton>
         {isHost && (
           <p className="room__host-footer muted">♛ You are the host</p>
         )}
