@@ -2,7 +2,7 @@
 
 **Last updated date:** See `docs/LAST_UPDATED.txt`. This file focuses on phase/task status; timestamps are tracked in a separate, low-overhead file to reduce read/write cost in SDK agent workflows.
 
-All 462 tests passing (153 engine + 114 server + 195 db).
+All 470 tests passing (153 engine + 114 server + 203 db).
 
 ---
 
@@ -436,7 +436,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | DB monitoring & alerting | ⬜ | Connection saturation, slow queries, disk usage, error rate. |
 | Connection-pool sizing for scale | ⬜ | Coordinate pool size with Phase 7g horizontal scaling (Redis adapter + shared DB). |
 | Cost & free-tier monitoring | ⬜ | Watch row/storage/egress limits on chosen host; alert before hitting caps. |
-| Performance: query plans & N+1 guards | ⬜ | `EXPLAIN` hot queries (leaderboard, match history, stats); avoid per-row queries in loops. |
+| Performance: query plans & N+1 guards | ✅ | `PgPersistence.applyGameScoring` batch optimization: `playerProgression` upserts + `scoreLedger` inserts batched from N per-player queries to 2 batch operations (N=2–4 players). Other hot queries (leaderboard, history, recovery) already use 2-query batch pattern. 8 new contract tests cover `applyGameScoring`/`getPlayerProgression`/`getScoreHistory` happy path, idempotency, and empty cases (4 contracts × 2 impls). 203 db tests pass. |
 
 > **Cross-phase note:** This phase absorbs and supersedes several Phase 7 (Improvements) items — 7b "Server state persistence" (→ 6a/6d), 7e "Session token expiry" (→ 6c), and the state-store half of 7g "Horizontal scaling / external state store" (→ 6a/6j). Internal sequencing: DB foundation (6a/6b) first, then persistence (6d), then accounts (6c), then stats/analytics/UI (6e–6h), then privacy/ops (6i/6j).
 >

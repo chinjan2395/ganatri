@@ -1220,6 +1220,156 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
     });
   });
 
+  // applyGameScoring / getPlayerProgression / getScoreHistory ----------------
+
+  describe('applyGameScoring / getPlayerProgression / getScoreHistory', () => {
+    async function buildScoredGame() {
+      const u1 = await freshUser('SA');
+      const u2 = await freshUser('SB');
+      const room = await repo.recordRoomCreated({ roomCode: 'SCTST1', hostUserId: u1 });
+      const now = new Date(Date.now() - 1);
+      const game = await repo.recordGameStarted({
+        roomId: room.id,
+        seed: 'score-test',
+        seatingOrder: [u1, u2],
+        startedAt: new Date(now.getTime() - 60_000),
+        playerCount: 2,
+      });
+      await repo.recordGameFinished({
+        gameId: game.id,
+        endedAt: now,
+        durationMs: 60_000,
+        isAbandoned: false,
+        winnerId: u1,
+        players: [
+          { userId: u1, seatIndex: 0, displayName: 'SA', finalRank: 1, wasCut: false, captureCount: 5, result: 'WIN' },
+          { userId: u2, seatIndex: 1, displayName: 'SB', finalRank: 2, wasCut: false, captureCount: 2, result: 'LOSS' },
+        ],
+      });
+      return { u1, u2, gameId: game.id, now };
+    }
+
+    function makeScoringInput(gameId: string, u1: string, u2: string, now: Date) {
+      return {
+        gameId,
+        scoredPlayers: [
+          {
+            seatIndex: 0,
+            userId: u1,
+            matchScore: 42,
+            xpEarned: 52,
+            rankedRatingDelta: 20,
+            matchScoreBreakdown: [
+              { kind: 'MATCH_SCORE' as const, reason: 'PLACEMENT_BONUS' as const, delta: 30 },
+              { kind: 'MATCH_SCORE' as const, reason: 'CAPTURE_CARD' as const, delta: 5 },
+            ],
+            ratingBreakdown: [
+              { kind: 'RANKED_RATING' as const, reason: 'RANKED_PLACEMENT' as const, delta: 20 },
+            ],
+            xpBreakdown: [
+              { kind: 'XP' as const, reason: 'XP_MATCH_BASE' as const, delta: 10 },
+              { kind: 'XP' as const, reason: 'XP_MATCH_SCORE' as const, delta: 42 },
+            ],
+            ghostFinish: false,
+            progressionAfter: {
+              userId: u1,
+              rankedRating: 1020,
+              totalXp: 152,
+              level: 3,
+              highestMatchScore: 42,
+              totalMatchScore: 42,
+              ghostFinishes: 0,
+              updatedAt: now,
+            },
+          },
+          {
+            seatIndex: 1,
+            userId: u2,
+            matchScore: 10,
+            xpEarned: 20,
+            rankedRatingDelta: -20,
+            matchScoreBreakdown: [
+              { kind: 'MATCH_SCORE' as const, reason: 'CAPTURE_CARD' as const, delta: 2 },
+            ],
+            ratingBreakdown: [
+              { kind: 'RANKED_RATING' as const, reason: 'RANKED_PLACEMENT' as const, delta: -20 },
+            ],
+            xpBreakdown: [
+              { kind: 'XP' as const, reason: 'XP_MATCH_BASE' as const, delta: 10 },
+              { kind: 'XP' as const, reason: 'XP_MATCH_SCORE' as const, delta: 10 },
+            ],
+            ghostFinish: false,
+            progressionAfter: {
+              userId: u2,
+              rankedRating: 980,
+              totalXp: 20,
+              level: 1,
+              highestMatchScore: 10,
+              totalMatchScore: 10,
+              ghostFinishes: 0,
+              updatedAt: now,
+            },
+          },
+        ],
+      };
+    }
+
+    it('persists progression and ledger rows for each player', async () => {
+      const { u1, u2, gameId, now } = await buildScoredGame();
+      await repo.applyGameScoring(makeScoringInput(gameId, u1, u2, now));
+
+      const prog1 = await repo.getPlayerProgression(u1);
+      expect(prog1).not.toBeNull();
+      expect(prog1!.rankedRating).toBe(1020);
+      expect(prog1!.totalXp).toBe(152);
+      expect(prog1!.level).toBe(3);
+      expect(prog1!.highestMatchScore).toBe(42);
+      expect(prog1!.totalMatchScore).toBe(42);
+
+      const prog2 = await repo.getPlayerProgression(u2);
+      expect(prog2).not.toBeNull();
+      expect(prog2!.rankedRating).toBe(980);
+      expect(prog2!.totalXp).toBe(20);
+
+      // u1: 2 matchScore + 1 rating + 2 xp = 5 ledger rows
+      const hist1 = await repo.getScoreHistory(u1);
+      expect(hist1).toHaveLength(1);
+      expect(hist1[0]!.matchScore).toBe(42);
+      expect(hist1[0]!.xpEarned).toBe(52);
+      expect(hist1[0]!.rankedRatingDelta).toBe(20);
+      expect(hist1[0]!.rows).toHaveLength(5);
+
+      // u2: 1 matchScore + 1 rating + 2 xp = 4 ledger rows
+      const hist2 = await repo.getScoreHistory(u2);
+      expect(hist2).toHaveLength(1);
+      expect(hist2[0]!.rows).toHaveLength(4);
+    });
+
+    it('applyGameScoring is idempotent: second call with same gameId is a no-op', async () => {
+      const { u1, u2, gameId, now } = await buildScoredGame();
+      const input = makeScoringInput(gameId, u1, u2, now);
+
+      await repo.applyGameScoring(input);
+      await repo.applyGameScoring(input);
+
+      const prog1 = await repo.getPlayerProgression(u1);
+      expect(prog1!.rankedRating).toBe(1020);
+
+      // Still exactly 5 rows for u1, not doubled to 10
+      const hist1 = await repo.getScoreHistory(u1);
+      expect(hist1[0]!.rows).toHaveLength(5);
+    });
+
+    it('getPlayerProgression returns null for unknown user', async () => {
+      expect(await repo.getPlayerProgression(h.newUserId())).toBeNull();
+    });
+
+    it('getScoreHistory returns empty array for user with no games', async () => {
+      const u = await freshUser('NoGames');
+      expect(await repo.getScoreHistory(u)).toHaveLength(0);
+    });
+  });
+
   // exportGamesData ----------------------------------------------------------
 
   describe('exportGamesData', () => {
