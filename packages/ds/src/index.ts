@@ -126,3 +126,6 @@ export type { DsPlayTimeBarProps } from './components/PlayTimeBar';
 
 export { DsPlaceholder } from './components/Placeholder';
 export type { DsPlaceholderProps, DsPlaceholderVariant } from './components/Placeholder';
+
+export { DsDivider } from './components/Divider';
+export type { DsDividerProps } from './components/Divider';

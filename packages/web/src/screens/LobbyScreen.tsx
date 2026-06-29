@@ -1,10 +1,15 @@
 // SCREEN SHELL: no reusable component definitions here.
 // Components → packages/ds | Screens → packages/web/src/screens
 import { useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
 import { useGame } from '../state/GameProvider';
+import { useIsDesktop } from '../hooks/useIsDesktop';
 import type { CoPlayerView, BlockedUserView, GetBlockedUsersAck, LeaderboardEntryView, PlayerStatsView } from '../protocol';
 import logo from '../assets/ganatri-logo.png';
+import {
+  DsTopNav, DsBottomNav, DsModal, DsDivider, DsField, DsButton, DsIcon,
+  DsAvatar, DsCard, DsEmptyState,
+} from '@ganatri/ds';
+import type { DsTopNavItem, DsBottomNavTab } from '@ganatri/ds';
 import './LobbyScreen.css';
 
 // ---------------------------------------------------------------------------
@@ -19,98 +24,20 @@ const INVITE_ERROR_MESSAGES: Record<string, string> = {
   UNAVAILABLE: 'Unavailable, try again',
 };
 
-// ---------------------------------------------------------------------------
-// Hook: useIsDesktop
-// ---------------------------------------------------------------------------
+const NAV_ITEMS: DsTopNavItem[] = [
+  { id: 'main', label: 'Home', icon: 'home' },
+  { id: 'history', label: 'History', icon: 'history' },
+  { id: 'stats', label: 'Stats', icon: 'stats' },
+  { id: 'leaderboard', label: 'Leaderboard', icon: 'leaderboard' },
+];
 
-function useIsDesktop(): boolean {
-  const [v, setV] = useState(() => window.matchMedia('(min-width: 900px)').matches);
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 900px)');
-    const handler = (e: MediaQueryListEvent): void => setV(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-  return v;
-}
-
-// ---------------------------------------------------------------------------
-// Sub-component: LobbyHeader
-// ---------------------------------------------------------------------------
-
-interface LobbyHeaderProps {
-  account: ReturnType<typeof useGame>['account'];
-  onSettingsClick: () => void;
-}
-
-function LobbyHeader({ account, onSettingsClick }: LobbyHeaderProps): React.ReactNode {
-  const isDesktop = useIsDesktop();
-  const displayName = account?.displayName ?? (account?.loggedIn ? 'User' : 'Guest');
-  const avatarUrl = account?.avatarUrl ?? null;
-  const initial = displayName.charAt(0).toUpperCase();
-
-  return (
-    <header className="lobby__header">
-      <div className="lobby__header-left">
-        <div className="lobby__header-avatar">
-          {avatarUrl ? (
-            <img
-              className="lobby__header-avatar-img"
-              src={avatarUrl}
-              alt=""
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <span className="lobby__header-avatar-initials" aria-hidden="true">
-              {initial}
-            </span>
-          )}
-        </div>
-        <span className="lobby__header-name">{displayName}</span>
-      </div>
-      <div className="lobby__header-center">
-        <img src={logo} alt="Ganatri" className="lobby__header-logo" />
-      </div>
-      <div className="lobby__header-right">
-        {isDesktop && (
-          <button
-            type="button"
-            className="lobby__header-rewards-btn"
-            disabled
-            title="Coming soon"
-          >
-            Rewards
-          </button>
-        )}
-        <button
-          type="button"
-          className="lobby__header-icon-btn"
-          aria-label="Notifications"
-          title="Notifications"
-        >
-          {/* Bell icon */}
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6V11c0-3.07-1.63-5.64-4.5-6.32V4a1.5 1.5 0 0 0-3 0v.68C7.63 5.36 6 7.93 6 11v5l-2 2v1h16v-1l-2-2z" fill="currentColor"/>
-          </svg>
-        </button>
-        {isDesktop && (
-          <button
-            type="button"
-            className="lobby__header-icon-btn"
-            aria-label="Settings"
-            title="Settings"
-            onClick={onSettingsClick}
-          >
-            {/* Gear icon */}
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill="currentColor"/>
-            </svg>
-          </button>
-        )}
-      </div>
-    </header>
-  );
-}
+const BOTTOM_TABS: DsBottomNavTab[] = [
+  { id: 'home', label: 'HOME', icon: 'home' },
+  { id: 'history', label: 'HISTORY', icon: 'history' },
+  { id: 'stats', label: 'STATS', icon: 'stats' },
+  { id: 'leaderboard', label: 'BOARD', icon: 'leaderboard' },
+  { id: 'profile', label: 'PROFILE', icon: 'profile' },
+];
 
 // ---------------------------------------------------------------------------
 // Sub-component: CreateJoinPanel
@@ -135,39 +62,29 @@ function CreateJoinPanel({
   onCreate, onJoin, onGoogleLogin,
 }: CreateJoinPanelProps): React.ReactNode {
   return (
-    <div className="lobby__create-join-card">
-      {/* Guest name input */}
+    <DsCard className="lobby__create-join-card">
       {!loggedIn && (
-        <input
-          className="lobby__name-input-top"
+        <DsField
+          label="Your name"
           value={name}
-          onChange={(e) => setName(e.target.value.slice(0, 20))}
           placeholder="Your name"
           maxLength={20}
           autoFocus
+          onChange={(e) => setName(e.target.value.slice(0, 20))}
         />
       )}
 
-      {/* Desktop two-column layout */}
       <div className="lobby__cj-split">
-        {/* Create Room */}
         <div className="lobby__cj-col">
           <div className="lobby__cj-heading">CREATE ROOM</div>
           <div className="lobby__cj-sub">Start a new game table</div>
-          <button
-            type="button"
-            className="lobby__create-btn"
-            onClick={onCreate}
-            disabled={busy}
-          >
-            <span className="lobby__create-btn-plus">+</span> CREATE ROOM
-          </button>
+          <DsButton onClick={onCreate} disabled={busy}>
+            <DsIcon name="plus" size={16} aria-hidden /> CREATE ROOM
+          </DsButton>
         </div>
 
-        {/* Vertical divider (desktop only) */}
-        <div className="lobby__cj-divider" aria-hidden="true" />
+        <DsDivider orientation="vertical" />
 
-        {/* Join Room */}
         <div className="lobby__cj-col">
           <div className="lobby__cj-heading">JOIN ROOM</div>
           <div className="lobby__cj-sub">Join with a room code</div>
@@ -178,37 +95,27 @@ function CreateJoinPanel({
               if (code.trim()) onJoin(code);
             }}
           >
-            <input
-              className="lobby__code-input"
+            <DsField
+              label="Room code"
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\s/g, '').toUpperCase())}
               placeholder="Enter room code"
               maxLength={8}
               autoCapitalize="characters"
+              onChange={(e) => setCode(e.target.value.replace(/\s/g, '').toUpperCase())}
             />
-            <button type="submit" className="lobby__join-btn" disabled={busy || !code.trim()}>
-              JOIN
-            </button>
+            <DsButton type="submit" disabled={busy || !code.trim()}>JOIN</DsButton>
           </form>
         </div>
       </div>
 
-      {/* Mobile: show "— OR JOIN WITH A CODE —" divider between two stacked sections */}
-      <div className="lobby__or-divider">
-        <span className="lobby__or-text">— OR JOIN WITH A CODE —</span>
-      </div>
+      <DsDivider label="OR JOIN WITH A CODE" />
 
-      {/* Errors */}
       {localError && <div className="lobby__error">{localError}</div>}
       {loginError && <div className="lobby__error">Google login failed, please try again.</div>}
 
-      {/* Google login for guests */}
       {!loggedIn && (
-        <button
-          type="button"
-          className="secondary lobby__google-btn"
-          onClick={onGoogleLogin}
-        >
+        <DsButton tone="secondary" onClick={onGoogleLogin} className="lobby__google-btn">
+          {/* Google G SVG — keep multi-path colored SVG inline since DsIcon doesn't have it */}
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -216,9 +123,9 @@ function CreateJoinPanel({
             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
           </svg>
           Log in with Google
-        </button>
+        </DsButton>
       )}
-    </div>
+    </DsCard>
   );
 }
 
@@ -236,56 +143,24 @@ interface QuickActionsProps {
 function QuickActions({ setScreen, onInviteFriends, onHowToPlay, isDesktop }: QuickActionsProps): React.ReactNode {
   return (
     <div className={`lobby__quick-actions${isDesktop ? ' lobby__quick-actions--desktop' : ''}`}>
-      <button
-        type="button"
-        className="lobby__qa-tile"
-        onClick={() => setScreen('leaderboard')}
-      >
-        {/* Trophy icon */}
-        <svg className="lobby__qa-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M19 5h-2V3H7v2H5C3.9 5 3 5.9 3 7v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z" fill="currentColor"/>
-        </svg>
+      <DsButton tone="secondary" className="lobby__qa-tile" onClick={() => setScreen('leaderboard')}>
+        <DsIcon name="leaderboard" size={24} aria-hidden />
         <span className="lobby__qa-label">LEADERBOARD</span>
-      </button>
-
-      <button
-        type="button"
-        className="lobby__qa-tile"
-        onClick={onInviteFriends}
-      >
-        {/* People icon */}
-        <svg className="lobby__qa-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" fill="currentColor"/>
-        </svg>
+      </DsButton>
+      <DsButton tone="secondary" className="lobby__qa-tile" onClick={onInviteFriends}>
+        <DsIcon name="people" size={24} aria-hidden />
         <span className="lobby__qa-label">INVITE FRIENDS</span>
-      </button>
-
-      <button
-        type="button"
-        className="lobby__qa-tile"
-        onClick={onHowToPlay}
-      >
-        {/* Question mark icon */}
-        <svg className="lobby__qa-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M11 18h2v-2h-2v2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4z" fill="currentColor"/>
-        </svg>
+      </DsButton>
+      <DsButton tone="secondary" className="lobby__qa-tile" onClick={onHowToPlay}>
+        <DsIcon name="settings" size={24} aria-hidden />
         <span className="lobby__qa-label">HOW TO PLAY</span>
-      </button>
-
+      </DsButton>
       {isDesktop && (
-        <button
-          type="button"
-          className="lobby__qa-tile lobby__qa-tile--disabled"
-          disabled
-          title="Coming soon"
-        >
-          {/* Gift icon */}
-          <svg className="lobby__qa-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M20 6h-2.18c.07-.24.18-.46.18-.71C18 3.47 16.53 2 14.71 2c-.79 0-1.41.3-2.07.93L12 3.56l-.64-.63C10.72 2.3 10.1 2 9.29 2 7.47 2 6 3.47 6 5.29c0 .25.11.47.18.71H4c-1.1 0-2 .9-2 2v3h1v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-8h1V8c0-1.1-.9-2-2-2zm-5.29-2c.48 0 .29.29.29.29S15 5.48 15 5c0 .35-.23.64-.57.74C14.09 5.82 14 5.64 14 5.46V5c0-.15.3-.29.71-.29zM8 5.29C8 4.53 8.53 4 9.29 4c.35 0 .64.14.85.36L11 5.41V5c0 .46-.3.9-.71.74C9.93 5.64 9.71 5.35 9.71 5c0 .35-.23.64-.57.74.06.08.86.26.86.55v.71H10C9.12 7 8.71 6.52 8 5.86V5.29zM11 19H5v-8h6v8zm0-10H3V8h8v1zm2 10v-8h6v8h-6zm3-10h-8V8h8v1z" fill="currentColor"/>
-          </svg>
+        <DsButton tone="secondary" className="lobby__qa-tile lobby__qa-tile--disabled" disabled title="Coming soon">
+          <DsIcon name="gift" size={24} aria-hidden />
           <span className="lobby__qa-label">DAILY BONUS</span>
           <span className="lobby__qa-sub">Coming soon</span>
-        </button>
+        </DsButton>
       )}
     </div>
   );
@@ -317,19 +192,17 @@ function RecentlyPlayed({ loggedIn, recentPlayers, invitePlayer }: RecentlyPlaye
     }
   }
 
+  // Loading state (null = still loading)
   if (recentPlayers === null) {
     return (
       <div className="recently-played">
         <div className="rp__header-row">
           <span className="lobby__section-heading">RECENTLY PLAYED</span>
         </div>
-        {/* Mobile rows */}
         <ul className="rp__rows" aria-label="Recently played players">
           {[0, 1, 2].map((i) => (
             <li key={i} className="rp__row rp__row--placeholder">
-              <div className="rp__avatar-wrap">
-                <div className="rp__avatar rp__avatar-initials" aria-hidden="true" />
-              </div>
+              <DsAvatar displayName=" " size={44} />
               <div className="rp__row-info">
                 <div className="rp__placeholder-bar" />
                 <div className="rp__placeholder-bar rp__placeholder-bar--short" />
@@ -337,13 +210,10 @@ function RecentlyPlayed({ loggedIn, recentPlayers, invitePlayer }: RecentlyPlaye
             </li>
           ))}
         </ul>
-        {/* Desktop cards */}
         <div className="rp__desktop-cards" aria-label="Recently played players">
           {[0, 1, 2].map((i) => (
             <div key={i} className="rp__desktop-card rp__desktop-card--placeholder">
-              <div className="rp__avatar-wrap">
-                <div className="rp__avatar rp__avatar-initials" aria-hidden="true" />
-              </div>
+              <DsAvatar displayName=" " size={60} />
               <div className="rp__placeholder-bar" />
               <div className="rp__placeholder-bar rp__placeholder-bar--short" />
             </div>
@@ -364,13 +234,10 @@ function RecentlyPlayed({ loggedIn, recentPlayers, invitePlayer }: RecentlyPlaye
         <div className="rp__header-row">
           <span className="lobby__section-heading">RECENTLY PLAYED</span>
         </div>
-        {/* Mobile rows */}
         <ul className="rp__rows" aria-label="Recently played players">
           {[0, 1, 2].map((i) => (
             <li key={i} className="rp__row rp__row--placeholder">
-              <div className="rp__avatar-wrap">
-                <div className="rp__avatar rp__avatar-initials" aria-hidden="true" />
-              </div>
+              <DsAvatar displayName=" " size={44} />
               <div className="rp__row-info">
                 <div className="rp__placeholder-bar" />
                 <div className="rp__placeholder-bar rp__placeholder-bar--short" />
@@ -382,7 +249,6 @@ function RecentlyPlayed({ loggedIn, recentPlayers, invitePlayer }: RecentlyPlaye
             </li>
           ))}
         </ul>
-        {/* Desktop cards */}
         <div className="rp__desktop-cards" aria-label="Recently played players">
           {[0, 1, 2].map((i) => (
             <div key={i} className="rp__desktop-card rp__desktop-card--placeholder">
@@ -390,9 +256,7 @@ function RecentlyPlayed({ loggedIn, recentPlayers, invitePlayer }: RecentlyPlaye
                 <span className="rp__lock-icon">&#128274;</span>
                 <span className="rp__lock-text">Log in to see players</span>
               </div>
-              <div className="rp__avatar-wrap">
-                <div className="rp__avatar rp__avatar-initials" aria-hidden="true" />
-              </div>
+              <DsAvatar displayName=" " size={60} />
               <div className="rp__placeholder-bar" />
               <div className="rp__placeholder-bar rp__placeholder-bar--short" />
             </div>
@@ -409,28 +273,7 @@ function RecentlyPlayed({ loggedIn, recentPlayers, invitePlayer }: RecentlyPlaye
         <div className="rp__header-row">
           <span className="lobby__section-heading">RECENTLY PLAYED</span>
         </div>
-        <p className="rp__empty">No games played yet. Create or join a room to get started!</p>
-      </div>
-    );
-  }
-
-  function renderAvatar(player: CoPlayerView, size: 'small' | 'large'): React.ReactNode {
-    const cls = size === 'large' ? 'rp__avatar rp__avatar--large' : 'rp__avatar';
-    return (
-      <div className="rp__avatar-wrap">
-        {player.avatarUrl ? (
-          <img
-            className={cls}
-            src={player.avatarUrl}
-            alt=""
-            referrerPolicy="no-referrer"
-          />
-        ) : (
-          <div className={`${cls} rp__avatar-initials`} aria-hidden="true">
-            {player.displayName.charAt(0).toUpperCase()}
-          </div>
-        )}
-        {player.isOnline && <span className="rp__online-dot" aria-label="Online" />}
+        <DsEmptyState message="No games played yet. Create or join a room to get started!" />
       </div>
     );
   }
@@ -450,14 +293,14 @@ function RecentlyPlayed({ loggedIn, recentPlayers, invitePlayer }: RecentlyPlaye
 
     return (
       <>
-        <button
-          type="button"
+        <DsButton
+          compact
           className={`rp__invite-btn${isLoading ? ' rp__invite-btn--loading' : ''}`}
           disabled={isLoading}
           onClick={() => void handleInvite(player.userId)}
         >
           {isLoading ? '' : 'INVITE'}
-        </button>
+        </DsButton>
         {errorMsg && <div className="rp__invite-error">{errorMsg}</div>}
       </>
     );
@@ -468,13 +311,14 @@ function RecentlyPlayed({ loggedIn, recentPlayers, invitePlayer }: RecentlyPlaye
       <div className="rp__header-row">
         <span className="lobby__section-heading">RECENTLY PLAYED</span>
         {hasMore && (
-          <button
-            type="button"
+          <DsButton
+            tone="secondary"
+            compact
             className="rp__view-all-btn"
             onClick={() => setExpanded((e) => !e)}
           >
             {expanded ? 'SHOW LESS' : 'VIEW ALL'}
-          </button>
+          </DsButton>
         )}
       </div>
 
@@ -487,7 +331,12 @@ function RecentlyPlayed({ loggedIn, recentPlayers, invitePlayer }: RecentlyPlaye
 
           return (
             <li key={player.userId} className="rp__row">
-              {renderAvatar(player, 'small')}
+              <DsAvatar
+                src={player.avatarUrl}
+                displayName={player.displayName}
+                size={44}
+                online={player.isOnline}
+              />
               <div className="rp__row-info">
                 <span className="rp__name">{player.displayName}</span>
                 <span className={`rp__status${player.isOnline ? ' rp__status--online' : ''}`}>
@@ -496,14 +345,14 @@ function RecentlyPlayed({ loggedIn, recentPlayers, invitePlayer }: RecentlyPlaye
               </div>
               <div className="rp__row-actions">
                 {player.isOnline && (
-                  <button
-                    type="button"
+                  <DsButton
+                    compact
                     className={`rp__invite-btn${isLoading ? ' rp__invite-btn--loading' : ''}`}
                     disabled={isLoading}
                     onClick={() => void handleInvite(player.userId)}
                   >
                     {isLoading ? '' : 'INV'}
-                  </button>
+                  </DsButton>
                 )}
                 {errorMsg && <div className="rp__invite-error">{errorMsg}</div>}
               </div>
@@ -516,7 +365,12 @@ function RecentlyPlayed({ loggedIn, recentPlayers, invitePlayer }: RecentlyPlaye
       <div className="rp__desktop-cards" aria-label="Recently played players">
         {desktopVisible.map((player) => (
           <div key={player.userId} className="rp__desktop-card">
-            {renderAvatar(player, 'large')}
+            <DsAvatar
+              src={player.avatarUrl}
+              displayName={player.displayName}
+              size={60}
+              online={player.isOnline}
+            />
             <div className="rp__name">{player.displayName}</div>
             <div className={`rp__status${player.isOnline ? ' rp__status--online' : ''}`}>
               {statusText(player)}
@@ -561,28 +415,10 @@ function DesktopSidebar({ requestLeaderboard, requestMyStats, loggedIn, setScree
     return () => { cancelled = true; };
   }, [isDesktop, loggedIn, requestLeaderboard, requestMyStats]);
 
-  function renderAvatarSmall(entry: LeaderboardEntryView): React.ReactNode {
-    if (entry.avatarUrl) {
-      return (
-        <img
-          className="sidebar__player-avatar"
-          src={entry.avatarUrl}
-          alt=""
-          referrerPolicy="no-referrer"
-        />
-      );
-    }
-    return (
-      <div className="sidebar__player-avatar sidebar__player-avatar--initials" aria-hidden="true">
-        {entry.displayName.charAt(0).toUpperCase()}
-      </div>
-    );
-  }
-
   return (
     <aside className="lobby__sidebar">
       {/* Top Players section */}
-      <div className="sidebar__section">
+      <DsCard className="sidebar__section">
         <h2 className="sidebar__heading">TOP PLAYERS</h2>
         {leaderboard === null ? (
           <div className="sidebar__skeleton-list">
@@ -600,30 +436,35 @@ function DesktopSidebar({ requestLeaderboard, requestMyStats, loggedIn, setScree
             ))}
           </div>
         ) : leaderboard.length === 0 ? (
-          <p className="sidebar__empty">No rankings yet</p>
+          <DsEmptyState message="No rankings yet" />
         ) : (
           <ul className="sidebar__player-list">
             {leaderboard.map((entry) => (
               <li key={entry.userId} className="sidebar__player-row">
                 <span className="sidebar__rank">{entry.rank}</span>
-                {renderAvatarSmall(entry)}
+                <DsAvatar
+                  src={entry.avatarUrl}
+                  displayName={entry.displayName}
+                  size={28}
+                  className="sidebar__player-avatar"
+                />
                 <span className="sidebar__player-name">{entry.displayName}</span>
                 <span className="sidebar__player-wins">{entry.gamesWon}W</span>
               </li>
             ))}
           </ul>
         )}
-        <button
-          type="button"
-          className="secondary sidebar__link-btn"
+        <DsButton
+          tone="secondary"
+          className="sidebar__link-btn"
           onClick={() => setScreen('leaderboard')}
         >
           VIEW FULL LEADERBOARD
-        </button>
-      </div>
+        </DsButton>
+      </DsCard>
 
       {/* Your Stats section */}
-      <div className="sidebar__section">
+      <DsCard className="sidebar__section">
         <h2 className="sidebar__heading">YOUR STATS</h2>
         {!loggedIn ? (
           <p className="sidebar__empty">Log in to see your stats</p>
@@ -657,420 +498,16 @@ function DesktopSidebar({ requestLeaderboard, requestMyStats, loggedIn, setScree
           </ul>
         )}
         {loggedIn && (
-          <button
-            type="button"
-            className="secondary sidebar__link-btn"
+          <DsButton
+            tone="secondary"
+            className="sidebar__link-btn"
             onClick={() => setScreen('stats')}
           >
             VIEW DETAILED STATS
-          </button>
+          </DsButton>
         )}
-      </div>
+      </DsCard>
     </aside>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Sub-component: MobileBottomNav
-// ---------------------------------------------------------------------------
-
-type BottomNavTab = 'home' | 'history' | 'stats' | 'profile';
-
-interface MobileBottomNavProps {
-  activeTab: BottomNavTab;
-  onTab: (t: BottomNavTab) => void;
-}
-
-function MobileBottomNav({ activeTab, onTab }: MobileBottomNavProps): React.ReactNode {
-  const tabs: { id: BottomNavTab; label: string; icon: React.ReactNode }[] = [
-    {
-      id: 'home',
-      label: 'HOME',
-      icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" fill="currentColor"/>
-        </svg>
-      ),
-    },
-    {
-      id: 'history',
-      label: 'HISTORY',
-      icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" fill="currentColor"/>
-        </svg>
-      ),
-    },
-    {
-      id: 'stats',
-      label: 'STATS',
-      icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z" fill="currentColor"/>
-          <path d="M7 12h2v5H7zm4-3h2v8h-2zm4-3h2v11h-2z" fill="currentColor"/>
-        </svg>
-      ),
-    },
-    {
-      id: 'profile',
-      label: 'PROFILE',
-      icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor"/>
-        </svg>
-      ),
-    },
-  ];
-
-  return (
-    <nav className="lobby__bottom-nav" aria-label="Main navigation">
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          type="button"
-          className={`lobby__bottom-nav-tab${activeTab === tab.id ? ' lobby__bottom-nav-tab--active' : ''}`}
-          onClick={() => onTab(tab.id)}
-          aria-current={activeTab === tab.id ? 'page' : undefined}
-        >
-          {tab.icon}
-          <span className="lobby__bottom-nav-label">{tab.label}</span>
-        </button>
-      ))}
-    </nav>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Sub-component: ProfilePanel
-// ---------------------------------------------------------------------------
-
-interface ProfilePanelProps {
-  account: ReturnType<typeof useGame>['account'];
-  progression: ReturnType<typeof useGame>['progression'];
-  loggedIn: boolean;
-  editingName: boolean;
-  editNameValue: string;
-  editNameBusy: boolean;
-  editNameError: string | null;
-  editInputRef: React.RefObject<HTMLInputElement>;
-  blockedOpen: boolean;
-  blockedUsers: BlockedUserView[] | null;
-  blockedLoading: boolean;
-  blockedError: string | null;
-  showDeleteConfirm: boolean;
-  deleteLoading: boolean;
-  deleteError: string | null;
-  downloadLoading: boolean;
-  downloadError: string | null;
-  onDownloadMyData: () => void;
-  onSaveName: () => void;
-  onCancelEdit: () => void;
-  onOpenEdit: () => void;
-  onEditNameChange: (v: string) => void;
-  onEditNameKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-  onBlockedToggle: () => void;
-  onUnblock: (userId: string) => void;
-  onDeleteAccountClick: () => void;
-  onDeleteAccountConfirm: () => void;
-  onDeleteAccountCancel: () => void;
-  onLogout: () => void;
-  onGoogleLogin: () => void;
-  onSetScreen: (s: 'history' | 'stats' | 'sessions') => void;
-  onClose: () => void;
-}
-
-function ProfilePanel({
-  account, progression, loggedIn, editingName, editNameValue, editNameBusy, editNameError, editInputRef,
-  blockedOpen, blockedUsers, blockedLoading, blockedError,
-  showDeleteConfirm, deleteLoading, deleteError,
-  downloadLoading, downloadError, onDownloadMyData,
-  onSaveName, onCancelEdit, onOpenEdit, onEditNameChange, onEditNameKeyDown,
-  onBlockedToggle, onUnblock, onDeleteAccountClick, onDeleteAccountConfirm, onDeleteAccountCancel,
-  onLogout, onGoogleLogin, onSetScreen, onClose,
-}: ProfilePanelProps): React.ReactNode {
-  return (
-    <div className="lobby__profile-overlay" role="dialog" aria-modal="true" aria-label="Profile & Settings">
-      <div className="lobby__profile-panel">
-        <div className="lobby__profile-header">
-          <h2 className="lobby__profile-title">PROFILE & SETTINGS</h2>
-          <button
-            type="button"
-            className="lobby__profile-close"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            &times;
-          </button>
-        </div>
-
-        {loggedIn ? (
-          <div className="lobby__profile-body">
-            {/* Account info + name edit */}
-            <div className="lobby__account-info">
-              {account?.avatarUrl ? (
-                <img
-                  className="lobby__avatar"
-                  src={account.avatarUrl}
-                  alt=""
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <span className="lobby__avatar lobby__avatar--placeholder" aria-hidden="true">
-                  {(account?.displayName ?? '?').charAt(0).toUpperCase()}
-                </span>
-              )}
-              {editingName ? (
-                <div className="lobby__name-edit">
-                  <input
-                    ref={editInputRef}
-                    className="lobby__name-input"
-                    aria-label="Display name"
-                    value={editNameValue}
-                    onChange={(e) => onEditNameChange(e.target.value.slice(0, 20))}
-                    maxLength={20}
-                    onKeyDown={onEditNameKeyDown}
-                  />
-                  <div className="lobby__name-edit-actions">
-                    <button
-                      type="button"
-                      className="lobby__name-save-btn"
-                      onClick={onSaveName}
-                      disabled={editNameBusy}
-                    >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary lobby__name-cancel-btn"
-                      onClick={onCancelEdit}
-                      disabled={editNameBusy}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                  {editNameError && (
-                    <div className="lobby__name-edit-error">{editNameError}</div>
-                  )}
-                </div>
-              ) : (
-                <div className="lobby__name-row">
-                  <span className="lobby__account-name">
-                    {account?.displayName ?? 'Signed in'}
-                  </span>
-                  <button
-                    type="button"
-                    className="lobby__name-edit-btn"
-                    onClick={onOpenEdit}
-                    title="Edit display name"
-                    aria-label="Edit display name"
-                  >
-                    Edit
-                  </button>
-                </div>
-              )}
-              {progression && (() => {
-                const xpRange = (2 * progression.level - 1) * 25;
-                const xpIntoLevel = xpRange - progression.xpToNextLevel;
-                const xpPercent = Math.max(0, Math.min(100, (xpIntoLevel / xpRange) * 100));
-                return (
-                  <div className="lobby__progression">
-                    <div className="lobby__progression-row">
-                      <div className="lobby__level-badge">
-                        <span className="lobby__level-label">LEVEL</span>
-                        <span className="lobby__level-num">{progression.level}</span>
-                      </div>
-                      <div className="lobby__xp-block">
-                        <div className="lobby__xp-bar">
-                          <div
-                            className="lobby__xp-bar-fill"
-                            style={{ width: `${xpPercent}%` }}
-                          />
-                        </div>
-                        <span className="lobby__xp-label">{xpIntoLevel} / {xpRange} XP</span>
-                      </div>
-                    </div>
-                    <p className="lobby__rating-label">Rating: {progression.rankedRating}</p>
-                  </div>
-                );
-              })()}
-            </div>
-
-            {/* Nav links */}
-            <div className="row lobby__account-actions">
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => { onSetScreen('history'); onClose(); }}
-              >
-                History
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => { onSetScreen('stats'); onClose(); }}
-              >
-                Stats
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => { onSetScreen('sessions'); onClose(); }}
-              >
-                Sessions
-              </button>
-              <button type="button" className="secondary" onClick={onLogout}>
-                Log out
-              </button>
-            </div>
-
-            {/* Blocked users */}
-            <div className="lobby__blocked-section">
-              <button
-                type="button"
-                className="lobby__blocked-toggle"
-                onClick={onBlockedToggle}
-              >
-                Blocked Users {blockedOpen ? '▴' : '▾'}
-              </button>
-              {blockedOpen && (
-                <div className="lobby__blocked-panel">
-                  {blockedLoading && <p className="lobby__blocked-empty">Loading...</p>}
-                  {blockedError && <p className="lobby__blocked-error">{blockedError}</p>}
-                  {!blockedLoading && !blockedError && blockedUsers !== null && (
-                    blockedUsers.length === 0 ? (
-                      <p className="lobby__blocked-empty">No blocked users.</p>
-                    ) : (
-                      <ul className="lobby__blocked-list">
-                        {blockedUsers.map((u) => (
-                          <li key={u.userId} className="lobby__blocked-row">
-                            <span className="lobby__blocked-name">{u.displayName}</span>
-                            <button
-                              type="button"
-                              className="lobby__unblock-btn"
-                              onClick={() => onUnblock(u.userId)}
-                            >
-                              Unblock
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Download my data */}
-            <div className="lobby__data-export-section">
-              <button
-                type="button"
-                className="lobby__data-export-btn"
-                onClick={onDownloadMyData}
-                disabled={downloadLoading}
-              >
-                {downloadLoading ? 'Exporting...' : 'Download My Data'}
-              </button>
-              {downloadError && <p className="lobby__data-export-error">{downloadError}</p>}
-            </div>
-
-            {/* Delete account */}
-            <div className="lobby__delete-section">
-              {!showDeleteConfirm ? (
-                <button
-                  type="button"
-                  className="lobby__delete-btn"
-                  onClick={onDeleteAccountClick}
-                >
-                  Delete account
-                </button>
-              ) : (
-                <div className="lobby__delete-confirm">
-                  <p className="lobby__delete-confirm-text">
-                    This will permanently delete your account and all your data. This cannot be undone.
-                  </p>
-                  {deleteError && (
-                    <p className="lobby__delete-error">{deleteError}</p>
-                  )}
-                  <div className="lobby__delete-confirm-actions">
-                    <button
-                      type="button"
-                      className="lobby__confirm-yes-btn"
-                      onClick={onDeleteAccountConfirm}
-                      disabled={deleteLoading}
-                    >
-                      {deleteLoading ? 'Deleting...' : 'Yes, delete my account'}
-                    </button>
-                    <button
-                      type="button"
-                      className="lobby__confirm-cancel-btn"
-                      onClick={onDeleteAccountCancel}
-                      disabled={deleteLoading}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="lobby__profile-body">
-            <p className="lobby__profile-guest-msg">Sign in to save your stats and history.</p>
-            <button
-              type="button"
-              className="secondary lobby__google-btn"
-              onClick={onGoogleLogin}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-              </svg>
-              Log in with Google
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Sub-component: HowToPlayModal
-// ---------------------------------------------------------------------------
-
-interface HowToPlayModalProps {
-  onClose: () => void;
-}
-
-function HowToPlayModal({ onClose }: HowToPlayModalProps): React.ReactNode {
-  return (
-    <div className="lobby__modal-overlay" role="dialog" aria-modal="true" aria-label="How to play">
-      <div className="lobby__modal-panel">
-        <div className="lobby__modal-header">
-          <h2 className="lobby__modal-title">HOW TO PLAY GANATRI</h2>
-          <button
-            type="button"
-            className="lobby__profile-close"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            &times;
-          </button>
-        </div>
-        <div className="lobby__modal-body">
-          <h3 className="lobby__modal-phase">Part 1 — Capture Phase</h3>
-          <p>Each player gets 5 cards. On your turn, play one card. If table cards sum to your card's value (up to 3 cards), you capture them. Same-rank cards on the table are always captured. Draw one card from the stock after each play. When all cards are gone, Part 1 ends — your captures become your Part 2 hand.</p>
-
-          <h3 className="lobby__modal-phase">Part 2 — Suit / Cut Phase</h3>
-          <p>The first player leads any card. You must follow suit if you can. If everyone follows, the highest card of the led suit wins the trick — those cards are cancelled. If you can't follow suit, play any card as a "cut" — the trick ends immediately, and the holder of the highest led-suit card picks up all table cards. The cutter leads next. The last player holding cards loses!</p>
-        </div>
-        <button type="button" className="lobby__modal-close-btn" onClick={onClose}>
-          GOT IT
-        </button>
-      </div>
-    </div>
   );
 }
 
@@ -1120,7 +557,7 @@ export function LobbyScreen(): React.ReactNode {
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
-  // New overlay state
+  // Overlay state
   const [profileOpen, setProfileOpen] = useState(false);
   const [howToPlayOpen, setHowToPlayOpen] = useState(false);
 
@@ -1302,34 +739,290 @@ export function LobbyScreen(): React.ReactNode {
     }
   }
 
+  const displayName = account?.displayName ?? (account?.loggedIn ? 'User' : 'Guest');
+  const avatarUrl = account?.avatarUrl ?? null;
+  const avatarInitial = displayName.charAt(0).toUpperCase();
+
   // Rejoin early return
   if (rejoin) {
     return (
       <div className="center-screen">
         <img src={logo} alt="Ganatri" className="lobby__logo" />
-        <motion.div
-          className="card-surface lobby__panel"
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ type: 'spring', stiffness: 280, damping: 26 }}
-        >
+        <DsCard className="lobby__panel">
           <p>
             You already have an active game in room <strong>{rejoin}</strong>.
           </p>
-          <button onClick={() => void handleJoin(rejoin)} disabled={busy}>
-            Rejoin {rejoin}
-          </button>
-          <button className="secondary" onClick={() => setRejoin(null)} disabled={busy}>
-            Back
-          </button>
-        </motion.div>
+          <DsButton onClick={() => void handleJoin(rejoin)} disabled={busy}>Rejoin {rejoin}</DsButton>
+          <DsButton tone="secondary" onClick={() => setRejoin(null)} disabled={busy}>Back</DsButton>
+        </DsCard>
+      </div>
+    );
+  }
+
+  // Profile modal body (inline)
+  function renderProfileBody(): React.ReactNode {
+    if (!loggedIn) {
+      return (
+        <div className="lobby__profile-body">
+          <p className="lobby__profile-guest-msg">Sign in to save your stats and history.</p>
+          <DsButton tone="secondary" onClick={() => loginWithGoogle()} className="lobby__google-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            Log in with Google
+          </DsButton>
+        </div>
+      );
+    }
+
+    const xpRange = progression ? (2 * progression.level - 1) * 25 : 0;
+    const xpIntoLevel = progression ? xpRange - progression.xpToNextLevel : 0;
+    const xpPercent = progression ? Math.max(0, Math.min(100, (xpIntoLevel / xpRange) * 100)) : 0;
+
+    return (
+      <div className="lobby__profile-body">
+        {/* Account info + name edit */}
+        <div className="lobby__account-info">
+          <DsAvatar
+            src={avatarUrl}
+            displayName={displayName}
+            size={40}
+          />
+          {editingName ? (
+            <div className="lobby__name-edit">
+              <DsField
+                label="Display name"
+                value={editNameValue}
+                maxLength={20}
+                inputRef={editInputRef}
+                onChange={(e) => setEditNameValue(e.target.value.slice(0, 20))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void handleSaveName();
+                  if (e.key === 'Escape') cancelEditName();
+                }}
+              />
+              <div className="lobby__name-edit-actions">
+                <DsButton
+                  onClick={() => void handleSaveName()}
+                  disabled={editNameBusy}
+                >
+                  Save
+                </DsButton>
+                <DsButton
+                  tone="secondary"
+                  onClick={cancelEditName}
+                  disabled={editNameBusy}
+                >
+                  Cancel
+                </DsButton>
+              </div>
+              {editNameError && (
+                <div className="lobby__name-edit-error">{editNameError}</div>
+              )}
+            </div>
+          ) : (
+            <div className="lobby__name-row">
+              <span className="lobby__account-name">
+                {account?.displayName ?? 'Signed in'}
+              </span>
+              <DsButton
+                tone="secondary"
+                compact
+                className="lobby__name-edit-btn"
+                onClick={openEditName}
+                title="Edit display name"
+              >
+                Edit
+              </DsButton>
+            </div>
+          )}
+          {progression && (
+            <div className="lobby__progression">
+              <div className="lobby__progression-row">
+                <div className="lobby__level-badge">
+                  <span className="lobby__level-label">LEVEL</span>
+                  <span className="lobby__level-num">{progression.level}</span>
+                </div>
+                <div className="lobby__xp-block">
+                  <div className="lobby__xp-bar">
+                    <div
+                      className="lobby__xp-bar-fill"
+                      style={{ width: `${xpPercent}%` }}
+                    />
+                  </div>
+                  <span className="lobby__xp-label">{xpIntoLevel} / {xpRange} XP</span>
+                </div>
+              </div>
+              <p className="lobby__rating-label">Rating: {progression.rankedRating}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Nav links */}
+        <div className="row lobby__account-actions">
+          <DsButton
+            tone="secondary"
+            onClick={() => { setScreen('history'); setProfileOpen(false); }}
+          >
+            History
+          </DsButton>
+          <DsButton
+            tone="secondary"
+            onClick={() => { setScreen('stats'); setProfileOpen(false); }}
+          >
+            Stats
+          </DsButton>
+          <DsButton
+            tone="secondary"
+            onClick={() => { setScreen('sessions'); setProfileOpen(false); }}
+          >
+            Sessions
+          </DsButton>
+          <DsButton tone="secondary" onClick={() => logout()}>
+            Log out
+          </DsButton>
+        </div>
+
+        {/* Blocked users */}
+        <div className="lobby__blocked-section">
+          <DsButton
+            tone="secondary"
+            className="lobby__blocked-toggle"
+            onClick={() => void handleBlockedToggle()}
+          >
+            Blocked Users {blockedOpen ? '▴' : '▾'}
+          </DsButton>
+          {blockedOpen && (
+            <div className="lobby__blocked-panel">
+              {blockedLoading && <p className="lobby__blocked-empty">Loading...</p>}
+              {blockedError && <p className="lobby__blocked-error">{blockedError}</p>}
+              {!blockedLoading && !blockedError && blockedUsers !== null && (
+                blockedUsers.length === 0 ? (
+                  <p className="lobby__blocked-empty">No blocked users.</p>
+                ) : (
+                  <ul className="lobby__blocked-list">
+                    {blockedUsers.map((u) => (
+                      <li key={u.userId} className="lobby__blocked-row">
+                        <span className="lobby__blocked-name">{u.displayName}</span>
+                        <DsButton
+                          tone="secondary"
+                          compact
+                          className="lobby__unblock-btn"
+                          onClick={() => void handleUnblock(u.userId)}
+                        >
+                          Unblock
+                        </DsButton>
+                      </li>
+                    ))}
+                  </ul>
+                )
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Download my data */}
+        <div className="lobby__data-export-section">
+          <DsButton
+            tone="secondary"
+            className="lobby__data-export-btn"
+            onClick={() => void handleDownloadMyData()}
+            disabled={downloadLoading}
+          >
+            {downloadLoading ? 'Exporting...' : 'Download My Data'}
+          </DsButton>
+          {downloadError && <p className="lobby__data-export-error">{downloadError}</p>}
+        </div>
+
+        {/* Delete account */}
+        <div className="lobby__delete-section">
+          {!showDeleteConfirm ? (
+            <DsButton
+              tone="danger"
+              compact
+              className="lobby__delete-btn"
+              onClick={() => { setShowDeleteConfirm(true); setDeleteError(null); }}
+            >
+              Delete account
+            </DsButton>
+          ) : (
+            <div className="lobby__delete-confirm">
+              <p className="lobby__delete-confirm-text">
+                This will permanently delete your account and all your data. This cannot be undone.
+              </p>
+              {deleteError && (
+                <p className="lobby__delete-error">{deleteError}</p>
+              )}
+              <div className="lobby__delete-confirm-actions">
+                <DsButton
+                  tone="danger"
+                  className="lobby__confirm-yes-btn"
+                  onClick={() => void handleDeleteAccount()}
+                  disabled={deleteLoading}
+                >
+                  {deleteLoading ? 'Deleting...' : 'Yes, delete my account'}
+                </DsButton>
+                <DsButton
+                  tone="secondary"
+                  className="lobby__confirm-cancel-btn"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={deleteLoading}
+                >
+                  Cancel
+                </DsButton>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
 
   return (
     <div className="lobby__root">
-      <LobbyHeader account={account} onSettingsClick={() => setProfileOpen(true)} />
+      {/* Desktop sticky header */}
+      {isDesktop ? (
+        <DsTopNav
+          logo={<img src={logo} alt="Ganatri" className="lobby__header-logo" />}
+          items={NAV_ITEMS}
+          activeId="main"
+          onNavigate={(id) => {
+            if (id === 'history') setScreen('history');
+            else if (id === 'stats') setScreen('stats');
+            else if (id === 'leaderboard') setScreen('leaderboard');
+          }}
+          avatarUrl={avatarUrl}
+          avatarInitial={avatarInitial}
+          avatarLabel={displayName}
+          onAvatarClick={() => setProfileOpen(true)}
+        />
+      ) : (
+        <header className="lobby__mobile-header">
+          <img src={logo} alt="Ganatri" className="lobby__header-logo" />
+          <button
+            type="button"
+            className="lobby__mobile-avatar-btn"
+            aria-label={displayName}
+            onClick={() => setProfileOpen(true)}
+          >
+            {avatarUrl ? (
+              <img
+                className="lobby__mobile-avatar-img"
+                src={avatarUrl}
+                alt=""
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <span className="lobby__mobile-avatar-initials" aria-hidden="true">
+                {avatarInitial}
+              </span>
+            )}
+          </button>
+        </header>
+      )}
 
       <div className="lobby__desktop-layout">
         {/* Main content column */}
@@ -1372,8 +1065,9 @@ export function LobbyScreen(): React.ReactNode {
       </div>
 
       {/* Fixed mobile bottom nav */}
-      <MobileBottomNav
-        activeTab={profileOpen ? 'profile' : 'home'}
+      <DsBottomNav
+        tabs={BOTTOM_TABS}
+        activeId={profileOpen ? 'profile' : 'home'}
         onTab={(tab) => {
           if (tab === 'home') {
             setProfileOpen(false);
@@ -1381,53 +1075,35 @@ export function LobbyScreen(): React.ReactNode {
             setScreen('history');
           } else if (tab === 'stats') {
             setScreen('stats');
+          } else if (tab === 'leaderboard') {
+            setScreen('leaderboard');
           } else if (tab === 'profile') {
             setProfileOpen(true);
           }
         }}
       />
 
-      {/* Overlays */}
+      {/* Profile modal */}
       {profileOpen && (
-        <ProfilePanel
-          account={account}
-          progression={progression}
-          loggedIn={loggedIn}
-          editingName={editingName}
-          editNameValue={editNameValue}
-          editNameBusy={editNameBusy}
-          editNameError={editNameError}
-          editInputRef={editInputRef}
-          blockedOpen={blockedOpen}
-          blockedUsers={blockedUsers}
-          blockedLoading={blockedLoading}
-          blockedError={blockedError}
-          showDeleteConfirm={showDeleteConfirm}
-          deleteLoading={deleteLoading}
-          deleteError={deleteError}
-          downloadLoading={downloadLoading}
-          downloadError={downloadError}
-          onDownloadMyData={() => void handleDownloadMyData()}
-          onSaveName={() => void handleSaveName()}
-          onCancelEdit={cancelEditName}
-          onOpenEdit={openEditName}
-          onEditNameChange={setEditNameValue}
-          onEditNameKeyDown={(e) => {
-            if (e.key === 'Enter') void handleSaveName();
-            if (e.key === 'Escape') cancelEditName();
-          }}
-          onBlockedToggle={() => void handleBlockedToggle()}
-          onUnblock={(uid) => void handleUnblock(uid)}
-          onDeleteAccountClick={() => { setShowDeleteConfirm(true); setDeleteError(null); }}
-          onDeleteAccountConfirm={() => void handleDeleteAccount()}
-          onDeleteAccountCancel={() => setShowDeleteConfirm(false)}
-          onLogout={() => logout()}
-          onGoogleLogin={() => loginWithGoogle()}
-          onSetScreen={setScreen}
-          onClose={() => setProfileOpen(false)}
-        />
+        <DsModal title="PROFILE & SETTINGS" onClose={() => setProfileOpen(false)} maxWidth="480px">
+          {renderProfileBody()}
+        </DsModal>
       )}
-      {howToPlayOpen && <HowToPlayModal onClose={() => setHowToPlayOpen(false)} />}
+
+      {/* How To Play modal */}
+      {howToPlayOpen && (
+        <DsModal
+          title="HOW TO PLAY GANATRI"
+          onClose={() => setHowToPlayOpen(false)}
+          footer={<DsButton onClick={() => setHowToPlayOpen(false)}>GOT IT</DsButton>}
+        >
+          <h3 className="lobby__modal-phase">Part 1 — Capture Phase</h3>
+          <p>Each player gets 5 cards. On your turn, play one card. If table cards sum to your card&apos;s value (up to 3 cards), you capture them. Same-rank cards on the table are always captured. Draw one card from the stock after each play. When all cards are gone, Part 1 ends — your captures become your Part 2 hand.</p>
+
+          <h3 className="lobby__modal-phase">Part 2 — Suit / Cut Phase</h3>
+          <p>The first player leads any card. You must follow suit if you can. If everyone follows, the highest card of the led suit wins the trick — those cards are cancelled. If you can&apos;t follow suit, play any card as a &quot;cut&quot; — the trick ends immediately, and the holder of the highest led-suit card picks up all table cards. The cutter leads next. The last player holding cards loses!</p>
+        </DsModal>
+      )}
     </div>
   );
 }

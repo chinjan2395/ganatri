@@ -8,6 +8,8 @@ export interface DsCardProps {
   subtitle?: string;
   tone?: Tone;
   children: ReactNode;
+  /** Extra CSS class names */
+  className?: string;
 }
 
 export function DsCard({
@@ -15,9 +17,11 @@ export function DsCard({
   subtitle,
   tone = 'default',
   children,
+  className,
 }: DsCardProps): ReactNode {
+  const cls = [`ds-card ds-card--${tone}`, className].filter(Boolean).join(' ');
   return (
-    <article className={`ds-card ds-card--${tone}`}>
+    <article className={cls}>
       {title !== undefined || subtitle !== undefined ? (
         <div className="ds-card__header">
           {title !== undefined ? <h3>{title}</h3> : null}
