@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ganatri Enhancement Report — 2026-06-30</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FAF8F3; --surface:#ECE5D8; --surface-2:#E5DDCD; --line:#DAD3C6;
+    --ink:#1C1A17; --text:#57534C; --muted:#8A857C;
+    --accent:#E07B5C; --accent-deep:#D2693F; --on-dark:#EDE7DB; --on-dark-muted:#A49E92;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  @page{ size:A4; margin:0 0 60px 0; }
+  @page{
+    @bottom-center{
+      content: counter(page) " / " counter(pages);
+      color:var(--accent);
+      font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:500;
+      letter-spacing:.05em;
+    }
+  }
+  html,body{ background:var(--bg); }
+  body{
+    font-family:'Inter',system-ui,sans-serif; color:var(--text);
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+    font-size:14px; line-height:1.5;
+  }
+  .page{ max-width:760px; margin:0 auto; padding:64px 48px 0; }
+
+  .eyebrow{ font-size:12px; font-weight:700; letter-spacing:.15em; text-transform:uppercase;
+            color:var(--accent); text-align:center; }
+  .title{ font-family:'Playfair Display',Georgia,serif; font-weight:800; font-size:52px;
+           line-height:1.05; color:var(--ink); text-align:center; margin:14px 0 16px; }
+  .title .accent{ color:var(--accent); }
+  .subtitle{ font-size:16px; color:var(--muted); text-align:center; max-width:560px;
+             margin:0 auto 8px; }
+  .subtitle strong{ color:var(--ink); font-weight:700; }
+
+  .section-eyebrow{ font-size:12px; font-weight:700; letter-spacing:.15em;
+                    text-transform:uppercase; color:var(--accent); margin:32px 0 16px;
+                    break-after:avoid; page-break-after:avoid; }
+  h2.section{ font-family:'Playfair Display',serif; font-weight:700; font-size:26px;
+              color:var(--ink); margin:0 0 16px; }
+
+  .callout-row{ display:flex; gap:14px; margin-top:24px;
+                break-inside:avoid; page-break-inside:avoid; }
+  .callout{ flex:1; background:var(--surface); border-radius:14px; padding:16px 18px;
+            font-size:13px; line-height:1.5; }
+  .callout strong{ color:var(--ink); }
+  .callout .accent{ color:var(--accent-deep); font-weight:700; }
+  .callout--dark{ background:var(--ink); color:var(--on-dark); }
+  .callout--dark .accent{ color:var(--accent); font-weight:700; }
+
+  .steps{ margin-top:8px; }
+  .step{ display:flex; gap:14px; padding:16px 0; border-bottom:1px solid var(--line);
+         break-inside:avoid; page-break-inside:avoid; }
+  .step:last-child{ border-bottom:0; }
+  .step__num{ flex:0 0 28px; width:28px; height:28px; border-radius:50%;
+              background:var(--accent); color:#fff; font-weight:700; font-size:13px;
+              display:flex; align-items:center; justify-content:center; }
+  .step__title{ font-size:17px; font-weight:700; color:var(--ink); margin-bottom:4px; }
+  .step__body{ font-size:14px; color:var(--text); }
+  .step__tip{ font-family:'Playfair Display',serif; font-style:italic; font-size:13px;
+              color:var(--accent-deep); margin-top:6px; }
+
+  .feature{ background:var(--ink); color:var(--on-dark); border-radius:16px;
+            padding:22px 24px; margin-top:24px;
+            break-inside:avoid; page-break-inside:avoid; }
+  .feature__head{ font-family:'Inter',sans-serif; font-weight:700; font-size:18px;
+                  color:#fff; margin-bottom:16px; }
+  .feature__grid{ display:grid; grid-template-columns:auto 1fr; gap:10px 18px; }
+  .feature__row{ display:contents; }
+  .feature__row .term{ color:var(--accent); font-family:'JetBrains Mono',monospace;
+                       font-size:13px; }
+  .feature__row .desc{ color:var(--on-dark-muted); font-size:13px; }
+
+  .cards{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-top:16px;
+          break-inside:avoid; page-break-inside:avoid; }
+  .card{ background:var(--surface); border-radius:14px; padding:18px 20px;
+         break-inside:avoid; page-break-inside:avoid; }
+  .card--accent{ background:var(--accent); color:#fff; }
+  .card__icon{ font-size:20px; margin-bottom:10px; }
+  .card__title{ font-size:15px; font-weight:700; color:var(--ink); margin-bottom:6px; }
+  .card--accent .card__title{ color:#fff; }
+  .card__body{ font-size:13px; line-height:1.5; color:var(--text); }
+  .card--accent .card__body{ color:#FFF1EA; }
+
+  code{ font-family:'JetBrains Mono',monospace; font-size:.92em; background:var(--surface-2);
+        color:var(--ink); padding:1px 6px; border-radius:5px; }
+  .callout--dark code, .feature code, .card--accent code{
+        background:rgba(255,255,255,.14); color:#fff; }
+
+  .note{ display:flex; gap:10px; align-items:flex-start; color:var(--muted); font-size:12px;
+         margin:32px 0 24px; break-inside:avoid; page-break-inside:avoid; }
+  .note .arrow{ color:var(--accent); font-weight:700; }
+
+  /* Finding rows — used for each individual finding */
+  .finding{ padding:14px 0; border-bottom:1px solid var(--line);
+            break-inside:avoid; page-break-inside:avoid; }
+  .finding:last-child{ border-bottom:0; }
+  .finding__header{ display:flex; align-items:baseline; gap:10px; margin-bottom:4px; }
+  .finding__id{ font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:500;
+                background:var(--surface-2); color:var(--ink); padding:1px 6px; border-radius:5px; }
+  .finding__title{ font-size:15px; font-weight:700; color:var(--ink); }
+  .finding__severity-critical{ font-size:11px; font-weight:700; letter-spacing:.08em;
+    text-transform:uppercase; color:#fff; background:#C0392B;
+    padding:2px 7px; border-radius:4px; }
+  .finding__severity-major{ font-size:11px; font-weight:700; letter-spacing:.08em;
+    text-transform:uppercase; color:#fff; background:var(--accent-deep);
+    padding:2px 7px; border-radius:4px; }
+  .finding__severity-minor{ font-size:11px; font-weight:700; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--ink); background:var(--surface-2);
+    padding:2px 7px; border-radius:4px; }
+  .finding__file{ font-size:12px; color:var(--muted); margin-bottom:6px; }
+  .finding__body{ font-size:13px; color:var(--text); line-height:1.5; margin-bottom:6px; }
+  .finding__rec{ font-size:13px; color:var(--text); line-height:1.5; }
+  .finding__rec strong{ color:var(--ink); }
+</style>
+</head>
+<body>
+<!-- CONTENT START -->
+<div class="page">
+
+  <div class="eyebrow">Ganatri &mdash; Code Review &middot; 2026-06-30</div>
+  <h1 class="title">Enhancement &amp; <span class="accent">Security</span> Report</h1>
+  <p class="subtitle">Comprehensive audit of <strong>packages/server</strong> and <strong>packages/web</strong> — 19 findings across security, code quality, UX, and performance.</p>
+
+  <!-- Executive Summary -->
+  <div class="callout" style="margin-top:28px;">
+    <strong>Executive Summary.</strong> A full-codebase review dated 2026-06-30 identified
+    <span class="accent">six critical security vulnerabilities</span> that require immediate remediation before any public deployment — notably an admin-secret bypass that grants unauthenticated callers full admin access, an OAuth token leak via redirect URL, and unguarded cross-room WebRTC relay. Beyond security, the server-side handler module has grown to 2,513 lines with no domain separation, creating compounding maintenance risk. Several UX defects — permanently hung button state and a double-firing phase-transition banner — degrade the player experience on network instability. All 19 findings are prioritised below; the top 6 are security-critical and should block release.
+  </div>
+
+  <!-- CRITICAL WARNING CALLOUT — one dark box, genuinely critical -->
+  <div class="callout callout--dark" style="margin-top:18px;">
+    <span class="accent">RELEASE BLOCKER</span> &mdash; Six critical vulnerabilities are present in the current build. Do not expose this server to untrusted networks until C1–C6 are resolved. Any socket client can reach admin endpoints today.
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ SECURITY -->
+  <div class="section-eyebrow">Security</div>
+  <h2 class="section">Vulnerabilities</h2>
+
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">C1</span>
+      <span class="finding__title">Admin secret bypassed when env var is unset</span>
+      <span class="finding__severity-critical">Critical</span>
+    </div>
+    <div class="finding__file"><code>packages/server/src/config.ts:104–106</code></div>
+    <div class="finding__body">If <code>ADMIN_SECRET</code> is not set, <code>isValidAdminSecret()</code> returns <code>true</code> for every caller. Any socket client can emit admin events (data export, impersonation, server stats) and receive full admin access.</div>
+    <div class="finding__rec"><strong>Fix:</strong> Invert the default — deny all admin requests when <code>ADMIN_SECRET</code> is unconfigured and log a startup warning. Use <code>crypto.timingSafeEqual</code> to close the timing-attack vector.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">C2</span>
+      <span class="finding__title">OAuth redirect embeds session token in URL query parameter</span>
+      <span class="finding__severity-critical">Critical</span>
+    </div>
+    <div class="finding__file"><code>packages/server/src/createApp.ts:321</code></div>
+    <div class="finding__body">The full session token is appended as <code>?auth_token=&lt;token&gt;</code>. This leaks into browser history, server access logs, referrer headers, and proxy logs. The httpOnly cookie is set simultaneously, making the URL parameter redundant.</div>
+    <div class="finding__rec"><strong>Fix:</strong> Remove the <code>auth_token</code> query parameter from the redirect. Update <code>packages/web/src/net/socket.ts:71–80</code> (<code>captureAuthTokenFromUrl</code>) to remove its consumer.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">C3</span>
+      <span class="finding__title">Voice signaling relayed without room membership check</span>
+      <span class="finding__severity-critical">Critical</span>
+    </div>
+    <div class="finding__file"><code>packages/server/src/handlers.ts:1063–1102</code></div>
+    <div class="finding__body">A logged-in player who knows another player's <code>playerId</code> can send arbitrary WebRTC offers, answers, and ICE candidates to that player's socket regardless of whether they share a room.</div>
+    <div class="finding__rec"><strong>Fix:</strong> Before relaying, verify <code>session.roomCode === target.roomCode</code>. Reject silently otherwise. Add a targeted test case.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">C4</span>
+      <span class="finding__title">Online-presence broadcast leaks to all connected clients globally</span>
+      <span class="finding__severity-critical">Critical</span>
+    </div>
+    <div class="finding__file"><code>packages/server/src/handlers.ts:537, 549</code></div>
+    <div class="finding__body"><code>PLAYER_ONLINE_STATUS</code> is emitted with <code>socket.broadcast.emit</code>, delivering every user's online/offline state to every connected socket — including strangers in unrelated rooms.</div>
+    <div class="finding__rec"><strong>Fix:</strong> Replace with <code>io.to(session.roomCode).emit(...)</code>. One-line change; zero functional impact on room members.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">C5</span>
+      <span class="finding__title">Ghost-session adoption trusts client-supplied <code>playerId</code></span>
+      <span class="finding__severity-critical">Critical</span>
+    </div>
+    <div class="finding__file"><code>packages/server/src/handlers.ts:428–465</code></div>
+    <div class="finding__body"><code>tryAdoptGhostSession</code> accepts <code>incomingPlayerId</code> from the socket handshake auth with no proof of ownership. A guest client can supply any victim's <code>playerId</code> and take over their in-progress session during the reconnection grace period.</div>
+    <div class="finding__rec"><strong>Fix:</strong> Require that the <code>guestToken</code> in socket auth matches the token stored in the ghost session, in addition to the <code>playerId</code> check.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">C6</span>
+      <span class="finding__title">Room capacity not enforced on invite accept</span>
+      <span class="finding__severity-critical">Critical</span>
+    </div>
+    <div class="finding__file"><code>packages/server/src/handlers.ts:1465–1466</code></div>
+    <div class="finding__body"><code>handleRespondToInvite</code> adds an accepting player without checking <code>room.players.length &lt; room.maxPlayers</code>. Sending concurrent invites can overflow a 4-player room to 5+ players.</div>
+    <div class="finding__rec"><strong>Fix:</strong> Add a capacity guard before the push: <code>if (room.players.length &gt;= room.maxPlayers) &#123; ack(&#123; ok: false, error: 'Room is full' &#125;); return; &#125;</code>. Cover with a test.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">M3</span>
+      <span class="finding__title"><code>sanitizePlayerName</code> allowlist too narrow</span>
+      <span class="finding__severity-major">Major</span>
+    </div>
+    <div class="finding__file"><code>packages/server/src/handlers.ts:130–140</code></div>
+    <div class="finding__body">Only <code>&lt;&gt;</code> are stripped. Characters such as <code>"</code>, <code>'</code>, backticks, backslashes, braces, and Unicode control characters pass through unchecked.</div>
+    <div class="finding__rec"><strong>Fix:</strong> Use an allowlist regex <code>/^[a-zA-Z0-9 _\-'.!?]+$/</code>. Strip non-printable/non-ASCII characters; enforce a 20-character limit; reject if nothing valid remains.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">M6</span>
+      <span class="finding__title"><code>generateRoomCode</code> uses non-cryptographic <code>Math.random()</code></span>
+      <span class="finding__severity-major">Major</span>
+    </div>
+    <div class="finding__file"><code>packages/server/src/handlers.ts:2480–2488</code></div>
+    <div class="finding__body">Room codes are 6-character identifiers that grant game access. <code>Math.random()</code> output is predictable; an adversary observing a few codes can predict future ones and join rooms uninvited.</div>
+    <div class="finding__rec"><strong>Fix:</strong> Use <code>crypto.randomBytes(6)</code> and map each byte to a character from a safe unambiguous alphabet (e.g. <code>ABCDEFGHJKLMNPQRSTUVWXYZ23456789</code>).</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">M7</span>
+      <span class="finding__title">Missing HTTP security headers</span>
+      <span class="finding__severity-major">Major</span>
+    </div>
+    <div class="finding__file"><code>packages/server/src/createApp.ts</code></div>
+    <div class="finding__body">No <code>Content-Security-Policy</code>, <code>X-Frame-Options</code>, <code>X-Content-Type-Options</code>, <code>Strict-Transport-Security</code>, or <code>Referrer-Policy</code> headers are set.</div>
+    <div class="finding__rec"><strong>Fix:</strong> Install <code>helmet</code> and add <code>app.use(helmet(&#123; contentSecurityPolicy: &#123; ... &#125; &#125;))</code>. One line eliminates clickjacking, MIME sniffing, and referrer leakage.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">M8</span>
+      <span class="finding__title">Capture array unbounded in move validator</span>
+      <span class="finding__severity-major">Major</span>
+    </div>
+    <div class="finding__file"><code>packages/server/src/handlers.ts:2508–2511</code></div>
+    <div class="finding__body"><code>isMakeMovePayload</code> checks that <code>capture</code> is an array of strings but does not bound its length. A client can send thousands of entries, causing CPU amplification before the engine rejects the move.</div>
+    <div class="finding__rec"><strong>Fix:</strong> Add <code>if ((m['capture'] as unknown[]).length &gt; 52) return false;</code> — 52 is the maximum possible cards in a standard deck.</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ CODE QUALITY -->
+  <div class="section-eyebrow">Code Quality &amp; Refactoring</div>
+  <h2 class="section">Structural Issues</h2>
+
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">M2</span>
+      <span class="finding__title"><code>handlers.ts</code> is a 2,513-line monolith</span>
+      <span class="finding__severity-major">Major</span>
+    </div>
+    <div class="finding__file"><code>packages/server/src/handlers.ts</code> (entire file)</div>
+    <div class="finding__body">All 59 server-side event handlers — rooms, moves, invites, OAuth, admin, voice, scoring — live in one file. This makes focused unit testing, navigation, and safe modification extremely difficult.</div>
+    <div class="finding__rec"><strong>Fix:</strong> Split by domain: <code>handlers/room.ts</code>, <code>handlers/game.ts</code>, <code>handlers/invite.ts</code>, <code>handlers/admin.ts</code>, <code>handlers/voice.ts</code>, <code>handlers/account.ts</code>. Each exports a <code>register(io, socket, session)</code> function; the root file becomes a thin orchestrator.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">M4</span>
+      <span class="finding__title"><code>updateSession</code> silently ignores <code>userId</code> and <code>account</code> patches</span>
+      <span class="finding__severity-major">Major</span>
+    </div>
+    <div class="finding__file"><code>packages/server/src/store.ts:131–138</code></div>
+    <div class="finding__body">The function signature accepts <code>Partial&lt;Omit&lt;SessionState,'token'|'playerId'&gt;&gt;</code> but the implementation only applies <code>name</code>, <code>roomCode</code>, and <code>socketId</code>. Callers that pass <code>userId</code> or <code>account</code> believe they are persisting data; they are silently no-oped.</div>
+    <div class="finding__rec"><strong>Fix:</strong> Either expand the implementation to apply all non-readonly fields, or narrow the accepted type to <code>&#123; name?: string; roomCode?: string | null; socketId?: string | null &#125;</code>.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">M10</span>
+      <span class="finding__title"><code>as never</code> type cast in <code>GameScreen</code></span>
+      <span class="finding__severity-major">Major</span>
+    </div>
+    <div class="finding__file"><code>packages/web/src/screens/GameScreen.tsx:205</code></div>
+    <div class="finding__body"><code>handState.onSelect(id as never)</code> uses a type-erasure cast that bypasses TypeScript's type checker entirely, indicating a structural mismatch between <code>Part1SelectionState</code> and <code>Part2SelectionState</code>.</div>
+    <div class="finding__rec"><strong>Fix:</strong> Define a shared <code>onSelect: (id: CardId) =&gt; void</code> on a common base type, or use a discriminated union, and eliminate the <code>as never</code> cast.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">M11</span>
+      <span class="finding__title">No test coverage for invite flow, voice signaling, or admin events</span>
+      <span class="finding__severity-major">Major</span>
+    </div>
+    <div class="finding__file"><code>packages/server/src/handlers.test.ts</code></div>
+    <div class="finding__body">The test suite covers room creation, move validation, and game flow, but has zero coverage for <code>handleRespondToInvite</code> (capacity bypass), voice relay (missing room check), or admin event authentication.</div>
+    <div class="finding__rec"><strong>Fix:</strong> Add test cases for: (a) invite accept when room is at max capacity, (b) voice relay to player in a different room, (c) admin events with and without <code>ADMIN_SECRET</code> configured.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">m1</span>
+      <span class="finding__title">Legacy token takes priority over fresh session token in <code>bootstrapAuth</code></span>
+      <span class="finding__severity-minor">Minor</span>
+    </div>
+    <div class="finding__file"><code>packages/web/src/net/socket.ts:132</code></div>
+    <div class="finding__body"><code>getLegacyToken() ?? getAuthSessionToken()</code> — an old localStorage token silently wins over a fresh sessionStorage token. On a shared device, subsequent visitors may be authenticated as the previous user.</div>
+    <div class="finding__rec"><strong>Fix:</strong> Invert the fallback order so the session-scoped token takes priority, or explicitly clear the legacy token before reading.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">m2</span>
+      <span class="finding__title"><code>clearRuntimeSessionStorage</code> operates on localStorage despite its name</span>
+      <span class="finding__severity-minor">Minor</span>
+    </div>
+    <div class="finding__file"><code>packages/web/src/net/socket.ts:118–124</code></div>
+    <div class="finding__body">The function name implies sessionStorage but it clears localStorage. The mismatch creates confusion about what state is cleared on tab close vs. full logout.</div>
+    <div class="finding__rec"><strong>Fix:</strong> Rename to <code>clearAllLocalAuth</code> to accurately reflect that both storage layers are cleared.</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ MISSING FEATURES / UX -->
+  <div class="section-eyebrow">Missing Features &amp; UX Gaps</div>
+  <h2 class="section">Player-Facing Issues</h2>
+
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">M1</span>
+      <span class="finding__title"><code>emitAck</code> promises never time out</span>
+      <span class="finding__severity-major">Major</span>
+    </div>
+    <div class="finding__file"><code>packages/web/src/net/socket.ts:179–187</code></div>
+    <div class="finding__body">The promise only ever resolves — it never rejects and never times out. On server crash or disconnect, the promise hangs forever, permanently locking button state (<code>submitting = true</code>) and blocking all further user actions.</div>
+    <div class="finding__rec"><strong>Fix:</strong> Wrap with <code>Promise.race</code> against a <code>setTimeout</code> reject at 8,000 ms, or use socket.io's built-in <code>socket.timeout(8000).emit(...)</code>.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">M5</span>
+      <span class="finding__title">Phase-transition <code>useEffect</code> fires multiple times</span>
+      <span class="finding__severity-major">Major</span>
+    </div>
+    <div class="finding__file"><code>packages/web/src/screens/GameScreen.tsx:118–126</code></div>
+    <div class="finding__body"><code>prevPhase.current = view.phase</code> is skipped due to an early return when the transition fires. On the next re-render (still in <code>PART_2</code>) the condition is true again — the transition banner fires a second time and a new 2,500 ms timer is started.</div>
+    <div class="finding__rec"><strong>Fix:</strong> Update <code>prevPhase.current = view.phase</code> unconditionally before the early return, so the guard is accurate on the next render.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">M9</span>
+      <span class="finding__title"><code>Part1Board</code> ignores stale <code>onSelectionChange</code> callback</span>
+      <span class="finding__severity-major">Major</span>
+    </div>
+    <div class="finding__file"><code>packages/web/src/components/Part1Board.tsx:197</code></div>
+    <div class="finding__body">An <code>eslint-disable-next-line react-hooks/exhaustive-deps</code> comment suppresses the missing-dependency warning. If <code>onSelectionChange</code> identity changes (parent re-renders with a new reference), the child never picks up the new callback — classic stale closure bug.</div>
+    <div class="finding__rec"><strong>Fix:</strong> Wrap <code>onSelectionChange</code> in <code>useCallback</code> in the parent with stable deps, or add it to the <code>useEffect</code> dependency array.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">m3</span>
+      <span class="finding__title">Capture options recomputed synchronously on every confirm</span>
+      <span class="finding__severity-minor">Minor</span>
+    </div>
+    <div class="finding__file"><code>packages/web/src/components/Part1Board.tsx:115</code></div>
+    <div class="finding__body"><code>captureOptionsFor(card, view.table)</code> is called inside <code>confirmCard()</code> without memoization. For large tables, the DFS in <code>maxDisjointUnions</code> can introduce perceptible latency on low-end devices.</div>
+    <div class="finding__rec"><strong>Fix:</strong> Pre-compute capture options when a card is selected, using <code>useMemo(() =&gt; captureOptionsFor(card, table), [card, table])</code>.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">m4</span>
+      <span class="finding__title"><code>bootstrapAuth</code> swallows all fetch errors silently</span>
+      <span class="finding__severity-minor">Minor</span>
+    </div>
+    <div class="finding__file"><code>packages/web/src/net/socket.ts:161</code></div>
+    <div class="finding__body">The <code>catch</code> block is empty. If the bootstrap request fails, the app proceeds with stale auth state with no UI feedback for the user.</div>
+    <div class="finding__rec"><strong>Fix:</strong> At minimum log the error; in production surface a "connection failed" banner so the user knows to retry.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">m5</span>
+      <span class="finding__title">Part 1 selection key not scoped to current room</span>
+      <span class="finding__severity-minor">Minor</span>
+    </div>
+    <div class="finding__file"><code>packages/web/src/components/Part1Board.tsx:55</code></div>
+    <div class="finding__body">The <code>sessionStorage</code> key <code>ganatri_p1_sel_${'{'}view.you{'}'}</code> is not scoped to the current room. When a player starts a new game in a new room, stale selection from the previous game can produce a spurious "card selected" UI state on mount.</div>
+    <div class="finding__rec"><strong>Fix:</strong> Include the room code in the key: <code>ganatri_p1_sel_${'{'}view.you{'}'}_{'{'}view.roomCode ?? ''{'}'}</code>.</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ TOP-10 ACTION LIST -->
+  <div class="section-eyebrow">Prioritised Action Plan</div>
+  <h2 class="section">Top-10 Fixes by Impact</h2>
+
+  <div class="callout" style="margin-bottom:16px;">
+    Items 1–6 are security-critical and block public release. Items 7–10 address code quality, stability, and performance in order of effort-to-impact ratio.
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step__num">1</div>
+      <div>
+        <div class="step__title">Fix C1 — Admin auth default-deny</div>
+        <div class="step__body">Any deployment without <code>ADMIN_SECRET</code> set is fully exposed. Invert the default in <code>config.ts</code> and add <code>crypto.timingSafeEqual</code> comparison. One-file fix, zero test risk.</div>
+        <div class="step__tip">Highest-priority item — a single env var omission hands over full server control today.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">2</div>
+      <div>
+        <div class="step__title">Fix C3 — Voice relay room membership check</div>
+        <div class="step__body">Add <code>session.roomCode === target.roomCode</code> guard in <code>handlers.ts:1063–1102</code> before relaying any WebRTC signal. One guard eliminates cross-room probing. Add a test.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">3</div>
+      <div>
+        <div class="step__title">Fix C2 — Remove OAuth token from redirect URL</div>
+        <div class="step__body">Delete the <code>?auth_token=</code> parameter from <code>createApp.ts:321</code> and remove the matching consumer <code>captureAuthTokenFromUrl</code> in <code>socket.ts:71–80</code>. Eliminates token leakage into logs and browser history.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">4</div>
+      <div>
+        <div class="step__title">Fix C4 — Scope presence events to room</div>
+        <div class="step__body">Replace <code>socket.broadcast.emit</code> with <code>io.to(session.roomCode).emit</code> at <code>handlers.ts:537, 549</code>. One-line change; no functional impact for legitimate room members.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">5</div>
+      <div>
+        <div class="step__title">Fix C6 — Room capacity guard on invite accept</div>
+        <div class="step__body">Add <code>if (room.players.length &gt;= room.maxPlayers)</code> check in <code>handleRespondToInvite</code>. Three lines prevent concurrent invite overflow. Cover with a test.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">6</div>
+      <div>
+        <div class="step__title">Fix C5 — Ghost-session adoption requires <code>guestToken</code></div>
+        <div class="step__body">In <code>tryAdoptGhostSession</code> require that the <code>guestToken</code> supplied in socket auth matches the token stored in the ghost session — not just the <code>playerId</code>. Prevents session hijacking during the reconnection grace period.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">7</div>
+      <div>
+        <div class="step__title">Fix M6 — Replace <code>Math.random()</code> with <code>randomBytes</code> for room codes</div>
+        <div class="step__body">Swap <code>Math.random()</code> in <code>generateRoomCode</code> for <code>crypto.randomBytes(6)</code> mapped to an unambiguous alphabet. Ten-line change; no functional impact on room access flow.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">8</div>
+      <div>
+        <div class="step__title">Fix M1 — Add timeout to <code>emitAck</code></div>
+        <div class="step__body">Use <code>socket.timeout(8000).emit(...)</code> or <code>Promise.race</code> with a reject timer. Prevents permanently hung UI state on all user-facing action buttons after any network interruption.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">9</div>
+      <div>
+        <div class="step__title">Fix M7 — Add HTTP security headers via <code>helmet</code></div>
+        <div class="step__body">Install <code>helmet</code> and add <code>app.use(helmet(&#123; contentSecurityPolicy: &#123; ... &#125; &#125;))</code> in <code>createApp.ts</code>. Eliminates clickjacking, MIME sniffing, and referrer leakage in one call.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">10</div>
+      <div>
+        <div class="step__title">Fix M2 — Split <code>handlers.ts</code> into domain modules</div>
+        <div class="step__body">Refactor the 2,513-line monolith into <code>handlers/room.ts</code>, <code>handlers/game.ts</code>, <code>handlers/invite.ts</code>, <code>handlers/admin.ts</code>, <code>handlers/voice.ts</code>, and <code>handlers/account.ts</code>. Larger effort but unlocks safe parallel development and targeted test coverage for the invite, admin, and voice paths.</div>
+        <div class="step__tip">This is a prerequisite for sustainably adding any new server-side feature going forward.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note"><span class="arrow">→</span><span>Severity labels: <strong>Critical</strong> = active exploit vector; <strong>Major</strong> = significant defect or maintenance hazard; <strong>Minor</strong> = polish or low-probability edge case. All findings were identified by static review on 2026-06-30.</span></div>
+
+</div>
+<!-- CONTENT END -->
+</body>
+</html>
