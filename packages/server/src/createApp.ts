@@ -46,6 +46,73 @@ export interface AppInstance {
 }
 
 // ---------------------------------------------------------------------------
+// IP extraction
+// ---------------------------------------------------------------------------
+
+function getClientIp(req: IncomingMessage): string {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) {
+    const first = Array.isArray(forwarded) ? forwarded[0] : forwarded.split(',')[0];
+    return (first ?? '127.0.0.1').trim();
+  }
+  return req.socket?.remoteAddress ?? '127.0.0.1';
+}
+
+// ---------------------------------------------------------------------------
+// Auth rate limiters
+// ---------------------------------------------------------------------------
+
+const AUTH_OAUTH_RATE_LIMIT_MAX = 10;
+const AUTH_OAUTH_RATE_LIMIT_WINDOW_MS = 60_000;
+
+const AUTH_BOOTSTRAP_RATE_LIMIT_MAX = 30;
+const AUTH_BOOTSTRAP_RATE_LIMIT_WINDOW_MS = 60_000;
+
+interface RateLimitEntry {
+  count: number;
+  resetAt: number;
+}
+
+const authOAuthIpRateLimit: Map<string, RateLimitEntry> = new Map();
+const authBootstrapIpRateLimit: Map<string, RateLimitEntry> = new Map();
+
+function checkOAuthRateLimit(ip: string): boolean {
+  const now = Date.now();
+  for (const [key, entry] of authOAuthIpRateLimit) {
+    if (entry.resetAt <= now) authOAuthIpRateLimit.delete(key);
+  }
+  const entry = authOAuthIpRateLimit.get(ip);
+  if (entry === undefined || entry.resetAt <= now) {
+    authOAuthIpRateLimit.set(ip, { count: 1, resetAt: now + AUTH_OAUTH_RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= AUTH_OAUTH_RATE_LIMIT_MAX) return false;
+  entry.count += 1;
+  return true;
+}
+
+function checkBootstrapRateLimit(ip: string): boolean {
+  const now = Date.now();
+  for (const [key, entry] of authBootstrapIpRateLimit) {
+    if (entry.resetAt <= now) authBootstrapIpRateLimit.delete(key);
+  }
+  const entry = authBootstrapIpRateLimit.get(ip);
+  if (entry === undefined || entry.resetAt <= now) {
+    authBootstrapIpRateLimit.set(ip, { count: 1, resetAt: now + AUTH_BOOTSTRAP_RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= AUTH_BOOTSTRAP_RATE_LIMIT_MAX) return false;
+  entry.count += 1;
+  return true;
+}
+
+/** Reset all auth rate-limit state — for tests only. */
+export function resetAuthRateLimits(): void {
+  authOAuthIpRateLimit.clear();
+  authBootstrapIpRateLimit.clear();
+}
+
+// ---------------------------------------------------------------------------
 // CORS
 // ---------------------------------------------------------------------------
 
@@ -143,6 +210,10 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
   }
 
   if (path === '/auth/google/login') {
+    if (!checkOAuthRateLimit(getClientIp(req))) {
+      json(res, 429, { error: 'RATE_LIMITED' });
+      return;
+    }
     if (!isOAuthEnabled()) {
       res.writeHead(404, { 'Content-Type': 'text/plain' });
       res.end('not found');
@@ -159,11 +230,19 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
   }
 
   if (path === '/auth/google/callback') {
+    if (!checkOAuthRateLimit(getClientIp(req))) {
+      json(res, 429, { error: 'RATE_LIMITED' });
+      return;
+    }
     await handleGoogleCallback(req, res, url);
     return;
   }
 
   if (path === '/auth/bootstrap') {
+    if (!checkBootstrapRateLimit(getClientIp(req))) {
+      json(res, 429, { error: 'RATE_LIMITED' });
+      return;
+    }
     await handleAuthBootstrap(req, res);
     return;
   }
