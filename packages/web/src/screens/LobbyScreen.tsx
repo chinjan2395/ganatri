@@ -8,7 +8,7 @@ import logo from '../assets/ganatri-logo.png';
 import {
   DsTopNav, DsBottomNav, DsModal, DsDivider, DsField, DsButton, DsIcon,
   DsAvatar, DsCard, DsEmptyState, FeltBackdrop, FooterBar, CornerDecor,
-  DsTitleBlock, DsAlert, DsBodyText,
+  DsTitleBlock, DsAlert, DsBodyText, DsRankRow, DsListRow,
 } from '@ganatri/ds';
 import type { DsTopNavItem, DsBottomNavTab } from '@ganatri/ds';
 import './LobbyScreen.css';
@@ -77,8 +77,8 @@ function CreateJoinPanel({
 
       <div className="lobby__cj-split">
         <div className="lobby__cj-col">
-          <div className="lobby__cj-heading">CREATE ROOM</div>
-          <div className="lobby__cj-sub">Start a new game table</div>
+          <DsTitleBlock size="sm" title="CREATE ROOM" />
+          <DsBodyText tone="muted">Start a new game table</DsBodyText>
           <DsButton onClick={onCreate} disabled={busy}>
             <DsIcon name="plus" size={16} aria-hidden /> CREATE ROOM
           </DsButton>
@@ -87,8 +87,8 @@ function CreateJoinPanel({
         <DsDivider orientation="vertical" />
 
         <div className="lobby__cj-col">
-          <div className="lobby__cj-heading">JOIN ROOM</div>
-          <div className="lobby__cj-sub">Join with a room code</div>
+          <DsTitleBlock size="sm" title="JOIN ROOM" />
+          <DsBodyText tone="muted">Join with a room code</DsBodyText>
           <form
             className="lobby__join-form"
             onSubmit={(e) => {
@@ -423,8 +423,8 @@ function DesktopSidebar({ requestLeaderboard, requestMyStats, loggedIn, setScree
         {leaderboard === null ? (
           <div className="sidebar__skeleton-list">
             {[0, 1, 2, 3, 4].map((i) => (
-              <div key={i} className="sidebar__player-row">
-                <span className="sidebar__rank">
+              <div key={i} className="sidebar__skeleton-row">
+                <span className="sidebar__skeleton-rank">
                   <div className="sidebar__skeleton" style={{ width: 14 }} />
                 </span>
                 <div className="sidebar__skeleton sidebar__skeleton--avatar" />
@@ -438,21 +438,20 @@ function DesktopSidebar({ requestLeaderboard, requestMyStats, loggedIn, setScree
         ) : leaderboard.length === 0 ? (
           <DsEmptyState message="No rankings yet" />
         ) : (
-          <ul className="sidebar__player-list">
+          <div className="sidebar__player-list">
             {leaderboard.map((entry) => (
-              <li key={entry.userId} className="sidebar__player-row">
-                <span className="sidebar__rank">{entry.rank}</span>
-                <DsAvatar
-                  src={entry.avatarUrl}
-                  displayName={entry.displayName}
-                  size={28}
-                  className="sidebar__player-avatar"
-                />
-                <span className="sidebar__player-name">{entry.displayName}</span>
-                <span className="sidebar__player-wins">{entry.gamesWon}W</span>
-              </li>
+              <DsRankRow
+                key={entry.userId}
+                rank={entry.rank}
+                displayName={entry.displayName}
+                avatarUrl={entry.avatarUrl}
+                gamesWon={entry.gamesWon}
+                gamesPlayed={entry.gamesPlayed}
+                winRate={`${(entry.winRate * 100).toFixed(0)}%`}
+                compact
+              />
             ))}
-          </ul>
+          </div>
         )}
         <DsButton
           tone="secondary"
@@ -471,31 +470,19 @@ function DesktopSidebar({ requestLeaderboard, requestMyStats, loggedIn, setScree
         ) : stats === null ? (
           <div className="sidebar__skeleton-list">
             {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="sidebar__stat-row">
+              <div key={i} className="sidebar__skeleton-stat-row">
                 <div className="sidebar__skeleton" style={{ width: '50%' }} />
                 <div className="sidebar__skeleton" style={{ width: 32 }} />
               </div>
             ))}
           </div>
         ) : (
-          <ul className="sidebar__stat-list">
-            <li className="sidebar__stat-row">
-              <span className="sidebar__stat-label">Games Played</span>
-              <span className="sidebar__stat-value">{stats.gamesPlayed}</span>
-            </li>
-            <li className="sidebar__stat-row">
-              <span className="sidebar__stat-label">Games Won</span>
-              <span className="sidebar__stat-value">{stats.gamesWon}</span>
-            </li>
-            <li className="sidebar__stat-row">
-              <span className="sidebar__stat-label">Win Rate</span>
-              <span className="sidebar__stat-value">{(stats.winRate * 100).toFixed(0)}%</span>
-            </li>
-            <li className="sidebar__stat-row">
-              <span className="sidebar__stat-label">Best Streak</span>
-              <span className="sidebar__stat-value">{stats.longestWinStreak}</span>
-            </li>
-          </ul>
+          <div>
+            <DsListRow title="Games Played" subtitle={String(stats.gamesPlayed)} />
+            <DsListRow title="Games Won" subtitle={String(stats.gamesWon)} />
+            <DsListRow title="Win Rate" subtitle={`${(stats.winRate * 100).toFixed(0)}%`} />
+            <DsListRow title="Best Streak" subtitle={String(stats.longestWinStreak)} />
+          </div>
         )}
         {loggedIn && (
           <DsButton
@@ -903,21 +890,24 @@ export function LobbyScreen(): React.ReactNode {
                 blockedUsers.length === 0 ? (
                   <DsEmptyState message="No blocked users." />
                 ) : (
-                  <ul className="lobby__blocked-list">
+                  <div>
                     {blockedUsers.map((u) => (
-                      <li key={u.userId} className="lobby__blocked-row">
-                        <span className="lobby__blocked-name">{u.displayName}</span>
-                        <DsButton
-                          tone="secondary"
-                          compact
-                          className="lobby__unblock-btn"
-                          onClick={() => void handleUnblock(u.userId)}
-                        >
-                          Unblock
-                        </DsButton>
-                      </li>
+                      <DsListRow
+                        key={u.userId}
+                        title={u.displayName}
+                        subtitle="Blocked"
+                        trailing={
+                          <DsButton
+                            tone="secondary"
+                            compact
+                            onClick={() => void handleUnblock(u.userId)}
+                          >
+                            Unblock
+                          </DsButton>
+                        }
+                      />
                     ))}
-                  </ul>
+                  </div>
                 )
               )}
             </div>

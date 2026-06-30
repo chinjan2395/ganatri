@@ -10,62 +10,67 @@
 > (Current Phase → next NOT_STARTED/IN_PROGRESS item) apply.
 
 ## Current Phase
-Phase DS-R — Design System Consolidation (DS-R18–R23 remaining)
+Phase 6 — Remaining implementable items (6c auth hardening → 7a/7b quality)
 
 ## Status
-IN_PROGRESS  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+NOT_STARTED  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
+- [x] Phase DS-R — Design System Consolidation (DS-R1–R23 all complete) (2026-06-30)
 - [x] Phase 6i/6j — Privacy, retention & compliance / Operations & hardening (2026-06-29) — All technically implementable items complete (applyGameScoring batch optimization, data export, account deletion, session management). Remaining items are operational/infrastructure/legal and require human input.
-- [x] Phase DS-R (partial) — DS-R1–R17 complete (2026-06-29); DS-R18 complete (2026-06-29). DS-R19–R23 pending.
-- [x] Phase 6i Data export (2026-06-25) — `download_my_data` event: server handler (getUserGameHistory + getPlayerStats in parallel, flattenHistoryEntry + mapStatsView), 4 integration tests; web DownloadMyDataAck type + downloadMyData() helper + GameProvider callback + LobbyScreen "Download My Data" button (DOM-append pattern, deferred revokeObjectURL). 458 tests pass (153 engine + 114 server + 191 db).
-- [x] Phase 1 — Rules Engine (153 tests passing)
-- [x] Phase 2 — Server (44 tests passing)
-- [x] Phase 3 — Web Client (all components functional, player names wired)
-- [x] Phase 4 — Polish (animations, mobile, flat board, deployment config)
+- [x] Phase 9a–9g — Scoring & progression system (2026-06-26)
+- [x] Phase 6c Active session management (2026-06-25)
+- [x] Phase 6i Data export (2026-06-25)
+- [x] Phase 6h KPI charts + User Management (2026-06-23)
+- [x] Phase 6i Account Deletion (2026-06-23)
+- [x] Phase 6h Analytics dashboard shell (2026-06-23)
+- [x] Phase 6c Active session management DB (2026-06-25)
+- [x] Phase 6f/6g leaderboard (2026-06-19)
+- [x] Phase 6c guest upgrade (2026-06-20)
+- [x] Phase 6e/6g StatsScreen (2026-06-19)
+- [x] Phase C — Web OAuth UI + HistoryScreen
+- [x] Phase B — Server OAuth + durable identity
+- [x] Phase A — Accounts/auth DB
+- [x] Phase 6d/6e — write-through persistence + player_stats
+- [x] Phase 6b (DB-layer) — full GamePersistence (Pg + Memory), 95 db tests
+- [x] Phase 6a — Database foundation (PostgreSQL + Drizzle + Neon)
+- [x] Phase 7 (pull-forward) — Auto-forfeit, TURN_TIMEOUT, trick-reveal freeze, name sanitization
 - [x] Phase 5 — Voice Chat (core + cross-browser + Perfect Negotiation + TURN; 5.7 smoke test requires human)
-- [x] Phase 7 (pull-forward) — Auto-forfeit on grace expiry, TURN_TIMEOUT event, trick-reveal freeze fix, name sanitization
-- [x] Phase 6a — Database foundation (PostgreSQL + Drizzle + Neon; packages/db; 6 core tables; GamePersistence interface; migrations)
-- [x] Phase 6b (DB-layer) — durable `GamePersistence` (Pg + Memory) built & fully tested (95 db tests, pglite)
-- [x] Phase 6d/6e (write-through) — server persists games/events/players + incremental player_stats
-- [x] Phase A — Accounts/auth DB (users.avatarUrl, oauth_accounts, auth_sessions, retention indexes; migration 0001)
-- [x] Phase B — Server OAuth (`/auth/google/*`), durable identity via `ganatri_session` cookie, `REQUEST_HISTORY`, daily retention prune
-- [x] Phase C — Web OAuth UI + game-history/score-card `HistoryScreen`
-- [x] Phase 6e/6g — `get_my_stats` endpoint + personal `StatsScreen` dashboard
-- [x] Phase 6f/6g (2026-06-19) — `get_leaderboard` slice: db `getLeaderboard` (Pg+Memory) + PUBLIC server endpoint + web `LeaderboardScreen`
-- [x] Phase 6c (2026-06-20) — Guest → registered upgrade flow: `mergeGuestIntoUser` in DB (Pg+Memory), guest cookie relay through OAuth, server merge call in callback
-- [x] Phase 6h KPI charts (2026-06-23) — `getAdminKpiStats` DB + server + web `KpiSection` bar chart
-- [x] Phase 6h User Management (2026-06-23) — `searchUsers`/`adminGetUserStats` DB + server (`ADMIN_SEARCH_USERS`/`ADMIN_GET_USER_STATS` events) + web `UserManagementSection` in AdminScreen
-- [x] Phase 6i Account Deletion (2026-06-23) — `deleteUser(userId)` in GamePersistence (DB + 6 contract tests); `DELETE_ACCOUNT` event + `handleDeleteAccount` handler (silentLeaveRoom + DB delete + session→guest + SESSION re-emit, 3 integration tests); web `deleteAccount()` helper + ProfilePanel danger button + inline confirm flow. Schema: `rooms.hostUserId` made nullable + migration `0004_nullable_room_host.sql`. 441 tests pass (153 engine + 102 server + 186 db).
-- [x] Phase 6c Active session management (2026-06-25) — DB `last_seen_at` + list/touch/revoke session methods; server `GET_AUTH_SESSIONS`/`REVOKE_AUTH_SESSION`/`REVOKE_OTHER_AUTH_SESSIONS`, sliding expiry, OAuth httpOnly cookie + `/auth/bootstrap`, `guestToken` rename; web `SessionsScreen` device management UI. 452 tests pass (153 engine + 108 server + 191 db).
-- [x] Phase 9a–9g (2026-06-26) — Full scoring system: DB schema (player_progression, score_ledger, game_players scoring columns), server scoring engine (scoring.ts), server protocol (GET_MY_PROGRESSION, GET_MY_SCORE_HISTORY, end-game MatchScoringView), web protocol mirror + socket helpers, GameProvider progression state, LobbyScreen ProfilePanel level badge + XP bar + rating, HistoryScreen per-game matchScore/xpEarned/rankedRatingDelta, StatsScreen scoring stat cards. 458 tests pass.
+- [x] Phase 4 — Polish (animations, mobile, flat board, deployment config)
+- [x] Phase 3 — Web Client (all components functional, player names wired)
+- [x] Phase 2 — Server (44 tests passing)
+- [x] Phase 1 — Rules Engine (153 tests passing)
 
 ## Sequencing Note
-STATE.md was previously stale (claimed only 6a complete). It has been reconciled with
-`docs/DEVELOPMENT_PLAN.md`: Phases 6a/6b(DB)/6d/6e-write-through and Phases A/B/C all shipped
-in commit #11 (Google accounts) plus follow-ups. Remaining Phase 6 work is being delivered as
-small full-stack vertical slices that mirror the history slice.
+Phase DS-R (all 23 tasks) completed as of 2026-06-30. The next run should pick up
+remaining Phase 6 items that are technically implementable (not operational/infra):
+
+Priority order for next runs:
+1. **Phase 6c: Replace ad-hoc name input** — when logged in, prefill create/join name from account; keep manual entry for guests. File: `packages/web/src/screens/LobbyScreen.tsx` (CreateJoinPanel name field).
+2. **Phase 7b: Rate-limit `create_room` and `join_room` per IP** — `packages/server/src/handlers.ts`. Simple in-memory rate-limiter per IP address (e.g. 10 rooms per IP per minute).
+3. **Phase 7a: `React.memo` on `Part1Board` and `Part2Board`** — `packages/web/src/components/`.
+4. **Phase 6c: Auth brute-force protection** — rate-limit login/OAuth callbacks per IP.
 
 Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — skip in nightly runs.
+Phase 4 production deployment is handled by the user (Render + Cloudflare).
 
 ## Last Run
 - Date: 2026-06-30
-- Outcome: DS-R22 complete — Migrated LobbyScreen sidebar headings (2× DsTitleBlock), empty states (DsEmptyState), error divs (DsAlert tone="danger"), and inline status p tags (DsBodyText) to DS components. Removed 9 CSS blocks. Reviewer found + fixed one missed migration (lobby__blocked-empty p). 470 tests pass.
-- Branch: nightly/2026-06-30-0907
+- Outcome: DS-R23 complete — LobbyScreen CreateJoinPanel divs→DsTitleBlock+DsBodyText; sidebar leaderboard ul/li→DsRankRow; sidebar stats ul/li→DsListRow; blocked-users ul/li→DsListRow+trailing button. Code review caught orphaned skeleton CSS class names (sidebar__player-row etc.) — renamed to sidebar__skeleton-row/rank/stat-row with new CSS rules. 470 tests pass.
+- Branch: nightly/2026-06-30-0950
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-**Phase DS-R is IN_PROGRESS** — DS-R22 done; DS-R23 is next.
+Phase DS-R is COMPLETE. Next run picks up Phase 6 remaining items (see Sequencing Note above).
 
-DS-R23: LobbyScreen CreateJoinPanel headings + sidebar lists:
-- `CreateJoinPanel` heading `<div className="lobby__cj-heading">` + sub `<div className="lobby__cj-sub">` → `DsTitleBlock size="sm"` + `DsBodyText tone="muted"`
-- Sidebar leaderboard `<ul className="sidebar__player-list"><li>` → `DsRankRow`
-- Sidebar stats `<ul className="sidebar__stat-list"><li>` → `DsListRow`
-- `lobby__blocked-list` `<ul><li>` rows → `DsListRow` with trailing unblock `DsButton`
-- Note: mobile `rp__rows` co-player rows are bespoke — deferred to a future `DsCoPlayerRow` task
-Acceptance: build + ESLint green; 470 tests pass; sidebar lists render consistently with LeaderboardScreen.
+**First item: Phase 6c — Replace ad-hoc name input when logged in.**
+When the user is logged in (account.loggedIn === true), the name text field in the
+CreateJoinPanel should be pre-filled with account.displayName and the field should be
+hidden/read-only (or not shown at all — the name is known from the account). Guests
+keep the current editable field. This is a web-only change in LobbyScreen.tsx.
+Acceptance: build green, 470 tests pass, name field absent when logged in.
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.
