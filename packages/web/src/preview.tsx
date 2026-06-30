@@ -15,7 +15,14 @@ import { createRoot } from 'react-dom/client';
 import { MotionConfig } from 'framer-motion';
 import { cardId, type Card, type Rank, type Suit, type GameEvent } from '@ganatri/engine';
 import type { PlayerView } from '@ganatri/engine';
-import { GameContext, type GameContextValue, type LoggedEvent } from './state/GameProvider';
+import {
+  GameContext,
+  GameSessionContext,
+  GameRoomContext,
+  GameViewContext,
+  type GameContextValue,
+  type LoggedEvent,
+} from './state/GameProvider';
 import { GameScreen } from './screens/GameScreen';
 import './styles/theme.css';
 import './styles/casino.css';
@@ -107,11 +114,17 @@ if (!rootEl) throw new Error('Missing #root element');
 createRoot(rootEl).render(
   <StrictMode>
     <MotionConfig reducedMotion="user">
-      <GameContext.Provider value={ctx}>
-        <div className="app-shell">
-          <GameScreen />
-        </div>
-      </GameContext.Provider>
+      <GameSessionContext.Provider value={{ connected: ctx.connected, session: ctx.session, account: null, guestName: null }}>
+        <GameRoomContext.Provider value={{ room: ctx.room, disconnectedPlayers: ctx.disconnectedPlayers, playerNames: ctx.playerNames, playerAvatarUrls: {}, screen: 'main', setScreen: () => undefined }}>
+          <GameViewContext.Provider value={{ view: ctx.view, turnStartedAt: ctx.turnStartedAt, turnTimeoutMs: ctx.turnTimeoutMs, eventLog: ctx.eventLog, lastEvent: ctx.lastEvent, latestMatchScoring: [] }}>
+            <GameContext.Provider value={ctx}>
+              <div className="app-shell">
+                <GameScreen />
+              </div>
+            </GameContext.Provider>
+          </GameViewContext.Provider>
+        </GameRoomContext.Provider>
+      </GameSessionContext.Provider>
     </MotionConfig>
   </StrictMode>,
 );

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { AnimatePresence, motion } from 'framer-motion';
 import { cardId, type CardId, type Card as CardModel, type GameEvent, type Phase } from '@ganatri/engine';
 import { DsSpinner, DsBadge, DsButton } from '@ganatri/ds';
-import { useGame } from '../state/GameProvider';
+import { useGame, useGameView, useGameRoom, useGameSession } from '../state/GameProvider';
 import { useVoiceChatContext, useVoiceSpeaking } from '../state/VoiceChatProvider';
 import { OpponentSeat } from '../components/OpponentSeat';
 import { Part1Board, type Part1SelectionState } from '../components/Part1Board';
@@ -83,7 +83,10 @@ const DEFAULT_HAND_STATE: HandState = {
 };
 
 export function GameScreen(): React.ReactNode {
-  const { view, room, session, account, progression, latestMatchScoring, lastEvent, disconnectedPlayers, playerNames, playerAvatarUrls, turnStartedAt, turnTimeoutMs, makeMove, startGame, leaveRoom } = useGame();
+  const { view, turnStartedAt, turnTimeoutMs, lastEvent, latestMatchScoring } = useGameView();
+  const { room, disconnectedPlayers, playerNames, playerAvatarUrls } = useGameRoom();
+  const { session, account } = useGameSession();
+  const { makeMove, startGame, leaveRoom, progression } = useGame();
   const voice = useVoiceChatContext();
   const [flash, setFlash] = useState<Flash | null>(null);
   const [cutAnimData, setCutAnimData] = useState<CutAnimData | null>(null);
@@ -104,6 +107,29 @@ export function GameScreen(): React.ReactNode {
     }
     return playerNames;
   }, [playerNames, session?.playerId, account]);
+
+  // Memoize per-player seat data so OpponentSeat (wrapped with React.memo) can
+  // bail out when only unrelated state (e.g. voice, hand state) changes.
+  const playerSeatData = useMemo(() => {
+    if (!view) return [];
+    const ordered = orderedPlayers(view.seating, view.you);
+    return ordered.map((pid) => {
+      const safeIndex = view.safeOrder?.indexOf(pid) ?? -1;
+      const isYou = pid === view.you;
+      return {
+        pid,
+        isYou,
+        handCount: isYou ? (view.handCounts[pid] ?? view.hand.length) : (view.handCounts[pid] ?? 0),
+        captureCount: view.phase === 'PART_1' ? (view.captureCounts[pid] ?? 0) : undefined,
+        isTurn: view.turn === pid,
+        isSafe: safeIndex >= 0,
+        safeOrder: safeIndex >= 0 ? safeIndex + 1 : undefined,
+        displayName: resolvedPlayerNames[pid] ?? pid,
+        avatarUrl: isYou ? (account?.avatarUrl ?? null) : (playerAvatarUrls[pid] ?? null),
+        isDisconnected: isYou ? false : disconnectedPlayers.has(pid),
+      };
+    });
+  }, [view, resolvedPlayerNames, playerAvatarUrls, disconnectedPlayers, account?.avatarUrl]);
 
   useLayoutEffect(() => {
     const el = gameRef.current;
@@ -198,7 +224,6 @@ export function GameScreen(): React.ReactNode {
     );
   }
 
-  const players = orderedPlayers(view.seating, view.you);
   const nameFor = (pid: string): string => resolvedPlayerNames[pid] || shortId(pid);
   const legalIds = handState.legalIds as ReadonlySet<CardId> | null;
   const highlightedIds = 'highlightedIds' in handState ? handState.highlightedIds : undefined;
@@ -288,31 +313,23 @@ export function GameScreen(): React.ReactNode {
 
       {/* ── Players row — all players (you centred) as floating avatars ── */}
       <div className="game__players">
-        {players.map((pid) => {
-          const isYou = pid === view.you;
-          const handCount = isYou
-            ? view.handCounts[pid] ?? view.hand.length
-            : view.handCounts[pid] ?? 0;
-          const captureCount = view.phase === 'PART_1' ? view.captureCounts[pid] ?? 0 : undefined;
-          const safeIndex = view.safeOrder.indexOf(pid);
-          return (
-            <PlayerWrap key={pid} pid={pid}>
-              <OpponentSeat
-                playerId={pid}
-                displayName={nameFor(pid)}
-                avatarUrl={isYou ? account?.avatarUrl : playerAvatarUrls[pid]}
-                isYou={isYou}
-                handCount={handCount}
-                captureCount={captureCount}
-                isTurn={view.turn === pid}
-                isSafe={safeIndex >= 0}
-                safeRank={safeIndex >= 0 ? safeIndex + 1 : undefined}
-                disconnected={isYou ? false : disconnectedPlayers.has(pid)}
-                compact
-              />
-            </PlayerWrap>
-          );
-        })}
+        {playerSeatData.map((seat) => (
+          <PlayerWrap key={seat.pid} pid={seat.pid}>
+            <OpponentSeat
+              playerId={seat.pid}
+              displayName={seat.displayName}
+              avatarUrl={seat.avatarUrl}
+              isYou={seat.isYou}
+              handCount={seat.handCount}
+              captureCount={seat.captureCount}
+              isTurn={seat.isTurn}
+              isSafe={seat.isSafe}
+              safeRank={seat.safeOrder}
+              disconnected={seat.isDisconnected}
+              compact
+            />
+          </PlayerWrap>
+        ))}
       </div>
 
       {/* ── Flat playable table area ── */}
@@ -390,7 +407,7 @@ export function GameScreen(): React.ReactNode {
             pickerName={cutAnimData.pickerName}
             pickedUpCount={cutAnimData.pickedUpCount}
             playerIndex={cutAnimData.playerIndex}
-            totalPlayers={players.length}
+            totalPlayers={playerSeatData.length}
             isYou={cutAnimData.isYou}
             onDone={() => setCutAnimData(null)}
           />
