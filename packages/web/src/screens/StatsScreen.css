@@ -82,11 +82,6 @@
   padding: 32px 0;
 }
 
-.st__muted {
-  color: var(--text-dim);
-  font-size: 14px;
-}
-
 .st__message {
   display: flex;
   flex-direction: column;
@@ -149,21 +144,6 @@
   flex-direction: column;
   gap: 12px;
   min-height: 140px;
-}
-
-.st__panel-title {
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--accent);
-  margin: 0;
-}
-
-.st__panel-muted {
-  font-size: 13px;
-  color: var(--text-dim);
-  margin: 0;
 }
 
 .st__panel-link {

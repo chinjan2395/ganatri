@@ -19,6 +19,8 @@ import {
   DsIcon,
   FeltBackdrop,
   CornerDecor,
+  DsSectionHeading,
+  DsBodyText,
 } from '@ganatri/ds';
 import type { DsTopNavItem, DsBottomNavTab } from '@ganatri/ds';
 import { useGame } from '../state/GameProvider';
@@ -311,7 +313,7 @@ export function StatsScreen(): React.ReactNode {
           {state.status === 'loading' && (
             <div className="st__center">
               <DsSpinner />
-              <p className="st__muted">Loading your stats…</p>
+              <DsBodyText tone="muted">Loading your stats…</DsBodyText>
             </div>
           )}
 
@@ -365,11 +367,11 @@ export function StatsScreen(): React.ReactNode {
                 <DsPlaceholder variant="modes" title="Game Modes Played" />
 
                 <div className="st__panel--recent">
-                  <h3 className="st__panel-title">Recent Results</h3>
-                  {historyState.status === 'loading' && <p className="st__panel-muted">Loading…</p>}
-                  {historyState.status === 'error' && <p className="st__panel-muted">History unavailable</p>}
+                  <DsSectionHeading level={3}>Recent Results</DsSectionHeading>
+                  {historyState.status === 'loading' && <DsBodyText tone="muted">Loading…</DsBodyText>}
+                  {historyState.status === 'error' && <DsBodyText tone="muted">History unavailable</DsBodyText>}
                   {(historyState.status === 'idle' || (historyState.status === 'ready' && historyState.games.length === 0)) && (
-                    <p className="st__panel-muted">No games yet</p>
+                    <DsBodyText tone="muted">No games yet</DsBodyText>
                   )}
                   {historyState.status === 'ready' && historyState.games.length > 0 && (
                     <ul className="st__recent-list">
