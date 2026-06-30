@@ -88,7 +88,7 @@ export function AdminScreen() {
     if (screen !== 'authed') return;
     const id = setInterval(fetchStats, 15000);
     return () => { clearInterval(id); };
-  }, [screen]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [screen]);
 
   const handleAuth = () => {
     const s = socketRef.current;

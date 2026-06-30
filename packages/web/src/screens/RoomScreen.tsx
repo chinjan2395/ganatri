@@ -83,8 +83,7 @@ export function RoomScreen(): React.ReactNode {
     return () => clearInterval(id);
   }, []);
 
-  // Mount: initial activity entry
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Mount: initial activity entry — intentionally runs once on mount
   useEffect(() => {
     const now = new Date().toLocaleTimeString([], {
       hour: '2-digit',
@@ -92,7 +91,7 @@ export function RoomScreen(): React.ReactNode {
     });
     setActivityLog([{ time: now, text: 'You joined the room' }]);
     prevPlayersRef.current = room?.players ?? [];
-  }, []); // intentionally runs once on mount
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Watch player list for join/leave events
   useEffect(() => {

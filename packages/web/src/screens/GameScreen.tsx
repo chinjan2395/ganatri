@@ -133,7 +133,7 @@ export function GameScreen(): React.ReactNode {
       const newIds = currentIds.filter((id) => !stillPresent.includes(id));
       return [...stillPresent, ...newIds];
     });
-  }, [view?.hand]);
+  }, [view]);
 
   useEffect(() => {
     if (!lastEvent) return;
@@ -200,9 +200,6 @@ export function GameScreen(): React.ReactNode {
 
   const players = orderedPlayers(view.seating, view.you);
   const nameFor = (pid: string): string => resolvedPlayerNames[pid] || shortId(pid);
-  const isYourTurn = view.turn === view.you;
-  const turnName = view.turn ? (isYourTurn ? 'You' : nameFor(view.turn)) : '—';
-
   const legalIds = handState.legalIds as ReadonlySet<CardId> | null;
   const highlightedIds = 'highlightedIds' in handState ? handState.highlightedIds : undefined;
   const onSelectCard = (id: CardId): void => { handState.onSelect(id as never); };
