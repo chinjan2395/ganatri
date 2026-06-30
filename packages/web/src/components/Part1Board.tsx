@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cardId, type Card as CardModel, type CardId, type Move, type PlayerView } from '@ganatri/engine';
 import { captureOptionsFor } from '../game/legal';
@@ -50,7 +50,7 @@ function findCard(hand: readonly CardModel[], id: CardId): CardModel | undefined
   return hand.find((c) => cardId(c) === id);
 }
 
-export function Part1Board({ view, onMove, onSelectionChange }: Part1BoardProps): React.ReactNode {
+export const Part1Board = memo(function Part1Board({ view, onMove, onSelectionChange }: Part1BoardProps): React.ReactNode {
   const canAct = view.turn === view.you;
   const storageKey = `ganatri_p1_sel_${view.you}`;
   const [selection, setSelection] = useState<Selection | null>(null);
@@ -233,4 +233,4 @@ export function Part1Board({ view, onMove, onSelectionChange }: Part1BoardProps)
 
     </div>
   );
-}
+});

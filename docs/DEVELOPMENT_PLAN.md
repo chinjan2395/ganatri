@@ -457,7 +457,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Memo-guard `Part1Board` and `Part2Board` with `React.memo` | ⬜ | Re-render on every game state update even when their slice of view hasn't changed |
+| Memo-guard `Part1Board` and `Part2Board` with `React.memo` | ✅ | `memo()` wraps both components; 0 TS errors; 473 tests pass |
 | Split `GameProvider` context into stable slices | ⬜ | Single `GameContextValue` invalidates all consumers on any state change; split e.g. `view` / `room` / `session` into separate contexts or `useSyncExternalStore` |
 | Memoize per-player derived props in `GameScreen` player row | ⬜ | `handCount`, `captureCount`, `isTurn`, `isSafe` etc. recreated every render; prevents `React.memo` on `OpponentSeat` from bailing out on game-state changes |
 
