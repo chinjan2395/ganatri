@@ -3,7 +3,7 @@ import './ListRow.css';
 
 export interface DsListRowProps {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   trailing?: ReactNode;
 }
 
@@ -19,7 +19,7 @@ export function DsListRow({
       </div>
       <div className="ds-list-row__copy">
         <strong>{title}</strong>
-        <span>{subtitle}</span>
+        {subtitle !== undefined && subtitle !== '' ? <span>{subtitle}</span> : null}
       </div>
       {trailing !== undefined ? (
         <div className="ds-list-row__trailing">{trailing}</div>

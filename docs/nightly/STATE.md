@@ -56,8 +56,8 @@ Phase 4 production deployment is handled by the user (Render + Cloudflare).
 
 ## Last Run
 - Date: 2026-06-30
-- Outcome: DS-R23 complete — LobbyScreen CreateJoinPanel divs→DsTitleBlock+DsBodyText; sidebar leaderboard ul/li→DsRankRow; sidebar stats ul/li→DsListRow; blocked-users ul/li→DsListRow+trailing button. Code review caught orphaned skeleton CSS class names (sidebar__player-row etc.) — renamed to sidebar__skeleton-row/rank/stat-row with new CSS rules. 470 tests pass.
-- Branch: nightly/2026-06-30-0950
+- Outcome: DS-R23 complete — Migrated LobbyScreen CreateJoinPanel headings (DsTitleBlock), sidebar player/stat lists (DsRankRow/DsListRow), and blocked-users list rows (DsListRow + DsButton). Code review caught orphaned skeleton CSS class names (sidebar__player-row etc.) — renamed to sidebar__skeleton-row/rank/stat-row with new CSS rules. 470 tests pass.
+- Branch: nightly/2026-06-30-1124
 
 ## Blockers / Needs Human Input
 _(none)_
@@ -72,5 +72,9 @@ CreateJoinPanel should be pre-filled with account.displayName and the field shou
 hidden/read-only (or not shown at all — the name is known from the account). Guests
 keep the current editable field. This is a web-only change in LobbyScreen.tsx.
 Acceptance: build green, 470 tests pass, name field absent when logged in.
+
+Deferred items to consider for a future DS-R24 task:
+- `DsCoPlayerRow` component for mobile `rp__rows` co-player rows in LobbyScreen
+- `DsTitleBlock size="sm"` flourish suppression (pre-existing design issue)
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.

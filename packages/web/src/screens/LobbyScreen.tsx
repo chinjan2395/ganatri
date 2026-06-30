@@ -424,7 +424,7 @@ function DesktopSidebar({ requestLeaderboard, requestMyStats, loggedIn, setScree
           <div className="sidebar__skeleton-list">
             {[0, 1, 2, 3, 4].map((i) => (
               <div key={i} className="sidebar__skeleton-row">
-                <span className="sidebar__skeleton-rank">
+                <span>
                   <div className="sidebar__skeleton" style={{ width: 14 }} />
                 </span>
                 <div className="sidebar__skeleton sidebar__skeleton--avatar" />
@@ -447,7 +447,7 @@ function DesktopSidebar({ requestLeaderboard, requestMyStats, loggedIn, setScree
                 avatarUrl={entry.avatarUrl}
                 gamesWon={entry.gamesWon}
                 gamesPlayed={entry.gamesPlayed}
-                winRate={`${(entry.winRate * 100).toFixed(0)}%`}
+                winRate={`${Math.round(entry.winRate * 100)}%`}
                 compact
               />
             ))}
@@ -470,18 +470,30 @@ function DesktopSidebar({ requestLeaderboard, requestMyStats, loggedIn, setScree
         ) : stats === null ? (
           <div className="sidebar__skeleton-list">
             {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="sidebar__skeleton-stat-row">
+              <div key={i} className="sidebar__skeleton-row">
                 <div className="sidebar__skeleton" style={{ width: '50%' }} />
                 <div className="sidebar__skeleton" style={{ width: 32 }} />
               </div>
             ))}
           </div>
         ) : (
-          <div>
-            <DsListRow title="Games Played" subtitle={String(stats.gamesPlayed)} />
-            <DsListRow title="Games Won" subtitle={String(stats.gamesWon)} />
-            <DsListRow title="Win Rate" subtitle={`${(stats.winRate * 100).toFixed(0)}%`} />
-            <DsListRow title="Best Streak" subtitle={String(stats.longestWinStreak)} />
+          <div className="sidebar__stat-list">
+            <DsListRow
+              title="Games Played"
+              trailing={<span className="sidebar__stat-value">{stats.gamesPlayed}</span>}
+            />
+            <DsListRow
+              title="Games Won"
+              trailing={<span className="sidebar__stat-value">{stats.gamesWon}</span>}
+            />
+            <DsListRow
+              title="Win Rate"
+              trailing={<span className="sidebar__stat-value">{(stats.winRate * 100).toFixed(0)}%</span>}
+            />
+            <DsListRow
+              title="Best Streak"
+              trailing={<span className="sidebar__stat-value">{stats.longestWinStreak}</span>}
+            />
           </div>
         )}
         {loggedIn && (
@@ -890,7 +902,7 @@ export function LobbyScreen(): React.ReactNode {
                 blockedUsers.length === 0 ? (
                   <DsEmptyState message="No blocked users." />
                 ) : (
-                  <div>
+                  <div className="lobby__blocked-list">
                     {blockedUsers.map((u) => (
                       <DsListRow
                         key={u.userId}
@@ -900,6 +912,7 @@ export function LobbyScreen(): React.ReactNode {
                           <DsButton
                             tone="secondary"
                             compact
+                            className="lobby__unblock-btn"
                             onClick={() => void handleUnblock(u.userId)}
                           >
                             Unblock
