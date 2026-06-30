@@ -129,3 +129,9 @@ export type { DsPlaceholderProps, DsPlaceholderVariant } from './components/Plac
 
 export { DsDivider } from './components/Divider';
 export type { DsDividerProps } from './components/Divider';
+
+export { DsSectionHeading } from './components/SectionHeading';
+export type { DsSectionHeadingProps } from './components/SectionHeading';
+
+export { DsBodyText } from './components/BodyText';
+export type { DsBodyTextProps } from './components/BodyText';
