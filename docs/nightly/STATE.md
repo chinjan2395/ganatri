@@ -50,19 +50,21 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-30
-- Outcome: DS-R20 complete — Replaced raw h2/h3/h4 headings and muted <p> elements in SessionsScreen with DsSectionHeading and DsBodyText from @ganatri/ds. Removed 6 redundant CSS rule blocks. 470 tests pass (203 db + 153 engine + 114 server).
-- Branch: nightly/2026-06-30-0548
+- Outcome: DS-R21 complete — Replaced `st__panel-title` h3, `st__muted` p, and `st__panel-muted` p in StatsScreen with DsSectionHeading/DsBodyText. Removed 3 CSS blocks. 470 tests pass (203 db + 153 engine + 114 server).
+- Branch: nightly/2026-06-30-0821
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-**Phase DS-R is IN_PROGRESS** — DS-R20 done; DS-R21 is next.
+**Phase DS-R is IN_PROGRESS** — DS-R21 done; DS-R22 is next.
 
-DS-R21: Replace raw headings/text in `StatsScreen` with DS typography components. Using DS-R19 components:
-- `st__panel-title` `<h3>` → `DsSectionHeading level={3}`
-- `st__muted`/`st__panel-muted` `<p>` → `DsBodyText tone="muted"`
+DS-R22: Replace raw headings/errors in `LobbyScreen` desktop sidebar with DS components:
+- `sidebar__heading` `<h2>` × 2 (TOP PLAYERS, YOUR STATS) → `DsTitleBlock size="sm"` (already imported)
+- `sidebar__empty`/`lobby__profile-guest-msg` `<p>` → `DsEmptyState`/`DsBodyText`
+- `lobby__error` raw `<div>` error divs → `DsAlert tone="danger"`
+- Inline status `<p>` tags (blocked-empty, blocked-error, data-export-error, delete-confirm-text, delete-error) → `DsBodyText` with appropriate tone
 Remove migrated CSS rules. Acceptance: build + ESLint green; 470 tests pass.
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.
