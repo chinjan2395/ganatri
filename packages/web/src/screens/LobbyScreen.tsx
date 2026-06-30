@@ -74,6 +74,9 @@ function CreateJoinPanel({
           onChange={(e) => setName(e.target.value.slice(0, 20))}
         />
       )}
+      {loggedIn && name && (
+        <DsBodyText tone="muted">Playing as <strong>{name}</strong></DsBodyText>
+      )}
 
       <div className="lobby__cj-split">
         <div className="lobby__cj-col">
@@ -683,6 +686,7 @@ export function LobbyScreen(): React.ReactNode {
   }
 
   function validateName(): boolean {
+    if (loggedIn) return true; // name comes from account
     if (!name.trim()) {
       setLocalError('Please enter your name.');
       return false;
@@ -694,7 +698,8 @@ export function LobbyScreen(): React.ReactNode {
     if (!validateName()) return;
     setBusy(true);
     setLocalError(null);
-    const ack = await createRoom(name.trim());
+    const effectiveName = loggedIn ? (account?.displayName ?? name).trim() : name.trim();
+    const ack = await createRoom(effectiveName || undefined);
     setBusy(false);
     if (ack.ok) return;
     if (ack.error === 'ALREADY_IN_GAME' && ack.currentRoomCode) {
@@ -708,7 +713,8 @@ export function LobbyScreen(): React.ReactNode {
     if (!validateName()) return;
     setBusy(true);
     setLocalError(null);
-    const ack = await joinRoom(roomCode.trim().toUpperCase(), name.trim());
+    const effectiveName = loggedIn ? (account?.displayName ?? name).trim() : name.trim();
+    const ack = await joinRoom(roomCode.trim().toUpperCase(), effectiveName || undefined);
     setBusy(false);
     if (ack.ok) return;
     switch (ack.error) {

@@ -349,7 +349,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | Display-name edit — server + DB | ✅ | `updateUserDisplayName` in `GamePersistence` (Pg + Memory); `update_display_name` socket event handler in `handlers.ts` with NOT_LOGGED_IN/INVALID_NAME/UNAVAILABLE guards; re-emits SESSION on success; +3 tests in `account.test.ts`. |
 | Display-name edit — web client | ✅ | Inline editor on LobbyScreen; `UPDATE_DISPLAY_NAME` event + `UpdateDisplayNamePayload/Ack` in protocol.ts; `updateDisplayName` in socket.ts + GameProvider. |
 | Auth brute-force / abuse protection | ⬜ | Rate-limit login/magic-link/OAuth callbacks per IP (extends Phase 7b rate-limiting). |
-| Replace ad-hoc name input with account name | ⬜ | When signed in, prefill display name from account; keep manual entry for guests. |
+| Replace ad-hoc name input with account name | ✅ | `validateName()` bypasses for logged-in users; `handleCreate`/`handleJoin` use `effectiveName` (account.displayName ?? name); "Playing as <name>" shown in `CreateJoinPanel` when logged in. |
 
 ### 6d — Game & event persistence
 
