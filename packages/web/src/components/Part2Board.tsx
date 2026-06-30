@@ -35,7 +35,7 @@ function shortId(id: string): string {
   return id.length <= 6 ? id : id.slice(0, 6);
 }
 
-export function Part2Board({ view, flash, playerNames, onMove, onSelectionChange }: Part2BoardProps): React.ReactNode {
+export function Part2Board({ view, flash: _flash, playerNames, onMove, onSelectionChange }: Part2BoardProps): React.ReactNode {
   const canAct = view.turn === view.you;
   const legalIds: ReadonlySet<CardId> = legalPart2CardIds(view);
   const [submitting, setSubmitting] = useState(false);
