@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ganatri Enhancement Report — 2026-06-30</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FAF8F3; --surface:#ECE5D8; --surface-2:#E5DDCD; --line:#DAD3C6;
+    --ink:#1C1A17; --text:#57534C; --muted:#8A857C;
+    --accent:#E07B5C; --accent-deep:#D2693F; --on-dark:#EDE7DB; --on-dark-muted:#A49E92;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  @page{ size:A4; margin:0 0 60px 0; }
+  @page{
+    @bottom-center{
+      content: counter(page) " / " counter(pages);
+      color:var(--accent);
+      font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:500;
+      letter-spacing:.05em;
+    }
+  }
+  html,body{ background:var(--bg); }
+  body{
+    font-family:'Inter',system-ui,sans-serif; color:var(--text);
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+    font-size:14px; line-height:1.5;
+  }
+  .page{ max-width:760px; margin:0 auto; padding:64px 48px 0; }
+
+  .eyebrow{ font-size:12px; font-weight:700; letter-spacing:.15em; text-transform:uppercase;
+            color:var(--accent); text-align:center; }
+  .title{ font-family:'Playfair Display',Georgia,serif; font-weight:800; font-size:52px;
+           line-height:1.05; color:var(--ink); text-align:center; margin:14px 0 16px; }
+  .title .accent{ color:var(--accent); }
+  .subtitle{ font-size:16px; color:var(--muted); text-align:center; max-width:560px;
+             margin:0 auto 8px; }
+  .subtitle strong{ color:var(--ink); font-weight:700; }
+
+  .section-eyebrow{ font-size:12px; font-weight:700; letter-spacing:.15em;
+                    text-transform:uppercase; color:var(--accent); margin:32px 0 16px;
+                    break-after:avoid; page-break-after:avoid; }
+  h2.section{ font-family:'Playfair Display',serif; font-weight:700; font-size:26px;
+              color:var(--ink); margin:0 0 16px; }
+
+  .callout-row{ display:flex; gap:14px; margin-top:24px;
+                break-inside:avoid; page-break-inside:avoid; }
+  .callout{ flex:1; background:var(--surface); border-radius:14px; padding:16px 18px;
+            font-size:13px; line-height:1.5; }
+  .callout strong{ color:var(--ink); }
+  .callout .accent{ color:var(--accent-deep); font-weight:700; }
+  .callout--dark{ background:var(--ink); color:var(--on-dark); }
+  .callout--dark .accent{ color:var(--accent); font-weight:700; }
+
+  .steps{ margin-top:8px; }
+  .step{ display:flex; gap:14px; padding:16px 0; border-bottom:1px solid var(--line);
+         break-inside:avoid; page-break-inside:avoid; }
+  .step:last-child{ border-bottom:0; }
+  .step__num{ flex:0 0 28px; width:28px; height:28px; border-radius:50%;
+              background:var(--accent); color:#fff; font-weight:700; font-size:13px;
+              display:flex; align-items:center; justify-content:center; }
+  .step__title{ font-size:17px; font-weight:700; color:var(--ink); margin-bottom:4px; }
+  .step__body{ font-size:14px; color:var(--text); }
+  .step__tip{ font-family:'Playfair Display',serif; font-style:italic; font-size:13px;
+              color:var(--accent-deep); margin-top:6px; }
+
+  .feature{ background:var(--ink); color:var(--on-dark); border-radius:16px;
+            padding:22px 24px; margin-top:24px;
+            break-inside:avoid; page-break-inside:avoid; }
+  .feature__head{ font-family:'Inter',sans-serif; font-weight:700; font-size:18px;
+                  color:#fff; margin-bottom:16px; }
+  .feature__grid{ display:grid; grid-template-columns:auto 1fr; gap:10px 18px; }
+  .feature__row{ display:contents; }
+  .feature__row .term{ color:var(--accent); font-family:'JetBrains Mono',monospace;
+                       font-size:13px; }
+  .feature__row .desc{ color:var(--on-dark-muted); font-size:13px; }
+
+  .cards{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-top:16px;
+          break-inside:avoid; page-break-inside:avoid; }
+  .card{ background:var(--surface); border-radius:14px; padding:18px 20px;
+         break-inside:avoid; page-break-inside:avoid; }
+  .card--accent{ background:var(--accent); color:#fff; }
+  .card__icon{ font-size:20px; margin-bottom:10px; }
+  .card__title{ font-size:15px; font-weight:700; color:var(--ink); margin-bottom:6px; }
+  .card--accent .card__title{ color:#fff; }
+  .card__body{ font-size:13px; line-height:1.5; color:var(--text); }
+  .card--accent .card__body{ color:#FFF1EA; }
+
+  code{ font-family:'JetBrains Mono',monospace; font-size:.92em; background:var(--surface-2);
+        color:var(--ink); padding:1px 6px; border-radius:5px; }
+  .callout--dark code, .feature code, .card--accent code{
+        background:rgba(255,255,255,.14); color:#fff; }
+
+  .note{ display:flex; gap:10px; align-items:flex-start; color:var(--muted); font-size:12px;
+         margin:32px 0 24px; break-inside:avoid; page-break-inside:avoid; }
+  .note .arrow{ color:var(--accent); font-weight:700; }
+
+  /* Finding rows — severity badges */
+  .finding{ padding:14px 0; border-bottom:1px solid var(--line);
+            break-inside:avoid; page-break-inside:avoid; }
+  .finding:last-child{ border-bottom:0; }
+  .finding__header{ display:flex; align-items:baseline; gap:10px; margin-bottom:6px; flex-wrap:wrap; }
+  .finding__id{ font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:500;
+                color:var(--accent-deep); }
+  .finding__title{ font-size:15px; font-weight:700; color:var(--ink); }
+  .finding__badge{ font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+                   padding:2px 8px; border-radius:4px; }
+  .badge--critical{ background:#FDE8E2; color:#B83B1A; }
+  .badge--high{ background:#FEF3E2; color:#9A6200; }
+  .badge--medium{ background:#EEF2FF; color:#3B3FAA; }
+  .badge--low{ background:var(--surface); color:var(--muted); }
+  .finding__meta{ font-size:12px; color:var(--muted); margin-bottom:6px; font-family:'JetBrains Mono',monospace; }
+  .finding__body{ font-size:13px; color:var(--text); margin-bottom:6px; }
+  .finding__rec{ font-size:13px; color:var(--text); }
+  .finding__rec strong{ color:var(--ink); }
+</style>
+</head>
+<body>
+<!-- CONTENT START -->
+<div class="page">
+
+  <div class="eyebrow">Security &amp; Code Quality Audit · 2026-06-30</div>
+  <h1 class="title">Ganatri <span class="accent">Enhancement</span> Report</h1>
+  <p class="subtitle">Code review covering <strong>5 critical, 10 major, and 10 minor findings</strong> across security, code quality, performance, and UX.</p>
+
+  <div class="callout" style="margin-top:24px;">
+    <strong>Executive Summary.</strong> A targeted audit of the Ganatri multiplayer card-game codebase identified 25 findings across security, code quality, missing UX guards, and performance. Five issues are rated Critical and require immediate attention before any production deployment: an open admin secret default, an unguarded WebRTC relay, an admin–engine player-count mismatch, a session token leaked in the OAuth redirect URL, and unvalidated move payloads that allow large-array denial-of-service. Ten Major findings cover insecure randomness, memory leaks, stale React closures, and redundant engine invocations. Ten Minor findings include two dependency CVEs, a bundle-size warning, and several low-risk UX papercuts. Addressing the top-10 prioritised actions (listed at the end of this report) will eliminate all Critical and High risks and substantially harden the application for public use.
+  </div>
+
+  <div class="callout callout--dark" style="margin-top:16px;">
+    <span class="accent">5 Critical findings</span> must be resolved before any public-facing deployment. The open admin default (C1), unguarded voice relay (C2), and session token in the redirect URL (C4) each represent exploitable vulnerabilities with no mitigating controls in the current codebase.
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SECURITY
+  ════════════════════════════════════════════ -->
+  <div class="section-eyebrow">Security</div>
+  <h2 class="section">Critical &amp; High-Severity Vulnerabilities</h2>
+
+  <!-- C1 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">C1</span>
+      <span class="finding__title">Admin secret defaults to open — any socket becomes admin</span>
+      <span class="finding__badge badge--critical">Critical</span>
+    </div>
+    <div class="finding__meta">packages/server/src/config.ts:103-106</div>
+    <div class="finding__body">When <code>ADMIN_SECRET</code> is not set (the default in any deployment that forgets the env var), any WebSocket client can authenticate as admin and call <code>ADMIN_UPDATE_CONFIG</code>, <code>ADMIN_GET_STATS</code>, and the export endpoint. There is no other check gate.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Default to a secure mode — if <code>ADMIN_SECRET</code> is unset, return <code>false</code> and log a startup warning. Require an explicit <code>ADMIN_SECRET=</code> set to the empty string for intentional dev openness.</div>
+  </div>
+
+  <!-- C2 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">C2</span>
+      <span class="finding__title">Voice signaling relay has no room membership check</span>
+      <span class="finding__badge badge--critical">Critical</span>
+    </div>
+    <div class="finding__meta">packages/server/src/handlers.ts:1065-1102</div>
+    <div class="finding__body">Any authenticated player in any room can send <code>VOICE_OFFER</code>, <code>VOICE_ANSWER</code>, <code>VOICE_ICE</code>, or <code>VOICE_RENEGOTIATE</code> to any other player's socket by guessing their <code>targetPlayerId</code>. Player IDs appear in <code>STATE_UPDATE</code> and <code>ROOM_UPDATE</code> payloads.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Before relaying, verify that both the sender and <code>targetPlayerId</code> are members of the same active room (<code>session.roomCode === targetSession.roomCode &amp;&amp; room.phase === 'PLAYING'</code>).</div>
+  </div>
+
+  <!-- C4 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">C4</span>
+      <span class="finding__title">OAuth callback appends <code>auth_token</code> in redirect URL</span>
+      <span class="finding__badge badge--critical">Critical</span>
+    </div>
+    <div class="finding__meta">packages/server/src/createApp.ts:320-326</div>
+    <div class="finding__body">The session token appears in the browser URL bar, browser history, and <code>Referer</code> headers on subsequent cross-origin requests, and is logged by any reverse proxy or CDN — a standard OAuth anti-pattern when an <code>httpOnly</code> cookie is simultaneously issued.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Remove the URL query-parameter path. For cross-origin scenarios, configure the cookie with <code>SameSite=None; Secure</code>, or implement a short-lived one-time code exchange (valid ≤30 seconds) rather than embedding the 30-day session token.</div>
+  </div>
+
+  <!-- C5 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">C5</span>
+      <span class="finding__title"><code>isMakeMovePayload</code> does not validate card ID format or capture array length</span>
+      <span class="finding__badge badge--critical">Critical</span>
+    </div>
+    <div class="finding__meta">packages/server/src/handlers.ts:2499-2513</div>
+    <div class="finding__body">The validator accepts any non-empty string for <code>card</code> and any array of strings for <code>capture</code> — no format check, no length bound. A 10,000-element <code>capture</code> array passes validation and reaches <code>applyMove</code> before being rejected, enabling a payload-based DoS.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Add regex validation (<code>/^(10|[2-9JQKA])[SHDC]$/</code>) per card string, cap <code>capture.length</code> at 13, and add a 4-character max string length check.</div>
+  </div>
+
+  <!-- N4 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">N4</span>
+      <span class="finding__title">drizzle-orm SQL injection CVE (GHSA-gpj5-g38j-94v9)</span>
+      <span class="finding__badge badge--high">High — CVE</span>
+    </div>
+    <div class="finding__meta">packages/db/package.json</div>
+    <div class="finding__body"><code>npm audit</code> reports a high-severity SQL injection vulnerability in <code>drizzle-orm &lt; 0.45.2</code> via improperly escaped SQL identifiers. Affects all DB-backed deployments.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Upgrade <code>drizzle-orm</code> to <code>^0.45.2</code> and run the <code>drizzle-kit</code> migration check afterwards.</div>
+  </div>
+
+  <!-- M2 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">M2</span>
+      <span class="finding__title">Room code generated with <code>Math.random()</code> — not cryptographically random</span>
+      <span class="finding__badge badge--high">High</span>
+    </div>
+    <div class="finding__meta">packages/server/src/handlers.ts:2480-2488</div>
+    <div class="finding__body">V8's <code>Math.random()</code> has roughly a 32-bit state, far weaker than the 34⁶ ≈ 1.5 billion possible room codes. An attacker who seeds or observes the PRNG state could predict upcoming room codes and join rooms uninvited.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Use <code>crypto.randomInt(0, ROOM_CODE_CHARS.length)</code> per character (Node 14.10+, no additional import).</div>
+  </div>
+
+  <!-- M10 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">M10</span>
+      <span class="finding__title">No HTTP security headers on server responses</span>
+      <span class="finding__badge badge--medium">Medium</span>
+    </div>
+    <div class="finding__meta">packages/server/src/createApp.ts</div>
+    <div class="finding__body">No <code>Content-Security-Policy</code>, <code>X-Frame-Options</code>, <code>X-Content-Type-Options</code>, <code>Referrer-Policy</code>, or <code>Strict-Transport-Security</code> headers are set. The OAuth callback and asset endpoints are unprotected against clickjacking and MIME-type sniffing.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Add a security-headers middleware (or use <code>helmet</code>) before all route handlers. Minimum: <code>X-Frame-Options: DENY</code>, <code>X-Content-Type-Options: nosniff</code>, <code>Referrer-Policy: strict-origin-when-cross-origin</code>.</div>
+  </div>
+
+  <!-- N1 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">N1</span>
+      <span class="finding__title"><code>auth_token</code> written to both <code>sessionStorage</code> and <code>localStorage</code></span>
+      <span class="finding__badge badge--low">Low</span>
+    </div>
+    <div class="finding__meta">packages/web/src/net/socket.ts:71-80</div>
+    <div class="finding__body">After OAuth redirect, the token is stored in <code>localStorage</code> (30-day persistence) in addition to <code>sessionStorage</code>. Combined with C4, any XSS could exfiltrate the long-lived token from <code>localStorage</code>.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Remove the <code>localStorage.setItem(LEGACY_TOKEN_KEY, authToken)</code> line in <code>captureAuthTokenFromUrl</code>; use <code>sessionStorage</code> only.</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       CODE QUALITY
+  ════════════════════════════════════════════ -->
+  <div class="section-eyebrow">Code Quality</div>
+  <h2 class="section">Logic Errors &amp; Structural Issues</h2>
+
+  <!-- C3 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">C3</span>
+      <span class="finding__title">Admin <code>maxPlayers</code> allows 5–8 but engine hard-errors above 4</span>
+      <span class="finding__badge badge--critical">Critical</span>
+    </div>
+    <div class="finding__meta">packages/server/src/handlers.ts:972 vs packages/engine/src/game.ts:46</div>
+    <div class="finding__body">The admin socket allows setting <code>maxPlayers</code> to any value 2–8. However, <code>createGame</code> throws <code>'Ganatri requires 2-4 players'</code> for any value above 4. If an admin sets <code>maxPlayers = 6</code>, six players can enter the room but <code>handleStartGame</code> crashes, leaving room state inconsistent.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Change the upper bound in <code>isValidPlayers</code> to <code>&lt;= 4</code> to match the engine's hard constraint.</div>
+  </div>
+
+  <!-- M7 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">M7</span>
+      <span class="finding__title"><code>useEffect</code> in <code>Part2Board</code> suppresses lint and has stale closure risk</span>
+      <span class="finding__badge badge--medium">Medium</span>
+    </div>
+    <div class="finding__meta">packages/web/src/components/Part2Board.tsx:58-68</div>
+    <div class="finding__body">An <code>eslint-disable-next-line react-hooks/exhaustive-deps</code> hides a real problem: <code>legalIds</code> is derived from <code>view.hand</code> and <code>view.trick</code>, but <code>view</code> is not in the dependency array. If <code>view.hand</code> changes without <code>view.ledSuit</code> changing, the effect does not re-run and <code>onSelectionChange</code> is called with a stale <code>legalIds</code> set, causing incorrect card highlights.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Remove the eslint-disable and add <code>legalIds</code> (or compute it inline with <code>view</code> in deps) and <code>play</code> to the dependency array. Wrap <code>play</code> in <code>useCallback</code> with correct deps.</div>
+  </div>
+
+  <!-- M8 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">M8</span>
+      <span class="finding__title"><code>GameProvider</code> <code>useMemo</code> context rebuilt on every state change</span>
+      <span class="finding__badge badge--medium">Medium</span>
+    </div>
+    <div class="finding__meta">packages/web/src/state/GameProvider.tsx:529-577</div>
+    <div class="finding__body">The <code>useMemo</code> producing the context value has 30+ dependencies. Every state change — connected, session, view, room, lastEvent — causes the entire context object to be rebuilt and all consumers to re-render, even those that only call stable callbacks like <code>makeMove</code>.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Split into at least two contexts: a "game state" context and an "actions" context. The actions context can be memoized once at mount.</div>
+  </div>
+
+  <!-- M9 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">M9</span>
+      <span class="finding__title"><code>handleStartGame</code> allows restart without clearing previous-game timers</span>
+      <span class="finding__badge badge--medium">Medium</span>
+    </div>
+    <div class="finding__meta">packages/server/src/handlers.ts:1541-1583</div>
+    <div class="finding__body">When restarting from <code>DONE</code>, the handler resets <code>room.completedAt</code> but does not clear <code>room.disconnectedAt</code>, <code>room.gracePeriodTimers</code>, or running timers from the previous game. A stale grace-period timer could fire on the new game's room and auto-forfeit a player who is present.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> At the top of the restart path, call <code>clearTurnTimer(room)</code>, iterate <code>room.gracePeriodTimers</code> to cancel all outstanding timers, then reset <code>room.disconnectedAt = new Map()</code>.</div>
+  </div>
+
+  <!-- M1 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">M1</span>
+      <span class="finding__title"><code>sanitizePlayerName</code> only strips <code>&lt;&gt;</code>, not the full XSS character set</span>
+      <span class="finding__badge badge--high">High</span>
+    </div>
+    <div class="finding__meta">packages/server/src/handlers.ts:138</div>
+    <div class="finding__body">The function removes <code>&lt;&gt;</code> only. Characters like <code>"</code>, <code>'</code>, backtick, <code>&amp;</code>, <code>\</code>, and <code>;</code> pass through. The incomplete sanitization gives false confidence and is a latent risk if names reach admin pages, raw SQL, or server-side rendering.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Either trust React's default escaping (remove all sanitization except the length cap) or allow only Unicode letters, spaces, hyphens, and apostrophes.</div>
+  </div>
+
+  <!-- N7 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">N7</span>
+      <span class="finding__title">Turn-timer seed uses <code>Date.now()</code> — millisecond precision</span>
+      <span class="finding__badge badge--low">Low</span>
+    </div>
+    <div class="finding__meta">packages/server/src/handlers.ts:1560</div>
+    <div class="finding__body">Two games starting in the same millisecond get identical seeds and identical shuffles. An attacker who knows the approximate server start time could predict the card deal.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Use a crypto-random seed: <code>Number(crypto.randomBytes(4).readUInt32BE())</code> rather than <code>Date.now()</code>.</div>
+  </div>
+
+  <!-- N6 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">N6</span>
+      <span class="finding__title"><code>viewFor</code> sends <code>capturePiles</code> asymmetrically across players</span>
+      <span class="finding__badge badge--low">Low</span>
+    </div>
+    <div class="finding__meta">packages/engine/src/view.ts</div>
+    <div class="finding__body"><code>PlayerView</code> exposes <code>capturePileCounts: Record&lt;PlayerId, number&gt;</code> for opponents but the own pile as a full card array. UI code must check two different fields for the same concept.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Add <code>capturePileCounts[you]</code> populated with <code>capturePile.length</code> so the record is complete for all players, and document the asymmetry in the type.</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       MISSING FEATURES / UX
+  ════════════════════════════════════════════ -->
+  <div class="section-eyebrow">Missing Features &amp; UX</div>
+  <h2 class="section">Guards, Edge Cases &amp; Interface Gaps</h2>
+
+  <!-- M3 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">M3</span>
+      <span class="finding__title"><code>emitAck</code> has no timeout — promises can hang forever</span>
+      <span class="finding__badge badge--high">High</span>
+    </div>
+    <div class="finding__meta">packages/web/src/net/socket.ts:179-187</div>
+    <div class="finding__body">There is no <code>reject</code> path in <code>emitAck</code>. Every socket call in the app — <code>makeMove</code>, <code>startGame</code>, <code>leaveRoom</code> — uses this. On network drop or server crash, the promise never resolves and the UI displays a loading state that requires a page refresh to clear.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Add a timeout parameter (default 10,000 ms) and reject with a timeout error if the ack is not received. Socket.io 4.x supports native ack timeout via <code>socket.timeout(ms).emit(...)</code>.</div>
+  </div>
+
+  <!-- M6 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">M6</span>
+      <span class="finding__title"><code>pendingInvites</code> map is unbounded and module-global</span>
+      <span class="finding__badge badge--medium">Medium</span>
+    </div>
+    <div class="finding__meta">packages/server/src/handlers.ts:739</div>
+    <div class="finding__body">There are no limits on how many invites a single player can send — they can spam invites to all other players. The map is module-level, survives room cleanup, and an attacker can hold many pending timers at any instant.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Cap outbound pending invites per player (e.g. 5). When the cap is exceeded, reject new invites with an explicit error.</div>
+  </div>
+
+  <!-- N2 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">N2</span>
+      <span class="finding__title"><code>generateRoomCode</code> retry loop silently throws on exhaustion</span>
+      <span class="finding__badge badge--low">Low</span>
+    </div>
+    <div class="finding__meta">packages/server/src/handlers.ts:2487-2488</div>
+    <div class="finding__body">After 100 failed attempts, an unhandled exception is thrown, so the socket event handler never sends an ack. The client's <code>createRoom</code> promise hangs forever (compounded by M3). The failure mode is completely silent.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Wrap <code>generateRoomCode()</code> in a try/catch in the handler and ack with <code>&#123; ok: false, error: 'SERVER_ERROR' &#125;</code>.</div>
+  </div>
+
+  <!-- N8 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">N8</span>
+      <span class="finding__title">No rate limiting on <code>CREATE_ROOM</code> or <code>JOIN_ROOM</code> events</span>
+      <span class="finding__badge badge--low">Low</span>
+    </div>
+    <div class="finding__meta">packages/server/src/handlers.ts</div>
+    <div class="finding__body">A client can call <code>CREATE_ROOM</code> in a tight loop, creating thousands of rooms. <code>store.rooms</code> grows unboundedly, <code>broadcastRoomUpdate</code> iterates more rooms on each event, and cleanup timers accumulate.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Apply per-socket rate limiting to <code>CREATE_ROOM</code> and <code>JOIN_ROOM</code> (max 5 per minute per socket). Generalise the existing <code>MOVE_DEBOUNCE_MS</code> pattern into a per-event-type debounce map.</div>
+  </div>
+
+  <!-- N10 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">N10</span>
+      <span class="finding__title"><code>eventLog</code> in <code>GameProvider</code> not cleared on room leave</span>
+      <span class="finding__badge badge--low">Low</span>
+    </div>
+    <div class="finding__meta">packages/web/src/state/GameProvider.tsx:258</div>
+    <div class="finding__body">The event log resets only on component unmount. On room leave followed by an immediate join, the log retains up to 50 events from the previous game. Subscribers to <code>lastEvent</code> may see stale events momentarily.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Add <code>setEventLog([])</code> and <code>setLastEvent(null)</code> to the leave-room cleanup path alongside <code>setRoom(null)</code> and <code>setView(null)</code>.</div>
+  </div>
+
+  <!-- N9 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">N9</span>
+      <span class="finding__title"><code>Part2Board</code> key includes <code>isCut</code>, causing card element remount on CUT event</span>
+      <span class="finding__badge badge--low">Low</span>
+    </div>
+    <div class="finding__meta">packages/web/src/components/Part2Board.tsx:117</div>
+    <div class="finding__body">When a CUT event arrives and <code>isCut</code> updates from <code>false</code> to <code>true</code>, the React key changes, causing unmount + remount. Framer Motion treats this as exit + entrance rather than an in-place transition.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Use a stable key (<code>cardId(play.card)</code> alone). Drive the cut animation via Framer Motion <code>variants</code> keyed on <code>isCut</code> so the element transitions in place.</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       PERFORMANCE
+  ════════════════════════════════════════════ -->
+  <div class="section-eyebrow">Performance</div>
+  <h2 class="section">Memory, Compute &amp; Bundle Efficiency</h2>
+
+  <!-- M4 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">M4</span>
+      <span class="finding__title">Guest sessions in <code>store.sessions</code> are never pruned</span>
+      <span class="finding__badge badge--high">High</span>
+    </div>
+    <div class="finding__meta">packages/server/src/store.ts</div>
+    <div class="finding__body">Every guest connection creates a session and the entry stays in <code>store.sessions</code> and <code>store.playerIndex</code> indefinitely — no expiry, no eviction, no prune job. Over hours of operation with many reconnecting or abandoned guests, the store grows without bound.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Add a TTL field to <code>SessionState</code> for guest sessions. Run a periodic prune every 10 minutes to remove sessions where <code>userId === null &amp;&amp; socketId === null &amp;&amp; ttl &lt; Date.now()</code> with no associated room.</div>
+  </div>
+
+  <!-- M5 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">M5</span>
+      <span class="finding__title"><code>matchScoringForState</code> called N+1 times per broadcast</span>
+      <span class="finding__badge badge--medium">Medium</span>
+    </div>
+    <div class="finding__meta">packages/server/src/handlers.ts:185-220</div>
+    <div class="finding__body">In the post-move broadcast loop, <code>matchScoringForState</code> is called once per player plus once for the ack — five identical invocations for four players. Each call walks the full event log and runs scoring math.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Compute <code>matchScoringForState</code> once before the broadcast loop and pass the cached result to each player's <code>transport.send</code> call and to the ack.</div>
+  </div>
+
+  <!-- N3 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">N3</span>
+      <span class="finding__title">Bundle size exceeds Vite's 500 KB warning threshold</span>
+      <span class="finding__badge badge--low">Low</span>
+    </div>
+    <div class="finding__meta">packages/web (build output)</div>
+    <div class="finding__body">Vite reports the JS chunk as 597 KB (171 KB gzipped). All screens — lobby, game, admin, profile — are loaded on the first page visit regardless of which route the user visits.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Add <code>build.rollupOptions.output.manualChunks</code> in <code>vite.config.ts</code> to split vendor libraries (<code>socket.io-client</code>, <code>framer-motion</code>, <code>react</code>), and use <code>React.lazy</code> + <code>Suspense</code> for non-critical screens.</div>
+  </div>
+
+  <!-- N5 -->
+  <div class="finding">
+    <div class="finding__header">
+      <span class="finding__id">N5</span>
+      <span class="finding__title"><code>esbuild</code> CVE in dev toolchain (GHSA-67mh-4wv8-2f99)</span>
+      <span class="finding__badge badge--low">Low — dev-only</span>
+    </div>
+    <div class="finding__meta">package.json (dev dependency chain via drizzle-kit)</div>
+    <div class="finding__body"><code>esbuild &lt;= 0.24.2</code> (pulled in by <code>@esbuild-kit/core-utils</code> via <code>drizzle-kit</code>) allows any website to read from the esbuild dev server. Only affects <code>npm run dev</code> environments.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Upgrade <code>drizzle-kit</code> to <code>0.31.10</code> to pull in a fixed <code>esbuild</code>.</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       TOP-10 ACTION LIST
+  ════════════════════════════════════════════ -->
+  <div class="section-eyebrow">Prioritised Actions</div>
+  <h2 class="section">Top-10 Action List by Impact</h2>
+
+  <div class="callout" style="margin-bottom:16px;">
+    The following actions are ordered by risk impact. Items 1–4 are exploitable in production today. Items 5–7 prevent silent failures and configuration crashes. Items 8–10 address memory, hardening, and UI correctness.
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step__num">1</div>
+      <div>
+        <div class="step__title">Fix admin secret open-by-default (C1)</div>
+        <div class="step__body">Change <code>isValidAdminSecret</code> to return <code>false</code> when <code>ADMIN_SECRET</code> is unset. Log a startup warning. One missing env var currently gives any attacker full server admin.</div>
+        <div class="step__tip">Zero-line gameplay impact; highest-bang-for-buck security fix in the codebase.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">2</div>
+      <div>
+        <div class="step__title">Add voice relay room membership check (C2)</div>
+        <div class="step__body">Before relaying <code>VOICE_OFFER</code>, <code>VOICE_ANSWER</code>, <code>VOICE_ICE</code>, and <code>VOICE_RENEGOTIATE</code>, verify both sockets share the same active room. Any authenticated player can currently send arbitrary WebRTC payloads to any other player in the system.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">3</div>
+      <div>
+        <div class="step__title">Upgrade <code>drizzle-orm</code> to fix SQL injection CVE (N4)</div>
+        <div class="step__body">Run <code>npm install drizzle-orm@^0.45.2</code> and follow with a <code>drizzle-kit</code> migration check. GHSA-gpj5-g38j-94v9 is high-severity and affects all DB-backed deployments.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">4</div>
+      <div>
+        <div class="step__title">Remove <code>auth_token</code> from OAuth redirect URL (C4)</div>
+        <div class="step__body">The 30-day session token in the redirect URL is stored in browser history and proxy logs for every user who logs in via Google. Replace with <code>SameSite=None; Secure</code> cookies or a short-lived one-time code exchange.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">5</div>
+      <div>
+        <div class="step__title">Add <code>emitAck</code> timeout (M3)</div>
+        <div class="step__body">Every UI action can hang forever on network failure. Use Socket.io 4.x native ack timeout: <code>socket.timeout(10000).emit(...)</code>. One-liner fix with broad UX impact.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">6</div>
+      <div>
+        <div class="step__title">Validate card format and capture array length in <code>isMakeMovePayload</code> (C5)</div>
+        <div class="step__body">Add regex validation, cap <code>capture.length</code> at 13, and add a 4-character max string length check. Prevents large-payload DoS at the socket layer before reaching the engine.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">7</div>
+      <div>
+        <div class="step__title">Clamp admin <code>maxPlayers</code> to 4 to match engine constraint (C3)</div>
+        <div class="step__body">Change the upper bound in <code>isValidPlayers</code> to <code>&lt;= 4</code>. Prevents an admin from creating a configuration that causes <code>handleStartGame</code> to crash and leaves room state inconsistent.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">8</div>
+      <div>
+        <div class="step__title">Prune guest sessions from in-memory store (M4)</div>
+        <div class="step__body">Add a TTL field to <code>SessionState</code> for guest sessions and run a periodic pruner every 10 minutes. Every unique visitor currently creates a permanent entry in <code>store.sessions</code>.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">9</div>
+      <div>
+        <div class="step__title">Add HTTP security headers (M10)</div>
+        <div class="step__body">Add <code>helmet</code> middleware (or equivalent) before all route handlers. Minimum: <code>X-Frame-Options: DENY</code>, <code>X-Content-Type-Options: nosniff</code>, <code>Referrer-Policy: strict-origin-when-cross-origin</code>. Zero-cost for any production deployment.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">10</div>
+      <div>
+        <div class="step__title">Fix <code>Part2Board</code> stale <code>legalIds</code> / remove eslint-disable (M7)</div>
+        <div class="step__body">Remove the <code>eslint-disable-next-line react-hooks/exhaustive-deps</code> comment and add <code>legalIds</code> and <code>play</code> to the <code>useEffect</code> dependency array. Current behaviour causes incorrect card highlights for one render after certain state changes.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <span class="arrow">→</span>
+    <span>Findings N5 (esbuild dev CVE) and N3 (bundle size) are lower-priority and can be addressed in a routine dependency maintenance pass. All 25 findings and their exact file locations are documented above.</span>
+  </div>
+
+</div>
+<!-- CONTENT END -->
+<!-- No manual footer markup: the page-number footer is rendered natively by the @page margin-box rule. -->
+</body>
+</html>
