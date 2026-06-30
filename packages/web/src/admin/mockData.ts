@@ -219,7 +219,7 @@ export function getRoomDetail(code: string, row?: RoomListRow): RoomDetail {
     };
   }
 
-  const [current, max] = fallbackRow.players.split('/').map(Number);
+  const [current, _max] = fallbackRow.players.split('/').map(Number);
   const syntheticPlayers: RoomPlayer[] = [
     { name: fallbackRow.hostName, initials: fallbackRow.hostInitials, isHost: true, online: true },
   ];
