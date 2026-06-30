@@ -261,13 +261,6 @@
   align-self: stretch;
 }
 
-.lobby__error {
-  color: var(--danger);
-  font-weight: 600;
-  font-size: 13px;
-  text-align: center;
-}
-
 .lobby__google-btn {
   display: inline-flex;
   align-items: center;
@@ -585,22 +578,6 @@
   padding: 18px;
 }
 
-.sidebar__heading {
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--accent);
-  margin: 0 0 14px;
-}
-
-.sidebar__empty {
-  font-size: 12px;
-  color: var(--text-dim);
-  text-align: center;
-  margin: 0 0 12px;
-}
-
 .sidebar__player-list,
 .sidebar__stat-list {
   list-style: none;
@@ -724,13 +701,6 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-.lobby__profile-guest-msg {
-  font-size: 14px;
-  color: var(--text-dim);
-  text-align: center;
-  margin: 0;
 }
 
 /* ── Progression block (level badge + XP bar + rating) ─────────── */
@@ -944,21 +914,6 @@
   flex-shrink: 0;
 }
 
-.lobby__blocked-empty {
-  font-size: 12px;
-  color: var(--text-dim);
-  margin: 0;
-  text-align: center;
-}
-
-.lobby__blocked-error {
-  font-size: 12px;
-  color: var(--danger);
-  font-weight: 600;
-  margin: 0;
-  text-align: center;
-}
-
 /* ── Data export section ───────────────────────────────────────── */
 
 .lobby__data-export-section {
@@ -974,12 +929,6 @@
   padding: 0.45rem 0.9rem !important;
   height: auto !important;
   min-height: unset !important;
-}
-
-.lobby__data-export-error {
-  color: #f87171;
-  font-size: 0.8rem;
-  margin-top: 0.35rem;
 }
 
 /* ── Delete account section ───────────────────────────────────── */
@@ -1009,13 +958,6 @@
   gap: 10px;
 }
 
-.lobby__delete-confirm-text {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.75);
-  margin: 0;
-  line-height: 1.5;
-}
-
 .lobby__delete-confirm-actions {
   display: flex;
   flex-direction: row;
@@ -1039,9 +981,3 @@
   flex-shrink: 0;
 }
 
-.lobby__delete-error {
-  font-size: 12px;
-  color: #ef4444;
-  margin: 0;
-  font-weight: 600;
-}
