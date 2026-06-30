@@ -2,8 +2,8 @@
 export { DsIcon } from './components/Icon';
 export type { DsIconProps, DsIconName } from './components/Icon';
 
-export { DsAvatar } from './components/Avatar';
-export type { DsAvatarProps } from './components/Avatar';
+export { DsAvatar, PRESET_AVATAR_KEYS, getPresetColor } from './components/Avatar';
+export type { DsAvatarProps, PresetAvatarKey } from './components/Avatar';
 
 export { DsSpinner } from './components/Spinner';
 export type { DsSpinnerProps } from './components/Spinner';

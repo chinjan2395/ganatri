@@ -18,6 +18,8 @@ export interface DsButtonProps {
   title?: string;
   /** Accessible label for icon-only buttons */
   'aria-label'?: string;
+  /** Inline CSS styles */
+  style?: React.CSSProperties;
   // Touch / pointer event handlers for PTT-style interactions
   onMouseDown?: () => void;
   onMouseUp?: () => void;
@@ -38,6 +40,7 @@ export function DsButton({
   className,
   title,
   'aria-label': ariaLabel,
+  style,
   onMouseDown,
   onMouseUp,
   onMouseLeave,
@@ -60,6 +63,7 @@ export function DsButton({
       onClick={onClick}
       title={title}
       aria-label={ariaLabel}
+      style={style}
       onMouseDown={onMouseDown}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseLeave}

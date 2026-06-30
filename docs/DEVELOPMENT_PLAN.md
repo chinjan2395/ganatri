@@ -2,7 +2,7 @@
 
 **Last updated date:** See `docs/LAST_UPDATED.txt`. This file focuses on phase/task status; timestamps are tracked in a separate, low-overhead file to reduce read/write cost in SDK agent workflows.
 
-All 482 tests passing (153 engine + 126 server + 203 db).
+All 495 tests passing (153 engine + 131 server + 211 db). Web: 0 TS errors, build green.
 
 ---
 
@@ -177,7 +177,7 @@ Work in four larger bundles — DS-R-A → DS-R-D — so each nightly run execut
 | `get_blocked_users` socket event + handler                            | ✅      | `BlockedUserView`/`GetBlockedUsersAck` in `protocol.ts`; `GET_BLOCKED_USERS` in `EVENTS`; `handleGetBlockedUsers` in `handlers.ts` (NOT_LOGGED_IN/UNAVAILABLE guards); 3 tests in `blocked-users.test.ts` |
 
 
-**Test count: 126 / 126 passing.**
+**Test count: 131 / 131 passing.**
 
 ---
 
@@ -311,7 +311,7 @@ To keep each Claude run meaningful, treat the remaining work as the following la
 
 | Work pack | Status | Notes |
 | ---- | ------ | ----- |
-| 6c — Auth/account hardening bundle | 🟡 | One pass for the remaining account-settings and auth-hardening work: display-name/avatar settings, active-session UX, name-prefill polish, and abuse-protection hardening. |
+| 6c — Auth/account hardening bundle | ✅ | Display-name/avatar settings, active-session UX, name-prefill polish, and abuse-protection hardening all complete. (done 2026-06-30) |
 | 6d/6e — Persistence + stats polish bundle | ⬜ | One pass for replay-model scaffolding, idempotency guards, backfill/reconcile work, and any remaining stats/leaderboard polish. |
 | 6f/6i — Analytics + compliance bundle | ⬜ | One pass for event taxonomy, instrumentation, privacy-policy/consent work, and export/delete UX polish. |
 | 6j — Operations hardening bundle | ⬜ | One pass for backups, monitoring/alerts, pool sizing, and cost/free-tier guardrails. |
@@ -360,12 +360,14 @@ To keep each Claude run meaningful, treat the remaining work as the following la
 | Persisted auth sessions / token refresh | ✅ | DB-backed opaque session token (sha-256 hashed, `auth_sessions` row, `SESSION_TTL_DAYS=30` default) issued on OAuth callback, stored in an httpOnly `ganatri_session` cookie. No JWT/refresh — single durable opaque token per login. Resolves Phase 7e "session token expiry". |
 | Wire accounts into existing session flow | ✅ | Socket `io.use` middleware (`server/src/auth/sessionMiddleware.ts`) resolves the cookie → `getAuthSessionByTokenHash` → `socket.data.userId/account` + `authSessionId`; `touchAuthSession` extends expiry on connect and throttled socket activity; `handlers.ts` `issueNewSession`/`bindAccount` bind a durable `playerId === users.id` for logged-in users (random uuid for guests) and emit account fields in `SESSION` (guests get `guestToken`, logged-in users rely on httpOnly cookie). Reconnect path preserved. HTTP routes `GET /auth/google/login|callback|logout` + `POST /auth/bootstrap` in `createApp.ts`. |
 | Guest → registered upgrade flow | ✅ | `mergeGuestIntoUser` in both Pg+Memory impls; OAuth callback reads `ganatri_guest` cookie and calls merge (non-fatal). `loginWithGoogle()` passes `?session_token=<token>`. |
-| Account settings | 🟡 | Edit display name + avatar, link/unlink OAuth, change email, delete account (ties to 6i). Display-name edit + active session management now complete (server + web). Avatar/link/unlink remain. |
+| Account settings | 🟡 | Edit display name + avatar, link/unlink OAuth, change email, delete account (ties to 6i). Display-name edit + active session management now complete (server + web). Avatar server+DB layer + web avatar picker UI complete (Phase 6c). Link/unlink OAuth remains. |
 | Active session management — DB | ✅ | `auth_sessions.last_seen_at` + migration `0006_auth_session_last_seen.sql`; `getAuthSessionByTokenHash`, `touchAuthSession`, `listAuthSessions`, `revokeAuthSessionById`, `revokeOtherAuthSessions` in Pg + Memory; schema drift + auth contract tests. DB: 186→191. |
 | Active session management — server | ✅ | `GET_AUTH_SESSIONS`/`REVOKE_AUTH_SESSION`/`REVOKE_OTHER_AUTH_SESSIONS` socket handlers; sliding expiry via `touchAuthSession`; OAuth callback sets httpOnly cookie (no `auth_token` URL param); `POST /auth/bootstrap`; `guestToken` in SESSION for guests. Server: 102→108 (`auth-sessions.test.ts`, `oauth-callback.test.ts`). |
 | Active session management — web | ✅ | `SessionsScreen` (+ CSS): list devices, revoke one, sign out others, log out current; `bootstrapAuth()` before socket connect; protocol/socket helpers; LobbyScreen link; `screen: 'sessions'` routing. |
 | Display-name edit — server + DB | ✅ | `updateUserDisplayName` in `GamePersistence` (Pg + Memory); `update_display_name` socket event handler in `handlers.ts` with NOT_LOGGED_IN/INVALID_NAME/UNAVAILABLE guards; re-emits SESSION on success; +3 tests in `account.test.ts`. |
 | Display-name edit — web client | ✅ | Inline editor on LobbyScreen; `UPDATE_DISPLAY_NAME` event + `UpdateDisplayNamePayload/Ack` in protocol.ts; `updateDisplayName` in socket.ts + GameProvider. |
+| Avatar update — DB + server (Phase 6c) | ✅ | `updateUserAvatarUrl(userId, avatarUrl)` added to `GamePersistence` interface + both `PgPersistence` and `MemoryPersistence` impls. `UPDATE_AVATAR` event + `UpdateAvatarPayload`/`UpdateAvatarAck` types in `packages/server/src/protocol.ts`. `handleUpdateAvatar` + `isValidAvatarUrl` (null/preset:1–8/https) in `handlers.ts`; re-emits SESSION on success. 4 contract tests × 2 impls (211 db tests). 5 server integration tests in `account.test.ts` (131 server tests). |
+| Avatar update — DS + web UI (Phase 6c) | ✅ | `DsAvatar` updated to render preset-color circles for `preset:N` src values (inline `backgroundColor` override, same initials span). `PRESET_AVATAR_KEYS`, `getPresetColor`, `PresetAvatarKey` exported from `@ganatri/ds`. `PresetGrid` Storybook story added. `UPDATE_AVATAR` event + `UpdateAvatarPayload`/`UpdateAvatarAck` in `packages/web/src/protocol.ts`. `updateAvatar` helper in `socket.ts`. `updateAvatar` callback in `GameProvider` (mirrors `updateDisplayName` pattern). LobbyScreen profile modal: "Change Avatar" button → 8-swatch 2×4 grid → apply preset or clear; active swatch shows checkmark; mobile avatar button guards against preset key as `<img>` src. CSS: `lobby__avatar-section/picker/swatch/swatch--active/swatch--clear`. 495 tests pass; 0 TS errors. (done 2026-06-30) |
 | Auth brute-force / abuse protection | ✅ | Per-IP rate-limiters in `createApp.ts`: OAuth (login+callback) 10/min, bootstrap 30/min. `resetAuthRateLimits()` export. 9 integration tests in `auth-rate-limit.test.ts`. |
 | Replace ad-hoc name input with account name | ✅ | `validateName()` bypasses for logged-in users; `handleCreate`/`handleJoin` use `effectiveName` (account.displayName ?? name); "Playing as <name>" shown in `CreateJoinPanel` when logged in. |
 

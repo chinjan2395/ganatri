@@ -19,6 +19,15 @@ export interface UpdateDisplayNamePayload {
 export type UpdateDisplayNameAck =
   | { ok: true; displayName: string }
   | { ok: false; error: 'NOT_LOGGED_IN' | 'UNAVAILABLE' | 'INVALID_NAME' };
+
+export interface UpdateAvatarPayload {
+  avatarUrl: string | null;
+}
+
+export type UpdateAvatarAck =
+  | { ok: true; avatarUrl: string | null }
+  | { ok: false; error: 'NOT_LOGGED_IN' | 'INVALID_AVATAR' | 'UNAVAILABLE' };
+
 export interface JoinRoomPayload {
   roomCode: string;
   name?: string;
@@ -421,6 +430,7 @@ export const EVENTS = {
   GET_BLOCKED_USERS: 'get_blocked_users',
   GET_AUTH_SESSIONS: 'get_auth_sessions',
   UPDATE_DISPLAY_NAME: 'update_display_name',
+  UPDATE_AVATAR: 'update_avatar',
   REVOKE_AUTH_SESSION: 'revoke_auth_session',
   REVOKE_OTHER_AUTH_SESSIONS: 'revoke_other_auth_sessions',
   DELETE_ACCOUNT: 'delete_account',

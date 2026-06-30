@@ -1,7 +1,12 @@
 import type { ReactNode } from 'react';
 import { DsIcon } from '../Icon';
 import type { DsIconName } from '../Icon';
+import { getPresetColor } from '../Avatar';
 import './TopNav.css';
+
+function getPresetBg(key: string): string | undefined {
+  return getPresetColor(key);
+}
 
 export interface DsTopNavItem {
   id: string;
@@ -67,7 +72,7 @@ export function DsTopNav({
           onClick={onAvatarClick}
           aria-label={avatarLabel}
         >
-          {avatarUrl ? (
+          {avatarUrl && !avatarUrl.startsWith('preset:') ? (
             <img
               className="ds-top-nav__avatar-img"
               src={avatarUrl}
@@ -75,7 +80,11 @@ export function DsTopNav({
               alt=""
             />
           ) : (
-            <span className="ds-top-nav__avatar-initials" aria-hidden="true">
+            <span
+              className="ds-top-nav__avatar-initials"
+              style={avatarUrl?.startsWith('preset:') ? { backgroundColor: getPresetBg(avatarUrl) } : undefined}
+              aria-hidden="true"
+            >
               {avatarInitial}
             </span>
           )}
