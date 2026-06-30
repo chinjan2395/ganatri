@@ -726,6 +726,70 @@ export function resetLastMoveTime(): void {
   lastMoveTime.clear();
 }
 
+// ---------------------------------------------------------------------------
+// IP rate limiter (create_room + join_room)
+// ---------------------------------------------------------------------------
+
+const RATE_LIMIT_MAX = 10;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+
+interface RateLimitEntry {
+  count: number;
+  resetAt: number;
+}
+
+/**
+ * Single rate-limit bucket shared by create_room and join_room.
+ * Key: IP address string. Value: { count, resetAt }.
+ * Expired entries are pruned on each check to bound memory use.
+ */
+const ipRateLimit: Map<string, RateLimitEntry> = new Map();
+
+/**
+ * Check whether the given IP is within the rate limit.
+ * Prunes expired entries on each call.
+ * Returns true when the request is allowed, false when the limit is exceeded.
+ */
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+
+  // Prune expired entries.
+  for (const [key, entry] of ipRateLimit) {
+    if (entry.resetAt <= now) ipRateLimit.delete(key);
+  }
+
+  const entry = ipRateLimit.get(ip);
+  if (entry === undefined || entry.resetAt <= now) {
+    // First request in this window.
+    ipRateLimit.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX) {
+    return false; // limit exceeded
+  }
+
+  entry.count += 1;
+  return true;
+}
+
+/** For tests: reset rate-limit state and optionally control the clock. */
+export function resetIpRateLimit(): void {
+  ipRateLimit.clear();
+}
+
+/**
+ * Exposed for tests that need to pre-fill the rate-limit bucket
+ * (e.g. to advance the window without waiting 60 s).
+ */
+export function __setIpRateLimitForTests(
+  ip: string,
+  count: number,
+  resetAt: number,
+): void {
+  ipRateLimit.set(ip, { count, resetAt });
+}
+
 const INVITE_TIMEOUT_MS = 60_000;
 
 interface InviteState {
@@ -764,6 +828,12 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
         if (typeof n === 'string') name = sanitizePlayerName(n);
       }
     }
+    // IP rate limit: skip when address is unavailable.
+    const ip = socket.handshake.address;
+    if (ip && !checkRateLimit(ip)) {
+      ack({ ok: false, error: 'RATE_LIMITED' });
+      return;
+    }
     if (name) updateSession(session.token, { name });
     handleCreateRoom(socket, session, ack);
   });
@@ -773,6 +843,12 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
     if (typeof ack !== 'function') return;
     if (!isJoinRoomPayload(payload)) {
       ack({ ok: false, error: 'NOT_FOUND' });
+      return;
+    }
+    // IP rate limit: skip when address is unavailable.
+    const ip = socket.handshake.address;
+    if (ip && !checkRateLimit(ip)) {
+      ack({ ok: false, error: 'RATE_LIMITED' });
       return;
     }
     if (typeof payload.name === 'string' && payload.name.trim()) {

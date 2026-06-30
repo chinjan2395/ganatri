@@ -56,18 +56,20 @@ Phase 4 production deployment is handled by the user (Render + Cloudflare).
 
 ## Last Run
 - Date: 2026-06-30
-- Outcome: Phase 6c complete — Replace ad-hoc name input with account name. `validateName()` bypasses for logged-in users; `handleCreate`/`handleJoin` use effectiveName (account.displayName ?? name); "Playing as <name>" shown in CreateJoinPanel when logged in. 470 tests pass.
-- Branch: nightly/2026-06-30-1234
+- Outcome: Phase 7b complete — IP rate-limiting for `create_room`/`join_room`. In-memory Map (10 req/min/IP), `RATE_LIMITED` error ack, 3 new server tests. 473 tests pass (153 engine + 117 server + 203 db).
+- Branch: nightly/2026-06-30-1303
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-Phase DS-R is COMPLETE and Phase 6c name-input task is done. Next run picks up:
+Phase DS-R is COMPLETE, Phase 6c name-input task is done, and Phase 7b IP rate-limiting is done. Next run picks up:
 
-**Next item: Phase 7b — Rate-limit `create_room` and `join_room` per IP.**
-`packages/server/src/handlers.ts`. Simple in-memory rate-limiter per IP (e.g. 10 requests per IP per minute for create_room; similar for join_room). No external deps — just a Map<ip, {count, resetAt}>. Acceptance: rate-limited requests get an error response, existing tests still pass, 2–3 new server tests cover the rate-limit path.
+**Next item: Phase 7a — `React.memo` on `Part1Board` and `Part2Board`.**
+`packages/web/src/components/Part1Board.tsx` and `Part2Board.tsx`. Wrap both with `React.memo`. Acceptance: build green, no TS errors, 473 tests still pass.
+
+After that: Phase 7b "Rate-limit auth/OAuth callbacks per IP" (Phase 6c auth brute-force protection).
 
 Deferred items to consider for a future DS-R24 task:
 - `DsCoPlayerRow` component for mobile `rp__rows` co-player rows in LobbyScreen

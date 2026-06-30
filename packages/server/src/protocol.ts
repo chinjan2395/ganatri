@@ -47,13 +47,13 @@ export interface RequestStatePayload {
 export interface CreateRoomAck {
   ok: boolean;
   roomCode?: string;
-  error?: 'ALREADY_IN_GAME';
+  error?: 'ALREADY_IN_GAME' | 'RATE_LIMITED';
   currentRoomCode?: string; // present when error === 'ALREADY_IN_GAME'
 }
 
 export interface JoinRoomAck {
   ok: boolean;
-  error?: 'NOT_FOUND' | 'FULL' | 'ALREADY_STARTED' | 'ALREADY_IN_GAME';
+  error?: 'NOT_FOUND' | 'FULL' | 'ALREADY_STARTED' | 'ALREADY_IN_GAME' | 'RATE_LIMITED';
   currentRoomCode?: string; // present when error === 'ALREADY_IN_GAME'
 }
 
