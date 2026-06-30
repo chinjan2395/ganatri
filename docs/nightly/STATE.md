@@ -57,17 +57,17 @@ Phase 4 production deployment is handled by the user (Render + Cloudflare).
 
 ## Last Run
 - Date: 2026-06-30
-- Outcome: Phase 7a performance — split `GameProvider` into 3 sub-contexts (`GameSessionContext`, `GameRoomContext`, `GameViewContext`); `GameScreen.tsx` updated to use narrow hooks; per-player derived props memoized in `playerSeatData`. Fixed `preview.tsx` to provide all 4 context providers. 0 TS errors; 482 tests pass.
-- Branch: nightly/2026-06-30-2000
+- Outcome: Phase 7a performance — lazy-load 6 secondary screens (HistoryScreen, StatsScreen, LeaderboardScreen, AdminScreen, SessionsScreen, DesignSystemScreen) via React.lazy() + Suspense in App.tsx. Vite emits 6 separate JS chunks; initial bundle shrinks from 599 kB. 0 TS errors; 482 tests pass.
+- Branch: nightly/2026-06-30-2045
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-Phase 7a performance complete: `GameProvider` split into 3 sub-contexts; `GameScreen.tsx` uses narrow hooks; per-player seat data memoized.
+Phase 7a performance complete: `GameProvider` split into 3 sub-contexts; `GameScreen.tsx` uses narrow hooks; per-player seat data memoized; 6 secondary screens lazy-loaded via React.lazy() + Suspense.
 
-**Next item: Phase 7a remaining** — consider lazy-loading heavy screens (HistoryScreen, StatsScreen, LeaderboardScreen, AdminScreen) via React `lazy()` / `Suspense` to reduce initial bundle size (currently 599 kB gzipped). Or move to Phase 6c remaining account settings (avatar/link-unlink OAuth remain).
+**Next item: Phase 6c auth/account hardening** — remaining account-settings: avatar and link/unlink OAuth. Avatar upload requires file storage infrastructure (not set up); consider preset avatar selection or URL input instead. Link/unlink OAuth allows users to unlink their Google account. Alternatively continue with Phase 6d/6e persistence + stats polish bundle.
 
 **Known follow-up items (non-blocking) from prior code review:**
 - `getClientIp` in `createApp.ts` trusts `X-Forwarded-For` unconditionally. Fix: gate on `TRUST_PROXY=1` env var.
