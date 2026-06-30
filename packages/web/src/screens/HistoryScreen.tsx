@@ -18,6 +18,8 @@ import {
   DsEmptyState,
   DsButton,
   FooterBar,
+  FeltBackdrop,
+  CornerDecor,
 } from '@ganatri/ds';
 import type { DsTopNavItem, DsBottomNavTab, DsHistoryOutcome } from '@ganatri/ds';
 import './HistoryScreen.css';
@@ -134,6 +136,7 @@ export function HistoryScreen(): React.ReactNode {
 
   return (
     <div className="hist__root">
+      <FeltBackdrop />
       {isDesktop ? (
         <DsTopNav
           logo={<img src={logo} alt="Ganatri" className="hist__header-logo-sm" />}
@@ -275,6 +278,7 @@ export function HistoryScreen(): React.ReactNode {
       {isDesktop && (
         <FooterBar tagline="Play smart. Play sharp. Win with Ganatri." />
       )}
+      <CornerDecor />
     </div>
   );
 }

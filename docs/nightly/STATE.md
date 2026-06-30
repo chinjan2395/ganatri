@@ -10,12 +10,13 @@
 > (Current Phase → next NOT_STARTED/IN_PROGRESS item) apply.
 
 ## Current Phase
-Phase 6i/6j — Privacy, retention & compliance / Operations & hardening
+Phase DS-R continuation (DS-R19–R23 remaining)
 
 ## Status
 IN_PROGRESS  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
+- [x] Phase 6i/6j — Privacy, retention & compliance / Operations & hardening (2026-06-30) — All technically actionable items done (data export, account deletion, retention pruning, applyGameScoring batch optimization). Remaining items are infrastructure/legal/operational requiring human input (privacy policy, backups, monitoring, pool sizing).
 - [x] Phase DS-R — Design System Consolidation (2026-06-29) — DS-R1 through DS-R14 complete. All player-facing screens consume `@ganatri/ds` only. ESLint gate bans raw `<button>/<input>` in screen files (excludes AdminScreen + DesignSystemScreen). `DsButton` extended with `aria-label` prop. 462 tests pass (153 engine + 114 server + 195 db).
 - [x] Phase 6i Data export (2026-06-25) — `download_my_data` event: server handler (getUserGameHistory + getPlayerStats in parallel, flattenHistoryEntry + mapStatsView), 4 integration tests; web DownloadMyDataAck type + downloadMyData() helper + GameProvider callback + LobbyScreen "Download My Data" button (DOM-append pattern, deferred revokeObjectURL). 458 tests pass (153 engine + 114 server + 191 db).
 - [x] Phase 1 — Rules Engine (153 tests passing)
@@ -49,27 +50,20 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-30
-- Outcome: DS-R15–R17 complete — RoomScreen raw patterns → DsBadge/DsTitleBlock/DsCard; DS room components (DetailsSidebar, ActivityPanel, VoiceChatPanel, SocialPanel) wrapped with DsCard; LobbyScreen + all screens using DsTopNav now have FeltBackdrop/FooterBar/CornerDecor and transparent headers (no hard background disconnecting header from body). 0 TS errors.
-- Branch: feat/ds-r15-r17-design-consistency
+- Outcome: DS-R18 complete — FeltBackdrop + CornerDecor added to HistoryScreen, LeaderboardScreen, StatsScreen, SessionsScreen; FooterBar isDesktop guard removed from StatsScreen + SessionsScreen so footer renders on mobile. 470 tests pass (153 engine + 114 server + 203 db).
+- Branch: nightly/2026-06-30-0419
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-**Phase 6i/6j is IN_PROGRESS.** Phase 6j "Performance: query plans & N+1 guards" item is done (applyGameScoring batch optimization + 8 new contract tests).
-
-Remaining Phase 6i work:
-- Privacy policy & consent (cookie/localStorage disclosure) — requires human decision on policy content; may be skipped
-- Data retention policies: analytics-event purge still TODO (blocked: no analytics table yet)
-- PII handling & encryption at rest — mostly infrastructure/host level (Neon provides at-rest encryption)
-
-Remaining Phase 6j work (mostly infrastructure, require human setup):
-- Automated backups & restore drills — Neon provides automated backups; restore drills need human
-- DB monitoring & alerting — external tooling (Neon dashboard, Render metrics)
-- Connection-pool sizing for scale — configuration; see `DATABASE_URL` + `PG_POOL_MAX` env if added
-- Cost & free-tier monitoring — operational
-
-**Recommendation for next run:** Move on to the next phase. All technically actionable items in 6i/6j are done (applyGameScoring optimization, existing retention pruning). Remaining items are operational/infrastructure/legal and require human input. Mark 6i/6j COMPLETE (the technically implementable parts) and advance to Phase 7 improvements.
+**Phase DS-R continuation.** DS-R18 is done. Next tasks in order:
+- DS-R19: New DS components `DsSectionHeading` + `DsBodyText` — new folders under `packages/ds/src/components/`, exported from index.ts, with stories. Route to frontend-dev.
+- DS-R20: Replace raw headings/text in `SessionsScreen` with DS-R19 components.
+- DS-R21: Replace raw headings/text in `StatsScreen` with DS-R19 components.
+- DS-R22: Replace raw headings/errors in `LobbyScreen` desktop sidebar.
+- DS-R23: LobbyScreen `CreateJoinPanel` headings + sidebar lists.
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.
+Phase 6i/6j remaining items (privacy policy, backups, monitoring) all require human input — skip in nightly runs.
