@@ -96,6 +96,62 @@ export interface LoggedEvent {
   event: GameEvent;
 }
 
+// ---------------------------------------------------------------------------
+// Sub-context interfaces (narrow, focused slices)
+// ---------------------------------------------------------------------------
+
+interface GameSessionContextValue {
+  connected: boolean;
+  session: SessionInfo | null;
+  account: AccountInfo | null;
+  guestName: string | null;
+}
+
+interface GameRoomContextValue {
+  room: RoomUpdatePayload | null;
+  disconnectedPlayers: ReadonlySet<string>;
+  playerNames: Readonly<Record<string, string>>;
+  playerAvatarUrls: Readonly<Record<string, string | null>>;
+  screen: 'main' | 'history' | 'stats' | 'leaderboard' | 'sessions';
+  setScreen: (s: 'main' | 'history' | 'stats' | 'leaderboard' | 'sessions') => void;
+}
+
+interface GameViewContextValue {
+  view: PlayerView | null;
+  turnStartedAt: number | null;
+  turnTimeoutMs: number;
+  eventLog: readonly LoggedEvent[];
+  lastEvent: GameEvent | null;
+  latestMatchScoring: MatchScoringView[];
+}
+
+// Sub-context objects (exported so GameScreen can subscribe narrowly)
+export const GameSessionContext = createContext<GameSessionContextValue | null>(null);
+export const GameRoomContext = createContext<GameRoomContextValue | null>(null);
+export const GameViewContext = createContext<GameViewContextValue | null>(null);
+
+export function useGameSession(): GameSessionContextValue {
+  const ctx = useContext(GameSessionContext);
+  if (!ctx) throw new Error('useGameSession must be used within GameProvider');
+  return ctx;
+}
+
+export function useGameRoom(): GameRoomContextValue {
+  const ctx = useContext(GameRoomContext);
+  if (!ctx) throw new Error('useGameRoom must be used within GameProvider');
+  return ctx;
+}
+
+export function useGameView(): GameViewContextValue {
+  const ctx = useContext(GameViewContext);
+  if (!ctx) throw new Error('useGameView must be used within GameProvider');
+  return ctx;
+}
+
+// ---------------------------------------------------------------------------
+// Main context — actions + remaining state not covered by sub-contexts
+// ---------------------------------------------------------------------------
+
 export interface GameContextValue {
   connected: boolean;
   session: SessionInfo | null;
@@ -475,6 +531,24 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
     return false;
   }, []);
 
+  // Sub-context: session (rarely changes — login/logout only)
+  const sessionValue = useMemo<GameSessionContextValue>(
+    () => ({ connected, session, account, guestName }),
+    [connected, session, account, guestName],
+  );
+
+  // Sub-context: room (changes on room updates / game start)
+  const roomValue = useMemo<GameRoomContextValue>(
+    () => ({ room, disconnectedPlayers, playerNames, playerAvatarUrls, screen, setScreen }),
+    [room, disconnectedPlayers, playerNames, playerAvatarUrls, screen, setScreen],
+  );
+
+  // Sub-context: view (changes on EVERY game move — most volatile)
+  const gameViewValue = useMemo<GameViewContextValue>(
+    () => ({ view, turnStartedAt, turnTimeoutMs, eventLog, lastEvent, latestMatchScoring }),
+    [view, turnStartedAt, turnTimeoutMs, eventLog, lastEvent, latestMatchScoring],
+  );
+
   const value = useMemo<GameContextValue>(
     () => ({
       connected,
@@ -577,7 +651,17 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
     ],
   );
 
-  return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
+  return (
+    <GameSessionContext.Provider value={sessionValue}>
+      <GameRoomContext.Provider value={roomValue}>
+        <GameViewContext.Provider value={gameViewValue}>
+          <GameContext.Provider value={value}>
+            {children}
+          </GameContext.Provider>
+        </GameViewContext.Provider>
+      </GameRoomContext.Provider>
+    </GameSessionContext.Provider>
+  );
 }
 
 export function useGame(): GameContextValue {

@@ -476,8 +476,8 @@ To keep each Claude run meaningful, treat the remaining work as the following la
 | Task | Status | Notes |
 | ---- | ------ | ----- |
 | Memo-guard `Part1Board` and `Part2Board` with `React.memo` | ✅ | `memo()` wraps both components; 0 TS errors; 473 tests pass |
-| Split `GameProvider` context into stable slices | ⬜ | Single `GameContextValue` invalidates all consumers on any state change; split e.g. `view` / `room` / `session` into separate contexts or `useSyncExternalStore` |
-| Memoize per-player derived props in `GameScreen` player row | ⬜ | `handCount`, `captureCount`, `isTurn`, `isSafe` etc. recreated every render; prevents `React.memo` on `OpponentSeat` from bailing out on game-state changes |
+| Split `GameProvider` context into stable slices | ✅ | Added `GameSessionContext`, `GameRoomContext`, `GameViewContext` sub-contexts in `GameProvider.tsx`; each has its own narrow `useMemo`; `useGame()` remains a backward-compat aggregate merger of all 4 contexts; `GameScreen.tsx` updated to use `useGameView()`, `useGameRoom()`, `useGameSession()` for narrow subscriptions |
+| Memoize per-player derived props in `GameScreen` player row | ✅ | `playerSeatData` memoized via `useMemo` in `GameScreen.tsx`; deps: `[view, resolvedPlayerNames, playerAvatarUrls, disconnectedPlayers, account?.avatarUrl]`; players row uses `playerSeatData.map(seat => ...)` instead of inline derivation |
 
 ### 7b — Reliability
 
