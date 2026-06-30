@@ -13,7 +13,7 @@
 Phase 6 — Remaining implementable items (6c auth hardening → 7a/7b quality)
 
 ## Status
-NOT_STARTED  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
+IN_PROGRESS  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 
 ## Completed Phases
 - [x] Phase DS-R — Design System Consolidation (DS-R1–R23 all complete) (2026-06-30)
@@ -56,22 +56,18 @@ Phase 4 production deployment is handled by the user (Render + Cloudflare).
 
 ## Last Run
 - Date: 2026-06-30
-- Outcome: DS-R23 complete — Migrated LobbyScreen CreateJoinPanel headings (DsTitleBlock), sidebar player/stat lists (DsRankRow/DsListRow), and blocked-users list rows (DsListRow + DsButton). Code review caught orphaned skeleton CSS class names (sidebar__player-row etc.) — renamed to sidebar__skeleton-row/rank/stat-row with new CSS rules. 470 tests pass.
-- Branch: nightly/2026-06-30-1124
+- Outcome: Phase 6c complete — Replace ad-hoc name input with account name. `validateName()` bypasses for logged-in users; `handleCreate`/`handleJoin` use effectiveName (account.displayName ?? name); "Playing as <name>" shown in CreateJoinPanel when logged in. 470 tests pass.
+- Branch: nightly/2026-06-30-1234
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-Phase DS-R is COMPLETE. Next run picks up Phase 6 remaining items (see Sequencing Note above).
+Phase DS-R is COMPLETE and Phase 6c name-input task is done. Next run picks up:
 
-**First item: Phase 6c — Replace ad-hoc name input when logged in.**
-When the user is logged in (account.loggedIn === true), the name text field in the
-CreateJoinPanel should be pre-filled with account.displayName and the field should be
-hidden/read-only (or not shown at all — the name is known from the account). Guests
-keep the current editable field. This is a web-only change in LobbyScreen.tsx.
-Acceptance: build green, 470 tests pass, name field absent when logged in.
+**Next item: Phase 7b — Rate-limit `create_room` and `join_room` per IP.**
+`packages/server/src/handlers.ts`. Simple in-memory rate-limiter per IP (e.g. 10 requests per IP per minute for create_room; similar for join_room). No external deps — just a Map<ip, {count, resetAt}>. Acceptance: rate-limited requests get an error response, existing tests still pass, 2–3 new server tests cover the rate-limit path.
 
 Deferred items to consider for a future DS-R24 task:
 - `DsCoPlayerRow` component for mobile `rp__rows` co-player rows in LobbyScreen
