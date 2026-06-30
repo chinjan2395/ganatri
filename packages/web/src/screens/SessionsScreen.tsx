@@ -10,6 +10,8 @@ import {
   DsSpinner,
   DsEmptyState,
   DsAlert,
+  DsSectionHeading,
+  DsBodyText,
   FooterBar,
   FeltBackdrop,
   CornerDecor,
@@ -170,18 +172,18 @@ export function SessionsScreen(): React.ReactNode {
       <main className="sess__main">
         <section className="sess__hero">
           <span className="sess__eyebrow">Account Security</span>
-          <h2 className="sess__headline">Manage signed-in devices</h2>
-          <p className="sess__summary">
+          <DsSectionHeading level={2}>Manage signed-in devices</DsSectionHeading>
+          <DsBodyText tone="muted">
             Review where your account is active and remove any device you do not recognize.
-          </p>
-          {account?.displayName && <p className="sess__account">Signed in as {account.displayName}</p>}
+          </DsBodyText>
+          {account?.displayName && <DsBodyText tone="muted">Signed in as {account.displayName}</DsBodyText>}
         </section>
 
         <section className="sess__panel">
           <div className="sess__panel-header">
             <div>
-              <h3 className="sess__panel-title">Active Sessions</h3>
-              <p className="sess__panel-copy">Sessions expire automatically after 30 days of inactivity.</p>
+              <DsSectionHeading level={3}>Active Sessions</DsSectionHeading>
+              <DsBodyText tone="muted">Sessions expire automatically after 30 days of inactivity.</DsBodyText>
             </div>
             <DsButton
               tone="secondary"
@@ -199,7 +201,7 @@ export function SessionsScreen(): React.ReactNode {
 
           {!loading && !error && currentSession && (
             <div className="sess__section">
-              <h4 className="sess__section-title">This device</h4>
+              <DsSectionHeading level={4}>This device</DsSectionHeading>
               <DsSessionRow
                 sessionId={currentSession.id}
                 userAgent={currentSession.userAgent}
@@ -216,7 +218,7 @@ export function SessionsScreen(): React.ReactNode {
 
           {!loading && !error && (
             <div className="sess__section">
-              <h4 className="sess__section-title">Other devices</h4>
+              <DsSectionHeading level={4}>Other devices</DsSectionHeading>
               {otherSessions.length === 0 ? (
                 <DsEmptyState message="No other active devices." />
               ) : (
