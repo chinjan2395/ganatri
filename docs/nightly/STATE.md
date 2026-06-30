@@ -57,23 +57,21 @@ Phase 4 production deployment is handled by the user (Render + Cloudflare).
 
 ## Last Run
 - Date: 2026-06-30
-- Outcome: Phase 6c auth brute-force protection complete — per-IP rate-limiters added to `createApp.ts` for OAuth (10/min) and bootstrap (30/min) endpoints. 9 new integration tests. 0 TS errors; 482 tests pass (153 engine + 126 server + 203 db).
-- Branch: nightly/2026-06-30-1850
+- Outcome: Phase 7a performance — split `GameProvider` into 3 sub-contexts (`GameSessionContext`, `GameRoomContext`, `GameViewContext`); `GameScreen.tsx` updated to use narrow hooks; per-player derived props memoized in `playerSeatData`. Fixed `preview.tsx` to provide all 4 context providers. 0 TS errors; 482 tests pass.
+- Branch: nightly/2026-06-30-2000
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-Phase 6c auth brute-force protection is done (OAuth 10/min, bootstrap 30/min per IP).
+Phase 7a performance complete: `GameProvider` split into 3 sub-contexts; `GameScreen.tsx` uses narrow hooks; per-player seat data memoized.
 
-**Known follow-up items (non-blocking) from code review:**
-- `getClientIp` in `createApp.ts` trusts `X-Forwarded-For` unconditionally — same flaw as existing `handlers.ts`. Fix: gate on a `TRUST_PROXY=1` env var. Note in next run if working on security hardening.
-- OAuth 429 shows bare JSON to browser user (no redirect back with `?login=error`). Minor UX gap.
+**Next item: Phase 7a remaining** — consider lazy-loading heavy screens (HistoryScreen, StatsScreen, LeaderboardScreen, AdminScreen) via React `lazy()` / `Suspense` to reduce initial bundle size (currently 599 kB gzipped). Or move to Phase 6c remaining account settings (avatar/link-unlink OAuth remain).
 
-**Next item: Phase 7 — Split GameProvider context** — split `packages/web/src/state/GameProvider.tsx` into stable slices so components don't re-render on unrelated state changes. Memoize per-player derived props in `GameScreen.tsx`.
-
-After that: Phase 7 remaining performance items (memoize per-player derived props, lazy-load screens).
+**Known follow-up items (non-blocking) from prior code review:**
+- `getClientIp` in `createApp.ts` trusts `X-Forwarded-For` unconditionally. Fix: gate on `TRUST_PROXY=1` env var.
+- OAuth 429 shows bare JSON to browser (no redirect with `?login=error`). Minor UX gap.
 
 Deferred items to consider for a future DS-R24 task:
 - `DsCoPlayerRow` component for mobile `rp__rows` co-player rows in LobbyScreen
