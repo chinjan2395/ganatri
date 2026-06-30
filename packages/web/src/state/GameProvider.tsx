@@ -63,7 +63,6 @@ import {
   type MatchScoringView,
   type PlayerProgressionView,
   type ScoreHistoryEntryView,
-  type GetRecentPlayersAck,
   type InviteReceivedPayload,
   type InviteAcceptedPayload,
   type InviteCancelledPayload,
