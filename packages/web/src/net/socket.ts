@@ -7,7 +7,6 @@ import { io, type Socket } from 'socket.io-client';
 import type { Move } from '@ganatri/engine';
 import {
   EVENTS,
-  type AuthSessionView,
   type CreateRoomAck,
   type CreateRoomPayload,
   type GetAuthSessionsAck,
