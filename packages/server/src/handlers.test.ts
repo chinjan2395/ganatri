@@ -15,7 +15,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { io as ioClient, type Socket as ClientSocket } from 'socket.io-client';
 import { createApp, type AppInstance } from './createApp.js';
 import { resetStore } from './store.js';
-import { resetLastMoveTime } from './handlers.js';
+import { resetLastMoveTime, resetIpRateLimit, __setIpRateLimitForTests } from './handlers.js';
 import { EVENTS } from './protocol.js';
 import type { legalMoves as LegalMovesFn } from '@ganatri/engine';
 
@@ -72,6 +72,7 @@ describe('Ganatri server', () => {
   beforeEach(async () => {
     resetStore();
     resetLastMoveTime();
+    resetIpRateLimit();
     app = createApp();
     port = await app.listen(0);
   });
@@ -972,6 +973,64 @@ describe('Ganatri server', () => {
       guest.disconnect();
     }
   }, 70_000);
+
+  // -------------------------------------------------------------------------
+  // IP rate limiter
+  // -------------------------------------------------------------------------
+
+  it('rate limiter: allows requests under the 10-per-minute limit', async () => {
+    // Fresh state — no prior requests for this IP.
+    const client = connectClient(port);
+    await waitFor(client, EVENTS.SESSION);
+    try {
+      // The first create_room should succeed (count = 1, limit = 10).
+      const ack = await emitAck<{ ok: boolean; error?: string }>(client, EVENTS.CREATE_ROOM);
+      expect(ack.ok).toBe(true);
+      expect(ack.error).toBeUndefined();
+    } finally {
+      client.disconnect();
+    }
+  });
+
+  it('rate limiter: returns RATE_LIMITED when the per-minute limit is exceeded', async () => {
+    // Pre-fill the rate-limit bucket for the loopback address to the maximum.
+    // socket.handshake.address for a local test client is '::1' or '::ffff:127.0.0.1'.
+    // We fill BOTH variants so the test is robust regardless of Node/OS address format.
+    const futureReset = Date.now() + 60_000;
+    __setIpRateLimitForTests('::1', 10, futureReset);
+    __setIpRateLimitForTests('::ffff:127.0.0.1', 10, futureReset);
+    __setIpRateLimitForTests('127.0.0.1', 10, futureReset);
+
+    const client = connectClient(port);
+    await waitFor(client, EVENTS.SESSION);
+    try {
+      const ack = await emitAck<{ ok: boolean; error?: string }>(client, EVENTS.CREATE_ROOM);
+      expect(ack.ok).toBe(false);
+      expect(ack.error).toBe('RATE_LIMITED');
+    } finally {
+      client.disconnect();
+    }
+  });
+
+  it('rate limiter: allows requests again after the window resets', async () => {
+    // Pre-fill with an ALREADY-EXPIRED window so the rate limiter treats this as a
+    // fresh window when the next request arrives.
+    const expiredReset = Date.now() - 1; // reset time in the past
+    __setIpRateLimitForTests('::1', 10, expiredReset);
+    __setIpRateLimitForTests('::ffff:127.0.0.1', 10, expiredReset);
+    __setIpRateLimitForTests('127.0.0.1', 10, expiredReset);
+
+    const client = connectClient(port);
+    await waitFor(client, EVENTS.SESSION);
+    try {
+      // The window has expired — the next request opens a fresh window and succeeds.
+      const ack = await emitAck<{ ok: boolean; error?: string }>(client, EVENTS.CREATE_ROOM);
+      expect(ack.ok).toBe(true);
+      expect(ack.error).toBeUndefined();
+    } finally {
+      client.disconnect();
+    }
+  });
 
   it('maintains game state when non-turn player\'s grace period expires', async () => {
     /**
