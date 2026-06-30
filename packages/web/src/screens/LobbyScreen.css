@@ -207,34 +207,6 @@
   }
 }
 
-.lobby__cj-heading {
-  font-family: 'Cinzel', serif;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--accent);
-  opacity: 0.9;
-  display: none;
-}
-
-@media (min-width: 900px) {
-  .lobby__cj-heading {
-    display: block;
-  }
-}
-
-.lobby__cj-sub {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
-  display: none;
-}
-
-@media (min-width: 900px) {
-  .lobby__cj-sub {
-    display: block;
-  }
-}
 
 .lobby__cj-col > .ds-button,
 .lobby__join-form .ds-button {
@@ -580,9 +552,7 @@
 
 .sidebar__player-list,
 .sidebar__stat-list {
-  list-style: none;
   margin: 0 0 14px;
-  padding: 0;
 }
 
 .sidebar__skeleton-list {
@@ -592,64 +562,11 @@
   margin-bottom: 14px;
 }
 
-.sidebar__player-row {
+.sidebar__skeleton-row {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 6px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.sidebar__player-row:last-child {
-  border-bottom: none;
-}
-
-.sidebar__rank {
-  font-size: 13px;
-  font-weight: 700;
-  color: rgba(231, 195, 74, 0.6);
-  width: 16px;
-  flex-shrink: 0;
-  text-align: center;
-}
-
-/* DsAvatar in sidebar — override size-derived border only */
-.sidebar__player-avatar {
-  flex-shrink: 0;
-}
-
-.sidebar__player-name {
-  flex: 1;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.sidebar__player-wins {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--accent);
-  flex-shrink: 0;
-}
-
-.sidebar__stat-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.sidebar__stat-row:last-child {
-  border-bottom: none;
-}
-
-.sidebar__stat-label {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.6);
 }
 
 .sidebar__stat-value {
@@ -880,29 +797,9 @@
 }
 
 .lobby__blocked-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-}
-
-.lobby__blocked-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 8px;
-}
-
-.lobby__blocked-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.85);
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .lobby__unblock-btn {

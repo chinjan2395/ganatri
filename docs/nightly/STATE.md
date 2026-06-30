@@ -10,7 +10,7 @@
 > (Current Phase → next NOT_STARTED/IN_PROGRESS item) apply.
 
 ## Current Phase
-Phase DS-R — Design System Consolidation (DS-R18–R23 remaining)
+Phase DS-R — Design System Consolidation (DS-R23 complete; phase done)
 
 ## Status
 IN_PROGRESS  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
@@ -50,22 +50,24 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-30
-- Outcome: DS-R22 complete — Migrated LobbyScreen sidebar headings (2× DsTitleBlock), empty states (DsEmptyState), error divs (DsAlert tone="danger"), and inline status p tags (DsBodyText) to DS components. Removed 9 CSS blocks. Reviewer found + fixed one missed migration (lobby__blocked-empty p). 470 tests pass.
-- Branch: nightly/2026-06-30-0907
+- Outcome: DS-R23 complete — Migrated LobbyScreen CreateJoinPanel headings (DsTitleBlock), sidebar player/stat lists (DsRankRow/DsListRow), and blocked-users list rows (DsListRow + DsButton). Fixed skeleton row classes and DsListRow subtitle prop. 470 tests pass.
+- Branch: nightly/2026-06-30-1124
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-**Phase DS-R is IN_PROGRESS** — DS-R22 done; DS-R23 is next.
+**Phase DS-R is COMPLETE** — All DS-R1 through DS-R23 tasks are done.
 
-DS-R23: LobbyScreen CreateJoinPanel headings + sidebar lists:
-- `CreateJoinPanel` heading `<div className="lobby__cj-heading">` + sub `<div className="lobby__cj-sub">` → `DsTitleBlock size="sm"` + `DsBodyText tone="muted"`
-- Sidebar leaderboard `<ul className="sidebar__player-list"><li>` → `DsRankRow`
-- Sidebar stats `<ul className="sidebar__stat-list"><li>` → `DsListRow`
-- `lobby__blocked-list` `<ul><li>` rows → `DsListRow` with trailing unblock `DsButton`
-- Note: mobile `rp__rows` co-player rows are bespoke — deferred to a future `DsCoPlayerRow` task
-Acceptance: build + ESLint green; 470 tests pass; sidebar lists render consistently with LeaderboardScreen.
+Per the priority note in DEVELOPMENT_PLAN.md, after Phase DS-R completes:
+- Next: resume remaining Phase 6 work (6i/6j privacy/ops items not yet complete)
+- Then: Phase 5 voice smoke test (requires human)
+- Then: Phase 9 scoring/progression follow-ups
+- Then: production/deployment follow-ups
+
+Deferred items to consider for a future DS-R24 task:
+- `DsCoPlayerRow` component for mobile `rp__rows` co-player rows in LobbyScreen
+- `DsTitleBlock size="sm"` flourish suppression (pre-existing design issue)
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.
