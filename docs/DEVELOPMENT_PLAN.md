@@ -24,7 +24,7 @@ All 482 tests passing (153 engine + 126 server + 203 db).
 - Tackle items **top to bottom, one per run**. Leave finished items checked (with a date) for visibility, or delete them once their PR is merged.
 - Each item should be self-contained and reviewable: include a short acceptance criterion and the package/files it touches.
 
-**Current priority: Phase DS-R — Design System Consolidation (HIGH).** Refactor all player screens to consume `@ganatri/ds` only — no design component declared independently in any screen. This phase takes precedence over the normal phase flow; the nightly run should pick up the next ⬜ task from the **Phase DS-R** section below (work `DS-R1 → DS-R14` in order). After Phase DS-R completes: resume remaining Phase 6 work (6i/6j privacy/ops), then Phase 5 voice smoke test, then Phase 9 scoring/progression, then production/deployment follow-ups.
+**Current priority: Phase DS-R — Design System Consolidation (HIGH).** Refactor all player screens to consume `@ganatri/ds` only — no design component declared independently in any screen. This phase takes precedence over the normal phase flow; the nightly run should pick up the next ⬜ bundle from the **Phase DS-R** section below (work DS-R-A → DS-R-D in order). After Phase DS-R completes: resume remaining Phase 6 work (6i/6j privacy/ops), then Phase 5 voice smoke test, then Phase 9 scoring/progression, then production/deployment follow-ups.
 
 **How to add a priority item:** insert a `- [ ]` line between the two markers below, e.g.
 `- [ ] **Fix leaderboard pagination off-by-one** — packages/server handlers.ts; offset should be page*limit. Acceptance: new server test covers page 2.`
@@ -53,7 +53,14 @@ All 482 tests passing (153 engine + 126 server + 203 db).
 
 **Per-task conventions:** New DS components live in `packages/ds/src/components/<Name>/` as a folder of `<Name>.tsx` (explicit `export interface Ds<Name>Props`, `ds-<name>` root class, `type="button"` on buttons), `<Name>.css` (token CSS vars — `--gold`, `--panel`, `--text`, etc.; no hard-coded palette where a token exists), `<Name>.stories.tsx` (default + key variants), and `index.ts`; then export from `packages/ds/src/index.ts`. Reuse existing primitives (`DsButton`, `DsCard`, `DsBadge`, `DsField`, `DsTabs`, `DsStat`, `DsAlert`, `FooterBar`, `FeltBackdrop`, `CornerDecor`). Screen migrations import from `@ganatri/ds`, delete local sub-components / inline `<svg>`, map data→props, and move migrated styling into the DS component CSS. Harvest SVG path data + CSS from the screens being replaced. **Every task acceptance:** build + lint (incl. the screens-must-use-DS ESLint gate from commit `ff29862`) green, Storybook stories render, all 458 tests still pass (UI-only change), desktop (≥900px) + mobile parity for screen migrations.
 
-Work `DS-R1 → DS-R14` in order — DS-R1–R5 build the missing components, DS-R6–R13 migrate screens, DS-R14 enforces. DS-R6 (Leaderboard) is the canonical first migration: if DS-R1–R5 miss a shared pattern, add a follow-up component task before continuing.
+Work in four larger bundles — DS-R-A → DS-R-D — so each nightly run executes one coherent slice instead of one small subtask. The detailed task-by-task rows below remain as a historical execution log; the bundles are the preferred nightly units.
+
+| Work bundle | Status | Notes |
+| ---- | ------ | ----- |
+| DS-R-A: Shared primitives + navigation foundation | ✅ | Bundle of DS-R1–R3: `DsIcon`, `DsAvatar`, `DsSpinner`, `DsEmptyState`, `DsModal`, `DsTitleBlock`, `DsTopNav`, `DsBottomNav`, and `DsScreenHeader`. |
+| DS-R-B: Profile + data-surface components | ✅ | Bundle of DS-R4–R5 plus the canonical screen migrations for `LeaderboardScreen`, `HistoryScreen`, `StatsScreen`, and `SessionsScreen`. |
+| DS-R-C: Room/game shell + DS panel cleanup | ✅ | Bundle of DS-R10–R17: `LobbyScreen`, `EndScreen`, `RoomScreen`, panel wrappers, shared shell layout, and the room/game polish pass. |
+| DS-R-D: Typography + enforcement pass | ✅ | Bundle of DS-R18–R23: shared layout shell, DS typography primitives, final text migrations, and lint/enforcement cleanup. |
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
@@ -297,6 +304,17 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 - **Accounts are optional first.** Guests can still play with no signup; an account only adds durable identity, stats, and history. Avoid forcing auth into the critical path of "create room → play".
 - **No PII in analytics.** Analytics events reference opaque user IDs only; display names / emails live in the accounts tables with stricter access.
 - **Strict TypeScript end-to-end.** Schema types must be inferred (Drizzle/Prisma) so the DB layer is as type-safe as the engine.
+
+### Nightly-sized work packs for Phase 6 (preferred)
+
+To keep each Claude run meaningful, treat the remaining work as the following larger bundles instead of very small single-row tasks. Each bundle should be the unit of work for one nightly run.
+
+| Work pack | Status | Notes |
+| ---- | ------ | ----- |
+| 6c — Auth/account hardening bundle | 🟡 | One pass for the remaining account-settings and auth-hardening work: display-name/avatar settings, active-session UX, name-prefill polish, and abuse-protection hardening. |
+| 6d/6e — Persistence + stats polish bundle | ⬜ | One pass for replay-model scaffolding, idempotency guards, backfill/reconcile work, and any remaining stats/leaderboard polish. |
+| 6f/6i — Analytics + compliance bundle | ⬜ | One pass for event taxonomy, instrumentation, privacy-policy/consent work, and export/delete UX polish. |
+| 6j — Operations hardening bundle | ⬜ | One pass for backups, monitoring/alerts, pool sizing, and cost/free-tier guardrails. |
 
 ### 6a — Database foundation & infrastructure
 
