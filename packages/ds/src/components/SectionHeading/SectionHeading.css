@@ -1,0 +1,23 @@
+.ds-section-heading {
+  margin: 0;
+  font-family: inherit;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.04em;
+}
+
+.ds-section-heading--h2 {
+  font-size: 1.1rem;
+  text-transform: uppercase;
+}
+
+.ds-section-heading--h3 {
+  font-size: 0.95rem;
+  text-transform: uppercase;
+}
+
+.ds-section-heading--h4 {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  font-weight: 500;
+}

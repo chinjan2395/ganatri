@@ -49,17 +49,22 @@ small full-stack vertical slices that mirror the history slice.
 Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — skip in nightly runs.
 
 ## Last Run
-- Date: 2026-06-29
-- Outcome: DS-R18 complete — Added FeltBackdrop (first child) + CornerDecor (last child) to HistoryScreen, LeaderboardScreen, StatsScreen, SessionsScreen; removed isDesktop guard from FooterBar in all 4 screens so footer renders on mobile too. 470 tests pass (203 db + 153 engine + 114 server).
-- Branch: nightly/2026-06-29-2123
+- Date: 2026-06-30
+- Outcome: DS-R19 complete — Created DsSectionHeading (h2/h3/h4 via level prop, ds-section-heading root class, CSS token vars) and DsBodyText (renders p, ds-body-text root class, tone: default/muted/error) as new DS typography primitive components. Both exported from packages/ds/src/index.ts with stories. 470 tests pass (203 db + 153 engine + 114 server).
+- Branch: nightly/2026-06-30-0506
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-**Phase DS-R is IN_PROGRESS** — DS-R18 done; DS-R19 is next.
+**Phase DS-R is IN_PROGRESS** — DS-R19 done; DS-R20 is next.
 
-DS-R19: Create `DsSectionHeading` (h2/h3/h4 via `level` prop, `ds-section-heading` root class, CSS token vars) and `DsBodyText` (renders `<p>`, `ds-body-text` root class, `tone?: 'default' | 'muted' | 'error'`) as new DS components in `packages/ds/src/components/`. Export from `index.ts`, add stories. Acceptance: DS builds; stories render; 470 tests pass.
+DS-R20: Replace raw headings/text in `SessionsScreen` with DS typography components. Using DS-R19 components:
+- `sess__headline` `<h2>` → `DsSectionHeading level={2}`
+- `sess__summary`/`sess__account`/`sess__panel-copy` `<p>` → `DsBodyText tone="muted"`
+- `sess__panel-title` `<h3>` → `DsSectionHeading level={3}`
+- `sess__section-title` `<h4>` × 2 → `DsSectionHeading level={4}`
+Remove now-redundant CSS rules. Acceptance: build + ESLint green; 470 tests pass; visual parity.
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.

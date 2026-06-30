@@ -1,0 +1,19 @@
+.ds-body-text {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.ds-body-text--default {
+  color: var(--text);
+}
+
+.ds-body-text--muted {
+  color: var(--text-dim);
+  opacity: 0.75;
+}
+
+.ds-body-text--error {
+  color: var(--danger);
+}
