@@ -17,6 +17,8 @@ import {
   DsButton,
   FooterBar,
   DsIcon,
+  FeltBackdrop,
+  CornerDecor,
 } from '@ganatri/ds';
 import type { DsTopNavItem, DsBottomNavTab } from '@ganatri/ds';
 import { useGame } from '../state/GameProvider';
@@ -249,6 +251,7 @@ export function StatsScreen(): React.ReactNode {
 
   return (
     <div className="st__root">
+      <FeltBackdrop />
       {!isDesktop && (
         <DsScreenHeader
           title="YOUR STATS"
@@ -394,7 +397,8 @@ export function StatsScreen(): React.ReactNode {
 
       <DsBottomNav tabs={BOTTOM_NAV_TABS} activeId="stats" onTab={handleBottomNav} />
 
-      {isDesktop && <FooterBar />}
+      <FooterBar />
+      <CornerDecor />
     </div>
   );
 }

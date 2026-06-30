@@ -18,6 +18,8 @@ import {
   DsButton,
   DsIcon,
   FooterBar,
+  FeltBackdrop,
+  CornerDecor,
 } from '@ganatri/ds';
 import type { DsTopNavItem, DsBottomNavTab } from '@ganatri/ds';
 import './LeaderboardScreen.css';
@@ -160,6 +162,7 @@ export function LeaderboardScreen(): React.ReactNode {
 
   return (
     <div className={`lb__root${showStickyRow ? ' lb__root--sticky' : ''}`}>
+      <FeltBackdrop />
       {isDesktop ? (
         <DsTopNav
           logo={<img src={logo} alt="Ganatri" className="lb__header-logo-sm" />}
@@ -304,9 +307,8 @@ export function LeaderboardScreen(): React.ReactNode {
         onTab={(tab) => handleBottomNav(tab as BottomNavTabId)}
       />
 
-      {isDesktop && (
-        <FooterBar tagline="Play smart. Play sharp. Win with Ganatri." />
-      )}
+      <FooterBar tagline="Play smart. Play sharp. Win with Ganatri." />
+      <CornerDecor />
     </div>
   );
 }
