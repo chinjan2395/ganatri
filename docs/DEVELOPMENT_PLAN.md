@@ -2,7 +2,7 @@
 
 **Last updated date:** See `docs/LAST_UPDATED.txt`. This file focuses on phase/task status; timestamps are tracked in a separate, low-overhead file to reduce read/write cost in SDK agent workflows.
 
-All 470 tests passing (153 engine + 114 server + 203 db).
+All 473 tests passing (153 engine + 117 server + 203 db).
 
 ---
 
@@ -170,7 +170,7 @@ Work `DS-R1 → DS-R14` in order — DS-R1–R5 build the missing components, DS
 | `get_blocked_users` socket event + handler                            | ✅      | `BlockedUserView`/`GetBlockedUsersAck` in `protocol.ts`; `GET_BLOCKED_USERS` in `EVENTS`; `handleGetBlockedUsers` in `handlers.ts` (NOT_LOGGED_IN/UNAVAILABLE guards); 3 tests in `blocked-users.test.ts` |
 
 
-**Test count: 114 / 114 passing.**
+**Test count: 117 / 117 passing.**
 
 ---
 
@@ -468,7 +468,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | Server state persistence (Redis or flat-file snapshot) | ⬜ | **Superseded by Phase 6 (DB)** — do not build a separate snapshot; restart recovery comes from `game_events` rehydration in Phase 6d |
 | Auto-advance / forfeit when grace period expires during PLAYING | ✅ | **Pull forward (urgent bug):** auto-plays first legal move on grace expiry during PLAYING; 2 new tests added |
 | Disclose auto-played move to players on turn timeout | ✅ | **Pull forward (urgent bug):** TURN_TIMEOUT event broadcasts auto-play; client displays toast with player name |
-| Rate-limit `create_room` and `join_room` per IP | ⬜ | Only `make_move` has a debounce; room flood is currently unprotected |
+| Rate-limit `create_room` and `join_room` per IP | ✅ | In-memory `ipRateLimit` Map (10 req/min/IP, shared bucket); `checkRateLimit()` prunes expired entries on each call; returns `RATE_LIMITED` error on both acks; `resetIpRateLimit`/`__setIpRateLimitForTests` exported for tests; 3 new tests in `handlers.test.ts` (under-limit succeeds, at-limit returns RATE_LIMITED, expired window resets); 114→117 server tests |
 | Clean up WebRTC peer connections when a player goes safe mid-Part-2 | ⬜ | Peers remain connected and consuming resources even after a player empties their hand |
 
 ### 7c — Voice / WebRTC
