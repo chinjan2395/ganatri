@@ -46,6 +46,7 @@ import {
   type LeaderboardEntryView,
   type UpdateDisplayNamePayload,
   type UpdateDisplayNameAck,
+  type UpdateAvatarAck,
   type DeleteAccountAck,
   type DownloadMyDataAck,
   type AuthSessionView,
@@ -975,6 +976,12 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
     touchAuthSession();
     if (typeof ack !== 'function') return;
     void handleUpdateDisplayName(socket, session, payload, ack).catch(console.error);
+  });
+
+  socket.on(EVENTS.UPDATE_AVATAR, (payload: unknown, ack: (res: UpdateAvatarAck) => void) => {
+    touchAuthSession();
+    if (typeof ack !== 'function') return;
+    void handleUpdateAvatar(socket, session, payload, ack).catch(console.error);
   });
 
   socket.on(EVENTS.GET_AUTH_SESSIONS, (ack: (res: GetAuthSessionsAck) => void) => {
@@ -2146,6 +2153,66 @@ async function handleUpdateDisplayName(
   socket.emit(EVENTS.SESSION, sessionPayload(session));
 
   ack({ ok: true, displayName: sanitized });
+}
+
+// ---------------------------------------------------------------------------
+// update_avatar
+// ---------------------------------------------------------------------------
+
+function isValidAvatarUrl(v: unknown): boolean {
+  if (v === null) return true;
+  if (typeof v !== 'string') return false;
+  if (/^preset:[1-8]$/.test(v)) return true;
+  // HTTPS URL, max 512 chars, basic check
+  if (v.startsWith('https://') && v.length <= 512 && !v.includes('\n') && !v.includes(' ')) return true;
+  return false;
+}
+
+async function handleUpdateAvatar(
+  socket: Socket,
+  session: SessionState,
+  payload: unknown,
+  ack: (res: UpdateAvatarAck) => void,
+): Promise<void> {
+  // Guard: must be a logged-in account.
+  if (session.userId === null || session.account === null) {
+    ack({ ok: false, error: 'NOT_LOGGED_IN' });
+    return;
+  }
+
+  // Extract and validate avatarUrl from payload.
+  const avatarUrl = (payload !== null && typeof payload === 'object')
+    ? (payload as Record<string, unknown>)['avatarUrl']
+    : undefined;
+
+  if (!isValidAvatarUrl(avatarUrl)) {
+    ack({ ok: false, error: 'INVALID_AVATAR' });
+    return;
+  }
+
+  const validated = avatarUrl as string | null;
+
+  const p = getPersistence();
+  if (!p) {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+
+  try {
+    await p.updateUserAvatarUrl(session.userId, validated);
+  } catch (err) {
+    console.error(`[account] updateUserAvatarUrl failed for ${session.userId}:`, err);
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+
+  // Update the in-memory session so subsequent SESSIONs are correct.
+  session.account.avatarUrl = validated;
+
+  // Re-emit SESSION so the frontend picks up the new avatar immediately.
+  socket.emit(EVENTS.SESSION, sessionPayload(session));
+
+  ack({ ok: true, avatarUrl: validated });
 }
 
 function authSessionView(

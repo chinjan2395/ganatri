@@ -113,6 +113,13 @@ export class MemoryPersistence implements GamePersistence {
     }
   }
 
+  async updateUserAvatarUrl(userId: string, avatarUrl: string | null): Promise<void> {
+    const existing = this.users.get(userId);
+    if (existing) {
+      this.users.set(userId, { ...existing, avatarUrl });
+    }
+  }
+
   async deleteUser(userId: string): Promise<void> {
     // 1. Anonymize game_players rows.
     for (const [id, gp] of this.gamePlayers) {

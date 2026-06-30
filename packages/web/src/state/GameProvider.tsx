@@ -33,6 +33,7 @@ import {
   socket,
   startGame as netStartGame,
   updateDisplayName as netUpdateDisplayName,
+  updateAvatar as netUpdateAvatar,
   requestRecentPlayers as netRequestRecentPlayers,
   invitePlayer as netInvitePlayer,
   respondToInvite as netRespondToInvite,
@@ -55,6 +56,7 @@ import {
   type GetMyScoreHistoryAck,
   type GetLeaderboardAck,
   type UpdateDisplayNameAck,
+  type UpdateAvatarAck,
   type RoomUpdatePayload,
   type SessionPayload,
   type StartGameAck,
@@ -194,6 +196,7 @@ export interface GameContextValue {
   getMyScoreHistory: () => Promise<GetMyScoreHistoryAck>;
   requestLeaderboard: (timeWindow?: 'week' | 'month') => Promise<GetLeaderboardAck>;
   updateDisplayName: (newName: string) => Promise<UpdateDisplayNameAck>;
+  updateAvatar: (avatarUrl: string | null) => Promise<UpdateAvatarAck>;
   loginWithGoogle: () => void;
   logout: () => void;
   invitePlayer: (targetUserId: string) => Promise<InvitePlayerAck>;
@@ -450,6 +453,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
   const getMyScoreHistory = useCallback(() => netGetMyScoreHistory(), []);
   const requestLeaderboard = useCallback((timeWindow?: 'week' | 'month') => netRequestLeaderboard(timeWindow), []);
   const updateDisplayName = useCallback((newName: string) => netUpdateDisplayName(newName), []);
+  const updateAvatar = useCallback((avatarUrl: string | null) => netUpdateAvatar(avatarUrl), []);
   const loginWithGoogle = useCallback(() => netLoginWithGoogle(), []);
   const logout = useCallback(() => netLogout(), []);
 
@@ -586,6 +590,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       getMyScoreHistory,
       requestLeaderboard,
       updateDisplayName,
+      updateAvatar,
       loginWithGoogle,
       logout,
       invitePlayer,
@@ -635,6 +640,7 @@ export function GameProvider({ children }: { children: ReactNode }): ReactNode {
       getMyScoreHistory,
       requestLeaderboard,
       updateDisplayName,
+      updateAvatar,
       loginWithGoogle,
       logout,
       invitePlayer,

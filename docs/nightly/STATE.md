@@ -42,38 +42,36 @@ IN_PROGRESS  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 - [x] Phase 1 — Rules Engine (153 tests passing)
 
 ## Sequencing Note
-Phase DS-R (all 23 tasks) completed as of 2026-06-30. The next run should pick up
-remaining Phase 6 items that are technically implementable (not operational/infra):
+Phase DS-R (all 23 tasks) completed as of 2026-06-30. Phase 6c auth/account hardening complete as of 2026-06-30 (avatar DB+server+web, display name, session management, abuse protection all done; only link/unlink OAuth remains but is deferred — it requires careful design to avoid locking users out).
 
 Priority order for next runs:
-1. **Phase 6c auth/account hardening bundle** — finish the remaining account-settings and auth-hardening work in one pass: account-profile polish, session-management UX, name-prefill flow, and any abuse-protection follow-ups.
-2. **Phase 6d/6e persistence + stats polish bundle** — tackle replay scaffolding, idempotency guards, backfill/reconcile work, and any remaining stats/leaderboard polish.
-3. **Phase 6f/6i analytics + compliance bundle** — cover instrumentation, event taxonomy, privacy policy/consent, and export/delete polish.
-4. **Phase 6j operations hardening bundle** — complete backups/monitoring/pool-sizing/cost guardrails.
-5. **Phase DS-R-D typography + enforcement pass** — if the DS-R work is still pending in a future run, finish the remaining typography and enforcement cleanup.
+1. **Phase 6d/6e persistence + stats polish bundle** — replay scaffolding, idempotency guards, backfill/reconcile work, and any remaining stats/leaderboard polish.
+2. **Phase 6f/6i analytics + compliance bundle** — event taxonomy, instrumentation, privacy policy/consent, export/delete polish.
+3. **Phase 6j operations hardening bundle** — backups, monitoring/alerts, pool sizing, cost guardrails.
 
 Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — skip in nightly runs.
 Phase 4 production deployment is handled by the user (Render + Cloudflare).
 
 ## Last Run
 - Date: 2026-06-30
-- Outcome: Phase 7a performance — lazy-load 6 secondary screens (HistoryScreen, StatsScreen, LeaderboardScreen, AdminScreen, SessionsScreen, DesignSystemScreen) via React.lazy() + Suspense in App.tsx. Vite emits 6 separate JS chunks; initial bundle shrinks from 599 kB. 0 TS errors; 482 tests pass.
-- Branch: nightly/2026-06-30-2045
+- Outcome: Phase 6c complete — preset avatar selection: `updateUserAvatarUrl` (DB+server), `UPDATE_AVATAR` socket event, `DsAvatar` preset-color rendering, LobbyScreen avatar picker (8-swatch grid). All 3 MUST-FIX code review issues fixed (ESLint raw-button gate, DsTopNav preset guard, UpdateAvatarAck discriminated union). 495 tests pass; 0 TS errors; ESLint clean.
+- Branch: nightly/2026-06-30-2222
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-Phase 7a performance complete: `GameProvider` split into 3 sub-contexts; `GameScreen.tsx` uses narrow hooks; per-player seat data memoized; 6 secondary screens lazy-loaded via React.lazy() + Suspense.
+Phase 6c complete: avatar selection (preset:1–8 + clear), display-name edit, session management, abuse protection all shipped. Link/unlink OAuth deferred — needs design decision on fallback auth path for users with no guest token.
 
-**Next item: Phase 6c auth/account hardening** — remaining account-settings: avatar and link/unlink OAuth. Avatar upload requires file storage infrastructure (not set up); consider preset avatar selection or URL input instead. Link/unlink OAuth allows users to unlink their Google account. Alternatively continue with Phase 6d/6e persistence + stats polish bundle.
+**Next item: Phase 6d/6e persistence + stats polish bundle** — replay model scaffolding, idempotency guards on stats re-computation, backfill/reconcile job for existing game records, and any remaining stats/leaderboard polish. Review the Phase 6d/6e section of DEVELOPMENT_PLAN.md for remaining ⬜ items.
 
 **Known follow-up items (non-blocking) from prior code review:**
 - `getClientIp` in `createApp.ts` trusts `X-Forwarded-For` unconditionally. Fix: gate on `TRUST_PROXY=1` env var.
 - OAuth 429 shows bare JSON to browser (no redirect with `?login=error`). Minor UX gap.
 
-Deferred items to consider for a future DS-R24 task:
+Deferred items for a future run:
+- Link/unlink Google OAuth (account settings — needs design for fallback auth when user has no guest token)
 - `DsCoPlayerRow` component for mobile `rp__rows` co-player rows in LobbyScreen
 - `DsTitleBlock size="sm"` flourish suppression (pre-existing design issue)
 

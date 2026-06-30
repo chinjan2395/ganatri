@@ -303,6 +303,9 @@ export interface GamePersistence {
   /** Update a registered user's display name. No-op if the user does not exist. */
   updateUserDisplayName(userId: string, newDisplayName: string): Promise<void>;
 
+  /** Update a user's avatar URL. Accepts null (clear), preset key, or HTTPS URL. No-op if user does not exist. */
+  updateUserAvatarUrl(userId: string, avatarUrl: string | null): Promise<void>;
+
   /**
    * Permanently delete a user and anonymize all their historical records.
    * Runs in a single transaction. No-op for unknown userId.
