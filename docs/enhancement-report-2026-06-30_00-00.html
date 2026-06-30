@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ganatri Enhancement Report — 2026-06-30</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FAF8F3; --surface:#ECE5D8; --surface-2:#E5DDCD; --line:#DAD3C6;
+    --ink:#1C1A17; --text:#57534C; --muted:#8A857C;
+    --accent:#E07B5C; --accent-deep:#D2693F; --on-dark:#EDE7DB; --on-dark-muted:#A49E92;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  @page{ size:A4; margin:0 0 60px 0; }
+  @page{
+    @bottom-center{
+      content: counter(page) " / " counter(pages);
+      color:var(--accent);
+      font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:500;
+      letter-spacing:.05em;
+    }
+  }
+  html,body{ background:var(--bg); }
+  body{
+    font-family:'Inter',system-ui,sans-serif; color:var(--text);
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+    font-size:14px; line-height:1.5;
+  }
+  .page{ max-width:760px; margin:0 auto; padding:64px 48px 0; }
+
+  .eyebrow{ font-size:12px; font-weight:700; letter-spacing:.15em; text-transform:uppercase;
+            color:var(--accent); text-align:center; }
+  .title{ font-family:'Playfair Display',Georgia,serif; font-weight:800; font-size:52px;
+           line-height:1.05; color:var(--ink); text-align:center; margin:14px 0 16px; }
+  .title .accent{ color:var(--accent); }
+  .subtitle{ font-size:16px; color:var(--muted); text-align:center; max-width:560px;
+             margin:0 auto 8px; }
+  .subtitle strong{ color:var(--ink); font-weight:700; }
+
+  .section-eyebrow{ font-size:12px; font-weight:700; letter-spacing:.15em;
+                    text-transform:uppercase; color:var(--accent); margin:32px 0 16px;
+                    break-after:avoid; page-break-after:avoid; }
+  h2.section{ font-family:'Playfair Display',serif; font-weight:700; font-size:26px;
+              color:var(--ink); margin:0 0 16px; }
+
+  .callout-row{ display:flex; gap:14px; margin-top:24px;
+                break-inside:avoid; page-break-inside:avoid; }
+  .callout{ flex:1; background:var(--surface); border-radius:14px; padding:16px 18px;
+            font-size:13px; line-height:1.5; }
+  .callout strong{ color:var(--ink); }
+  .callout .accent{ color:var(--accent-deep); font-weight:700; }
+  .callout--dark{ background:var(--ink); color:var(--on-dark); }
+  .callout--dark .accent{ color:var(--accent); font-weight:700; }
+
+  .steps{ margin-top:8px; }
+  .step{ display:flex; gap:14px; padding:16px 0; border-bottom:1px solid var(--line);
+         break-inside:avoid; page-break-inside:avoid; }
+  .step:last-child{ border-bottom:0; }
+  .step__num{ flex:0 0 28px; width:28px; height:28px; border-radius:50%;
+              background:var(--accent); color:#fff; font-weight:700; font-size:13px;
+              display:flex; align-items:center; justify-content:center; }
+  .step__title{ font-size:17px; font-weight:700; color:var(--ink); margin-bottom:4px; }
+  .step__body{ font-size:14px; color:var(--text); }
+  .step__tip{ font-family:'Playfair Display',serif; font-style:italic; font-size:13px;
+              color:var(--accent-deep); margin-top:6px; }
+
+  .feature{ background:var(--ink); color:var(--on-dark); border-radius:16px;
+            padding:22px 24px; margin-top:24px;
+            break-inside:avoid; page-break-inside:avoid; }
+  .feature__head{ font-family:'Inter',sans-serif; font-weight:700; font-size:18px;
+                  color:#fff; margin-bottom:16px; }
+  .feature__grid{ display:grid; grid-template-columns:auto 1fr; gap:10px 18px; }
+  .feature__row{ display:contents; }
+  .feature__row .term{ color:var(--accent); font-family:'JetBrains Mono',monospace;
+                       font-size:13px; }
+  .feature__row .desc{ color:var(--on-dark-muted); font-size:13px; }
+
+  .cards{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-top:16px;
+          break-inside:avoid; page-break-inside:avoid; }
+  .card{ background:var(--surface); border-radius:14px; padding:18px 20px;
+         break-inside:avoid; page-break-inside:avoid; }
+  .card--accent{ background:var(--accent); color:#fff; }
+  .card__icon{ font-size:20px; margin-bottom:10px; }
+  .card__title{ font-size:15px; font-weight:700; color:var(--ink); margin-bottom:6px; }
+  .card--accent .card__title{ color:#fff; }
+  .card__body{ font-size:13px; line-height:1.5; color:var(--text); }
+  .card--accent .card__body{ color:#FFF1EA; }
+
+  code{ font-family:'JetBrains Mono',monospace; font-size:.92em; background:var(--surface-2);
+        color:var(--ink); padding:1px 6px; border-radius:5px; }
+  .callout--dark code, .feature code, .card--accent code{
+        background:rgba(255,255,255,.14); color:#fff; }
+
+  .note{ display:flex; gap:10px; align-items:flex-start; color:var(--muted); font-size:12px;
+         margin:32px 0 24px; break-inside:avoid; page-break-inside:avoid; }
+  .note .arrow{ color:var(--accent); font-weight:700; }
+
+  /* Finding entry: severity badge inline */
+  .severity{
+    display:inline-block;
+    font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:500;
+    padding:2px 8px; border-radius:5px; vertical-align:middle; margin-left:6px;
+  }
+  .severity--critical{ background:#FDE8E0; color:#B04020; }
+  .severity--major{ background:#FDF3E0; color:#8A6020; }
+  .severity--low{ background:var(--surface-2); color:var(--muted); }
+
+  /* Finding block — light callout variant with a left accent bar */
+  .finding{
+    background:var(--surface); border-radius:14px; padding:16px 18px;
+    margin-bottom:14px; border-left:4px solid var(--accent);
+    break-inside:avoid; page-break-inside:avoid;
+  }
+  .finding__header{
+    font-size:14px; font-weight:700; color:var(--ink); margin-bottom:6px;
+  }
+  .finding__meta{
+    font-size:12px; color:var(--muted); margin-bottom:6px;
+  }
+  .finding__meta code{ font-size:11px; }
+  .finding__body{
+    font-size:13px; color:var(--text); line-height:1.55; margin-bottom:6px;
+  }
+  .finding__rec{
+    font-size:13px; color:var(--text); line-height:1.55;
+  }
+  .finding__rec strong{ color:var(--ink); }
+</style>
+</head>
+<body>
+<!-- CONTENT START -->
+<div class="page">
+
+  <div class="eyebrow">Code Review &nbsp;·&nbsp; 2026-06-30</div>
+  <h1 class="title">Ganatri <span class="accent">Enhancement</span> Report</h1>
+  <p class="subtitle">Security, quality, and performance findings across <strong>470 passing tests</strong> — with a prioritised action plan.</p>
+
+  <!-- Executive Summary -->
+  <div class="callout" style="margin-top:28px;">
+    <strong>Executive Summary.</strong> The Ganatri codebase is well-structured with a sound server-authoritative architecture and 470 passing tests. However, this review uncovered <span class="accent">5 critical</span> and <span class="accent">13 major</span> issues spanning security vulnerabilities, reliability bugs, and performance gaps that must be resolved before public deployment. The most urgent findings are a missing room-membership check in WebRTC signaling, an OAuth token exposed in a URL query string, and an admin-secret configuration that defaults to open access. A prioritised top-10 action plan closes this report.
+  </div>
+
+  <!-- SECURITY -->
+  <div class="section-eyebrow">Section 1 — Security</div>
+  <h2 class="section">Security Vulnerabilities</h2>
+
+  <!-- S-1 CRITICAL dark callout as it is the single most urgent blocking risk -->
+  <div class="callout callout--dark" style="margin-bottom:14px;">
+    <strong style="color:#fff;">S-1 — Voice relay has no room-membership check</strong>
+    <span class="severity" style="background:rgba(255,255,255,.12);color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:11px;padding:2px 8px;border-radius:5px;">CRITICAL</span>
+    <div style="margin-top:8px;font-size:13px;line-height:1.55;color:var(--on-dark);">
+      All four WebRTC signaling handlers (<code>VOICE_OFFER</code>, <code>VOICE_ANSWER</code>, <code>VOICE_ICE</code>, <code>VOICE_RENEGOTIATE</code>) accept a <code>targetPlayerId</code> from the client and forward the payload to that player with no check that sender and receiver share a room. Any authenticated socket can send a WebRTC offer to any other player on the server.<br>
+      <span style="color:var(--on-dark-muted);font-size:12px;">File: <code>packages/server/src/handlers.ts</code> lines 1062–1102</span>
+    </div>
+    <div style="margin-top:8px;font-size:13px;color:var(--on-dark-muted);">
+      <strong style="color:var(--on-dark);">Recommendation:</strong> Look up both sessions, compare <code>session.roomCode</code> with <code>target.roomCode</code>, and reject if they differ or if either is null.
+    </div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">S-2 — OAuth <code>auth_token</code> exposed in URL query parameter <span class="severity severity--critical">CRITICAL</span></div>
+    <div class="finding__meta">File: <code>packages/server/src/createApp.ts</code> line 321</div>
+    <div class="finding__body">After Google OAuth callback the server issues <code>redirectUrl.searchParams.set('auth_token', token)</code>. The bearer token appears in the browser URL bar, browser history, and <code>Referer</code> headers on subsequent navigations, and is captured by any server access-log.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Use <code>window.location.hash</code> (fragment), <code>sessionStorage</code> set by a relay page, or a short-lived one-time code exchanged via POST rather than a full auth token in the query string.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">S-3 — <code>ADMIN_SECRET</code> not set means any secret is accepted <span class="severity severity--critical">CRITICAL</span></div>
+    <div class="finding__meta">File: <code>packages/server/src/config.ts</code> line 105</div>
+    <div class="finding__body"><code>isValidAdminSecret</code> returns <code>true</code> unconditionally when <code>ADMIN_SECRET</code> is not set. Any logged-in user can elevate to admin on a misconfigured production server.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Fail-closed: if <code>ADMIN_SECRET</code> is not set, log a startup warning and return <code>false</code> (deny all). Require the env var in production.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">S-4 — <code>sanitizePlayerName</code> only strips <code>&lt;&gt;</code> — injection risk <span class="severity severity--major">MAJOR</span></div>
+    <div class="finding__meta">File: <code>packages/server/src/handlers.ts</code> lines 130–139</div>
+    <div class="finding__body">The sanitizer removes <code>&lt;</code> and <code>&gt;</code> but passes <code>"</code>, <code>'</code>, backtick, <code>&amp;</code>, and <code>\</code> unchanged. If player names are ever interpolated into HTML, SQL strings, or log messages, these characters can cause injection.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Adopt an allowlist — keep only printable Unicode letters, digits, spaces, and common punctuation (e.g., <code>-_.!?</code>).</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">S-5 — <code>readJsonBody</code> has no size limit <span class="severity severity--major">MAJOR</span></div>
+    <div class="finding__meta">File: <code>packages/server/src/createApp.ts</code> lines 90–97</div>
+    <div class="finding__body">All POST body bytes are buffered into memory before parsing with no byte counter or <code>Content-Length</code> check. A client can POST a very large body to any HTTP endpoint and exhaust server memory.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Add a running byte counter and return <code>413</code> if it exceeds 64 KB.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">S-6 — Socket.io has no <code>maxHttpBufferSize</code> set <span class="severity severity--major">MAJOR</span></div>
+    <div class="finding__meta">File: <code>packages/server/src/createApp.ts</code> lines 367–375</div>
+    <div class="finding__body">Socket.io defaults to 1 MB buffer. For a card-game server where the largest event payload is a few kilobytes, 1 MB is 100x too permissive. Any client can send a ~1 MB event and consume that memory per-event.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Set <code>maxHttpBufferSize: 64 * 1024</code> in the <code>new Server(...)</code> options.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">S-7 — Auth token written to <code>localStorage</code> after OAuth login <span class="severity severity--major">MAJOR</span></div>
+    <div class="finding__meta">File: <code>packages/web/src/net/socket.ts</code> lines 72–79</div>
+    <div class="finding__body"><code>captureAuthTokenFromUrl</code> writes the OAuth token to <code>localStorage</code> (line 77) in addition to <code>sessionStorage</code>. <code>localStorage</code> is persistent across browser sessions and available to any JS on the same origin indefinitely.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Remove the <code>localStorage.setItem(LEGACY_TOKEN_KEY, authToken)</code> call. <code>sessionStorage</code> (already set at line 76) is sufficient.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">S-8 — Ghost-session adoption trusts client-supplied <code>playerId</code> <span class="severity severity--low">LOW</span></div>
+    <div class="finding__meta">File: <code>packages/server/src/handlers.ts</code> line 499</div>
+    <div class="finding__body">On server restart, the code re-adopts a session by the <code>playerId</code> sent in the socket auth handshake. The adoption check relies on the target session having no active socket, but this is not explicitly enforced server-side.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Verify that <code>tryAdoptGhostSession</code> confirms <code>socketId === null</code> before allowing adoption. Add a unit test for this path.</div>
+  </div>
+
+  <!-- CODE QUALITY -->
+  <div class="section-eyebrow">Section 2 — Code Quality &amp; Refactoring</div>
+  <h2 class="section">Code Quality Issues</h2>
+
+  <div class="finding">
+    <div class="finding__header">Q-1 — <code>maxPlayers</code> admin config accepts 5–8 but engine rejects &gt;4 <span class="severity severity--critical">CRITICAL</span></div>
+    <div class="finding__meta">File: <code>packages/server/src/handlers.ts</code> line 972</div>
+    <div class="finding__body"><code>isValidPlayers</code> allows values 2–8. The engine's <code>createGame</code> enforces a hard maximum of 4 players and throws on violation. If an admin sets <code>maxPlayers = 5</code> and five players join and start, the server throws an uncaught error and the room is left in an inconsistent state.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Change the upper bound to 4 in the server-side validator, or propagate the engine constraint into a shared constant and reference it from both places.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">Q-2 — <code>emitAck</code> never rejects and has no timeout <span class="severity severity--critical">CRITICAL</span></div>
+    <div class="finding__meta">File: <code>packages/web/src/net/socket.ts</code> lines 179–187</div>
+    <div class="finding__body"><code>emitAck&lt;T&gt;</code> wraps <code>socket.emit</code> in a Promise that only resolves, never rejects, with no timeout. If the server disconnects mid-emit, the Promise hangs indefinitely. UI elements holding a <code>submitting</code> flag freeze with no recovery path.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Race against a 10-second timeout and reject with a typed error. Propagate the error to the UI so the user can retry.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">Q-3 — <code>silentLeaveRoom</code> and <code>removeFromLobby</code> duplicate logic <span class="severity severity--major">MAJOR</span></div>
+    <div class="finding__meta">File: <code>packages/server/src/handlers.ts</code> lines 1218–1292</div>
+    <div class="finding__body">Both functions implement "remove player from lobby, reassign host, delete empty room, broadcast update". The two paths can diverge: <code>silentLeaveRoom</code> (line 1243) does not check <code>session.roomCode !== roomCode</code> before acting, while <code>removeFromLobby</code> (line 1221) does.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Refactor so <code>silentLeaveRoom</code> calls <code>removeFromLobby</code> for the LOBBY branch.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">Q-4 — <code>updateSession</code> does not cover <code>userId</code> or <code>account</code> fields <span class="severity severity--major">MAJOR</span></div>
+    <div class="finding__meta">File: <code>packages/server/src/store.ts</code> lines 132–138</div>
+    <div class="finding__body"><code>updateSession</code> only applies patches to <code>name</code>, <code>roomCode</code>, and <code>socketId</code>. The <code>userId</code> and <code>account</code> fields are mutated directly throughout <code>handlers.ts</code>, bypassing the canonical mutation function and making cross-cutting concerns harder to add.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Add <code>userId</code> and <code>account</code> (and <code>isGuest</code>) to the fields managed by <code>updateSession</code>.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">Q-5 — <code>handleStartGame</code> stale Maps on "play again" <span class="severity severity--major">MAJOR</span></div>
+    <div class="finding__meta">File: <code>packages/server/src/handlers.ts</code> lines 1556–1563</div>
+    <div class="finding__body">When restarting from <code>DONE</code> phase, <code>room.disconnectedAt</code> (a Map) and <code>room.gracePeriodTimers</code> (a Map) are not cleared. Stale grace-period timers from the previous game can fire against the new game's state.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Add <code>room.disconnectedAt = new Map(); room.gracePeriodTimers.forEach(clearTimeout); room.gracePeriodTimers = new Map();</code> before creating the new game.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">Q-6 — <code>isMakeMovePayload</code> does not cap the capture array length <span class="severity severity--major">MAJOR</span></div>
+    <div class="finding__meta">File: <code>packages/server/src/handlers.ts</code> lines 2508–2510</div>
+    <div class="finding__body">The validator checks that <code>capture</code> is an array of strings but does not bound its length. A client can submit thousands of card IDs; the engine iterates over all of them before returning an error.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Add <code>if ((m['capture'] as unknown[]).length &gt; 52) return false;</code>.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">Q-7 — <code>isJoinRoomPayload</code> has no length or format validation on <code>roomCode</code> <span class="severity severity--major">MAJOR</span></div>
+    <div class="finding__meta">File: <code>packages/server/src/handlers.ts</code> lines 2495–2496</div>
+    <div class="finding__body">Only <code>typeof roomCode === 'string'</code> is checked. An arbitrarily long string reaches <code>getRoom(roomCode)</code> without format validation.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Validate that <code>roomCode</code> matches <code>/^[A-Z0-9]{6}$/</code> with a length cap of 16 characters.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">Q-8 — <code>generateRoomCode</code> uses <code>Math.random()</code> <span class="severity severity--low">LOW</span></div>
+    <div class="finding__meta">File: <code>packages/server/src/handlers.ts</code> lines 2480–2488</div>
+    <div class="finding__body">Room codes use <code>Math.random()</code> which is not a cryptographically secure RNG. If room codes ever need to be unpredictable to prevent enumeration attacks, this would be a problem.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Switch to <code>crypto.randomInt</code> for robustness.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">Q-9 — No rate limiting on most socket events <span class="severity severity--major">MAJOR</span></div>
+    <div class="finding__meta">File: <code>packages/server/src/handlers.ts</code> (global)</div>
+    <div class="finding__body"><code>make_move</code> has a throttle guard but <code>create_room</code>, <code>join_room</code>, <code>start_game</code>, <code>request_state</code>, <code>invite_player</code>, etc. have no rate limiting. A bot can spam the server freely.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Add a simple token-bucket or sliding-window rate limiter per <code>socket.id</code> at the <code>handleConnection</code> level.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">Q-10 — <code>handleStartGame</code> seed is <code>Date.now()</code> — may collide <span class="severity severity--low">LOW</span></div>
+    <div class="finding__meta">File: <code>packages/server/src/handlers.ts</code> line 1560</div>
+    <div class="finding__body">The game seed uses <code>Date.now()</code> which can collide if two games start in the same millisecond, reducing true reproducibility in logs.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Use a monotonically incrementing counter or a cryptographically random 32-bit integer as the seed.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">Q-11 — <code>setScreen</code> missing from <code>useMemo</code> dependency array <span class="severity severity--low">LOW</span></div>
+    <div class="finding__meta">File: <code>packages/web/src/state/GameProvider.tsx</code> lines 529–577</div>
+    <div class="finding__body"><code>setScreen</code> is included in the context value but absent from the dependency array — a lint violation. Since <code>setScreen</code> is a <code>useState</code> setter (stable), this doesn't currently cause a bug.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Add <code>setScreen</code> to the dependency array or use a functional-update form.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">Q-12 — <code>emitAck</code> type parameter is unchecked at runtime <span class="severity severity--low">LOW</span></div>
+    <div class="finding__meta">File: <code>packages/web/src/net/socket.ts</code> lines 179–187</div>
+    <div class="finding__body">The generic <code>emitAck&lt;T&gt;</code> casts the ack callback argument as <code>T</code> without runtime validation. If the server sends an unexpected shape, the client uses malformed data silently.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Pass an optional structural-check or Zod schema to <code>emitAck</code> and reject if validation fails.</div>
+  </div>
+
+  <!-- MISSING FEATURES / UX -->
+  <div class="section-eyebrow">Section 3 — Missing Features / UX Gaps</div>
+  <h2 class="section">UX &amp; Feature Gaps</h2>
+
+  <div class="finding">
+    <div class="finding__header">U-1 — <code>HANDS_REDISTRIBUTED</code> event has no UI representation <span class="severity severity--major">MAJOR</span></div>
+    <div class="finding__meta">File: <code>packages/web/src/screens/GameScreen.tsx</code> lines 44–53</div>
+    <div class="finding__body"><code>flashFor</code> handles <code>TRICK_WON</code> and <code>PLAYER_SAFE</code> but <code>HANDS_REDISTRIBUTED</code> (the stalemate resolution event) produces no visible flash or notification. Players see their hands change silently with no explanation.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Add a <code>HANDS_REDISTRIBUTED</code> case to <code>flashFor</code> returning something like <code>{ kind: 'won', text: 'Stalemate — hands redistributed!' }</code>.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">U-2 — <code>legalPart2CardIds</code> re-implements engine logic on the client <span class="severity severity--major">MAJOR</span></div>
+    <div class="finding__meta">File: <code>packages/web/src/game/legal.ts</code> lines 1–28</div>
+    <div class="finding__body">The client-side legality helper re-implements the Part 2 follow-suit rule rather than importing from the engine. If engine follow-suit logic changes, client card highlighting diverges silently.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Export a view-only version of <code>legalPart2Cards</code> from <code>packages/engine</code> accepting <code>PlayerView</code>, and use it in both places.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">U-3 — <code>Part1Board</code> confirmation hint misleadingly says "final" <span class="severity severity--low">LOW</span></div>
+    <div class="finding__meta">File: <code>packages/web/src/components/Part1Board.tsx</code> line 155</div>
+    <div class="finding__body">The hint reads "Are you sure? This choice is final." but a cancel button is available. "Final" is misleading to players.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Change to "Confirm your card choice. You can still change your mind."</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">U-4 — <code>progressionLoading</code> / <code>progressionError</code> state has no UI feedback <span class="severity severity--low">LOW</span></div>
+    <div class="finding__meta">File: <code>packages/web/src/state/GameProvider.tsx</code> (context)</div>
+    <div class="finding__body">The context exposes <code>progressionLoading</code> and <code>progressionError</code> but these are not observed for visible UI feedback. Users waiting for progression data after login see no indicator.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Verify that progression screens use <code>progressionLoading</code> for a spinner and <code>progressionError</code> for a retry prompt.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">U-5 — <code>applyAutoMove</code> always picks <code>moves[0]</code> with no documentation <span class="severity severity--low">LOW</span></div>
+    <div class="finding__meta">File: <code>packages/server/src/handlers.ts</code> lines 250–311</div>
+    <div class="finding__body">When a player's turn times out the server plays the first legal move silently. This is undocumented and may surprise players expecting randomness or a smarter fallback.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Add a comment documenting the deterministic pick, and consider surfacing this to the player ("Your turn timed out; a card was played automatically").</div>
+  </div>
+
+  <!-- PERFORMANCE -->
+  <div class="section-eyebrow">Section 4 — Performance</div>
+  <h2 class="section">Performance Findings</h2>
+
+  <div class="finding">
+    <div class="finding__header">P-1 — <code>matchScoringForState</code> computed N+1 times per move <span class="severity severity--major">MAJOR</span></div>
+    <div class="finding__meta">File: <code>packages/server/src/handlers.ts</code> lines 1646–1662</div>
+    <div class="finding__body">After every <code>make_move</code>, <code>matchScoringForState</code> is called once per non-mover player in the send loop and then again for the mover's ack — up to 4 redundant calls per move. Each call iterates over the full event log.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Call <code>matchScoringForState</code> once, store the result, and reuse it for all players and the ack.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">P-2 — <code>GameProvider</code> <code>useMemo</code> with 30+ dependencies rebuilds on every game event <span class="severity severity--major">MAJOR</span></div>
+    <div class="finding__meta">File: <code>packages/web/src/state/GameProvider.tsx</code> lines 478–578</div>
+    <div class="finding__body">The context value memo has ~30 dependencies including <code>lastEvent</code>. <code>lastEvent</code> updates on every game event (every card played, every trick resolved), rebuilding the entire context and re-rendering every consumer.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Split the context into stable sub-contexts (auth, lobby, game state, events). Components subscribe only to the slice they need, or move <code>lastEvent</code> to a dedicated hook backed by a ref + force-update.</div>
+  </div>
+
+  <div class="finding">
+    <div class="finding__header">P-3 — In-memory session store has no eviction of stale sessions <span class="severity severity--major">MAJOR</span></div>
+    <div class="finding__meta">File: <code>packages/server/src/store.ts</code> (entire file)</div>
+    <div class="finding__body">Sessions are created on every new connection but only removed on <code>deleteAccount</code>. A server running for weeks accumulates sessions for every guest who ever connected — a memory leak proportional to total unique connections.</div>
+    <div class="finding__rec"><strong>Recommendation:</strong> Run a periodic cleanup (e.g., every 30 minutes) removing sessions where <code>socketId</code> is null, <code>roomCode</code> is null, <code>userId</code> is null (guest), and <code>lastSeenAt</code> is older than a TTL (e.g., 48 hours).</div>
+  </div>
+
+  <!-- TOP-10 ACTION LIST -->
+  <div class="section-eyebrow">Prioritised Action Plan</div>
+  <h2 class="section">Top-10 Actions Before Public Deployment</h2>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step__num">1</div>
+      <div>
+        <div class="step__title">Fix voice relay room-membership check</div>
+        <div class="step__body">Validate that sender and target share a room before forwarding any WebRTC signal. <code>handlers.ts:1066</code></div>
+        <div class="step__tip">Critical — Security</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">2</div>
+      <div>
+        <div class="step__title">Fix OAuth auth_token in redirect URL</div>
+        <div class="step__body">Move token delivery out of the URL query string to prevent history and referrer leaks. <code>createApp.ts:321</code></div>
+        <div class="step__tip">Critical — Security</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">3</div>
+      <div>
+        <div class="step__title">Fail-close <code>isValidAdminSecret</code> when env var not set</div>
+        <div class="step__body">Return <code>false</code> and log a startup error requiring the env var to be set before the server accepts admin requests. <code>config.ts:105</code></div>
+        <div class="step__tip">Critical — Security</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">4</div>
+      <div>
+        <div class="step__title">Cap <code>maxPlayers</code> admin config at 4</div>
+        <div class="step__body">Align the server validator with the engine's hard limit of 4 players to prevent uncaught errors on game start. <code>handlers.ts:972</code></div>
+        <div class="step__tip">Critical — Correctness</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">5</div>
+      <div>
+        <div class="step__title">Add timeout to <code>emitAck</code></div>
+        <div class="step__body">Race all socket acks against a 10-second timer; reject the promise and unblock the UI on timeout. <code>socket.ts:179</code></div>
+        <div class="step__tip">Critical — Reliability</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">6</div>
+      <div>
+        <div class="step__title">Remove auth token write to <code>localStorage</code></div>
+        <div class="step__body">Eliminate the longer-lived copy of the OAuth session token; <code>sessionStorage</code> is already set. <code>socket.ts:77</code></div>
+        <div class="step__tip">Major — Security</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">7</div>
+      <div>
+        <div class="step__title">Add capture array length cap in <code>isMakeMovePayload</code></div>
+        <div class="step__body">Trivial one-liner preventing engineered CPU spikes from oversized capture arrays: reject if <code>length &gt; 52</code>. <code>handlers.ts:2509</code></div>
+        <div class="step__tip">Major — Security / DoS</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">8</div>
+      <div>
+        <div class="step__title">Add HTTP body size limit to <code>readJsonBody</code></div>
+        <div class="step__body">Return <code>413</code> after 64 KB to prevent memory exhaustion on large POST payloads. <code>createApp.ts:91</code></div>
+        <div class="step__tip">Major — Security / DoS</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">9</div>
+      <div>
+        <div class="step__title">Fix stale Maps on "play again"</div>
+        <div class="step__body">Clear <code>disconnectedAt</code> and cancel all <code>gracePeriodTimers</code> before creating a new game to prevent stale timers firing against new game state. <code>handlers.ts:1557</code></div>
+        <div class="step__tip">Major — Correctness</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step__num">10</div>
+      <div>
+        <div class="step__title">Compute <code>matchScoringForState</code> once per move</div>
+        <div class="step__body">Hoist the call above the per-player send loop and reuse the result for all players and the ack, eliminating up to 4 redundant full-log iterations per move. <code>handlers.ts:1648–1661</code></div>
+        <div class="step__tip">Major — Performance</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <span class="arrow">→</span>
+    <span>Severity key: <strong style="color:var(--ink);">Critical</strong> = blocking for production · <strong style="color:var(--ink);">Major</strong> = must fix before GA · <strong style="color:var(--ink);">Low</strong> = improve when convenient. All 470 existing tests pass; none of the findings above break current tests, but several require new test coverage once fixed.</span>
+  </div>
+
+</div>
+<!-- CONTENT END -->
+<!-- No manual footer markup: the page-number footer is rendered natively by the @page margin-box rule above on every printed page. -->
+</body>
+</html>
