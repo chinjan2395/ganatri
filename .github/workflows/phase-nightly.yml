@@ -147,6 +147,7 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         uses: anthropics/claude-code-action@v1
         with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             You are working autonomously on Ganatri's full-phase development lane.
@@ -203,9 +204,14 @@ jobs:
             --max-turns 150
             --allowedTools Edit,Read,Write,Bash,Agent
 
+      - name: Record whether Claude ran
+        id: claude-ran
+        if: steps.gate.outputs.run == 'true' && steps.claude.outcome == 'success'
+        run: bash .github/scripts/claude-post-run.sh "${{ steps.claude.outputs.execution_file }}"
+
       - name: Fail if Claude reported an error
         id: check-claude
-        if: steps.gate.outputs.run == 'true'
+        if: steps.claude-ran.outputs.claude_ran == 'true'
         run: bash .github/scripts/check-claude-result.sh "${{ steps.claude.outputs.execution_file }}"
 
       - name: Extract run summary for Slack

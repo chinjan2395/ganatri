@@ -4,7 +4,15 @@
 # step green even when is_error is true in the SDK result message.
 set -euo pipefail
 
-EXECUTION_FILE="${1:?usage: check-claude-result.sh <execution_file>}"
+EXECUTION_FILE="${1:-}"
+
+if [ -z "$EXECUTION_FILE" ]; then
+  echo "No Claude execution file provided (steps.claude.outputs.execution_file was empty)." >&2
+  echo "If the Claude step log mentions 'workflow validation', the action skipped because this" >&2
+  echo "workflow ref differs from main — merge .github/workflows/ changes to main and re-run." >&2
+  echo "Otherwise check the 'Run Claude' step logs for the root cause." >&2
+  exit 1
+fi
 
 if [ ! -f "$EXECUTION_FILE" ]; then
   echo "Claude execution file not found: $EXECUTION_FILE" >&2

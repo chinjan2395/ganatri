@@ -227,6 +227,7 @@ jobs:
         id: claude
         uses: anthropics/claude-code-action@a92e7c70a4da9793dc164451d829089dc057a464  # v1
         with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             You are working autonomously overnight on the Ganatri project.
@@ -293,8 +294,14 @@ jobs:
             --max-turns 60
             --allowedTools Edit,Read,Write,Bash,Agent
 
+      - name: Record whether Claude ran
+        id: claude-ran
+        if: steps.claude.outcome == 'success'
+        run: bash .github/scripts/claude-post-run.sh "${{ steps.claude.outputs.execution_file }}"
+
       - name: Fail if Claude reported an error
         id: check-claude
+        if: steps.claude-ran.outputs.claude_ran == 'true'
         run: bash .github/scripts/check-claude-result.sh "${{ steps.claude.outputs.execution_file }}"
 
       - name: Push Claude's commits
@@ -390,6 +397,7 @@ jobs:
       - name: Generate development report
         uses: anthropics/claude-code-action@a92e7c70a4da9793dc164451d829089dc057a464  # v1
         with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             Generate an updated Ganatri development-progress report for this run.
