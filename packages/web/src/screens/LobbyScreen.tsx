@@ -8,6 +8,7 @@ import logo from '../assets/ganatri-logo.png';
 import {
   DsTopNav, DsBottomNav, DsModal, DsDivider, DsField, DsButton, DsIcon,
   DsAvatar, DsCard, DsEmptyState, FeltBackdrop, FooterBar, CornerDecor,
+  DsTitleBlock, DsAlert, DsBodyText,
 } from '@ganatri/ds';
 import type { DsTopNavItem, DsBottomNavTab } from '@ganatri/ds';
 import './LobbyScreen.css';
@@ -109,8 +110,8 @@ function CreateJoinPanel({
 
       <DsDivider label="OR JOIN WITH A CODE" />
 
-      {localError && <div className="lobby__error">{localError}</div>}
-      {loginError && <div className="lobby__error">Google login failed, please try again.</div>}
+      {localError && <DsAlert tone="danger" title="Error" description={localError} />}
+      {loginError && <DsAlert tone="danger" title="Error" description="Google login failed, please try again." />}
 
       {!loggedIn && (
         <DsButton tone="secondary" onClick={onGoogleLogin} className="lobby__google-btn">
@@ -418,7 +419,7 @@ function DesktopSidebar({ requestLeaderboard, requestMyStats, loggedIn, setScree
     <aside className="lobby__sidebar">
       {/* Top Players section */}
       <DsCard className="sidebar__section">
-        <h2 className="sidebar__heading">TOP PLAYERS</h2>
+        <DsTitleBlock title="TOP PLAYERS" size="sm" />
         {leaderboard === null ? (
           <div className="sidebar__skeleton-list">
             {[0, 1, 2, 3, 4].map((i) => (
@@ -464,9 +465,9 @@ function DesktopSidebar({ requestLeaderboard, requestMyStats, loggedIn, setScree
 
       {/* Your Stats section */}
       <DsCard className="sidebar__section">
-        <h2 className="sidebar__heading">YOUR STATS</h2>
+        <DsTitleBlock title="YOUR STATS" size="sm" />
         {!loggedIn ? (
-          <p className="sidebar__empty">Log in to see your stats</p>
+          <DsEmptyState message="Log in to see your stats" />
         ) : stats === null ? (
           <div className="sidebar__skeleton-list">
             {[0, 1, 2, 3].map((i) => (
@@ -763,7 +764,7 @@ export function LobbyScreen(): React.ReactNode {
     if (!loggedIn) {
       return (
         <div className="lobby__profile-body">
-          <p className="lobby__profile-guest-msg">Sign in to save your stats and history.</p>
+          <DsBodyText tone="muted">Sign in to save your stats and history.</DsBodyText>
           <DsButton tone="secondary" onClick={() => loginWithGoogle()} className="lobby__google-btn">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -896,11 +897,11 @@ export function LobbyScreen(): React.ReactNode {
           </DsButton>
           {blockedOpen && (
             <div className="lobby__blocked-panel">
-              {blockedLoading && <p className="lobby__blocked-empty">Loading...</p>}
-              {blockedError && <p className="lobby__blocked-error">{blockedError}</p>}
+              {blockedLoading && <DsBodyText tone="muted">Loading...</DsBodyText>}
+              {blockedError && <DsBodyText tone="error">{blockedError}</DsBodyText>}
               {!blockedLoading && !blockedError && blockedUsers !== null && (
                 blockedUsers.length === 0 ? (
-                  <p className="lobby__blocked-empty">No blocked users.</p>
+                  <DsEmptyState message="No blocked users." />
                 ) : (
                   <ul className="lobby__blocked-list">
                     {blockedUsers.map((u) => (
@@ -933,7 +934,7 @@ export function LobbyScreen(): React.ReactNode {
           >
             {downloadLoading ? 'Exporting...' : 'Download My Data'}
           </DsButton>
-          {downloadError && <p className="lobby__data-export-error">{downloadError}</p>}
+          {downloadError && <DsBodyText tone="error">{downloadError}</DsBodyText>}
         </div>
 
         {/* Delete account */}
@@ -949,11 +950,11 @@ export function LobbyScreen(): React.ReactNode {
             </DsButton>
           ) : (
             <div className="lobby__delete-confirm">
-              <p className="lobby__delete-confirm-text">
+              <DsBodyText tone="muted">
                 This will permanently delete your account and all your data. This cannot be undone.
-              </p>
+              </DsBodyText>
               {deleteError && (
-                <p className="lobby__delete-error">{deleteError}</p>
+                <DsBodyText tone="error">{deleteError}</DsBodyText>
               )}
               <div className="lobby__delete-confirm-actions">
                 <DsButton

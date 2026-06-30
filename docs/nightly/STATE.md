@@ -50,21 +50,22 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 
 ## Last Run
 - Date: 2026-06-30
-- Outcome: DS-R21 complete — Replaced `st__panel-title` h3, `st__muted` p, and `st__panel-muted` p in StatsScreen with DsSectionHeading/DsBodyText. Removed 3 CSS blocks. 470 tests pass (203 db + 153 engine + 114 server).
-- Branch: nightly/2026-06-30-0821
+- Outcome: DS-R22 complete — Migrated LobbyScreen sidebar headings (2× DsTitleBlock), empty states (DsEmptyState), error divs (DsAlert tone="danger"), and inline status p tags (DsBodyText) to DS components. Removed 9 CSS blocks. Reviewer found + fixed one missed migration (lobby__blocked-empty p). 470 tests pass.
+- Branch: nightly/2026-06-30-0907
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-**Phase DS-R is IN_PROGRESS** — DS-R21 done; DS-R22 is next.
+**Phase DS-R is IN_PROGRESS** — DS-R22 done; DS-R23 is next.
 
-DS-R22: Replace raw headings/errors in `LobbyScreen` desktop sidebar with DS components:
-- `sidebar__heading` `<h2>` × 2 (TOP PLAYERS, YOUR STATS) → `DsTitleBlock size="sm"` (already imported)
-- `sidebar__empty`/`lobby__profile-guest-msg` `<p>` → `DsEmptyState`/`DsBodyText`
-- `lobby__error` raw `<div>` error divs → `DsAlert tone="danger"`
-- Inline status `<p>` tags (blocked-empty, blocked-error, data-export-error, delete-confirm-text, delete-error) → `DsBodyText` with appropriate tone
-Remove migrated CSS rules. Acceptance: build + ESLint green; 470 tests pass.
+DS-R23: LobbyScreen CreateJoinPanel headings + sidebar lists:
+- `CreateJoinPanel` heading `<div className="lobby__cj-heading">` + sub `<div className="lobby__cj-sub">` → `DsTitleBlock size="sm"` + `DsBodyText tone="muted"`
+- Sidebar leaderboard `<ul className="sidebar__player-list"><li>` → `DsRankRow`
+- Sidebar stats `<ul className="sidebar__stat-list"><li>` → `DsListRow`
+- `lobby__blocked-list` `<ul><li>` rows → `DsListRow` with trailing unblock `DsButton`
+- Note: mobile `rp__rows` co-player rows are bespoke — deferred to a future `DsCoPlayerRow` task
+Acceptance: build + ESLint green; 470 tests pass; sidebar lists render consistently with LeaderboardScreen.
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.
