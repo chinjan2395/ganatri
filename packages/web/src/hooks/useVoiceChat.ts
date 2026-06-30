@@ -256,9 +256,6 @@ export function useVoiceChat(
 
     micAcquirePromiseRef.current = p;
     return p;
-  // All reads go through refs (enabledRef, localStreamRef, micAcquirePromiseRef).
-  // setters are stable. No deps needed.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── iOS audio unlock ────────────────────────────────────────────────────
@@ -335,11 +332,12 @@ export function useVoiceChat(
     // Mic is acquired lazily in applyMuteState on first PTT press / open-mode
     // unmute (via ensureMicStream). No getUserMedia here keeps the browser mic
     // indicator clear and hardware DSP off until the player actually speaks.
+    const peers = peersRef;
     return () => {
       // Any in-flight acquisition checks enabledRef.current (now false) and
       // discards the stream, so no further cleanup is needed for that path.
       // Close every peer connection and its per-peer detection/audio.
-      for (const pid of [...peersRef.current.keys()]) closePeer(pid);
+      for (const pid of [...peers.current.keys()]) closePeer(pid);
       // Stop local speaking detection (if running) and clear the speaking set.
       if (myPlayerId) stopSpeakingDetection(myPlayerId);
       setSpeaking(new Set());
