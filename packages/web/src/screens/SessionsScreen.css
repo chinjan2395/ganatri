@@ -54,21 +54,6 @@
   margin-bottom: 4px;
 }
 
-.sess__headline {
-  font-size: clamp(1.9rem, 4vw, 3rem);
-  line-height: 1.05;
-  margin: 0 0 10px;
-}
-
-.sess__summary,
-.sess__account {
-  margin: 0;
-}
-
-.sess__account {
-  margin-top: 8px;
-}
-
 /* ── Panel ───────────────────────────────────────────────────── */
 
 .sess__panel {
@@ -82,14 +67,6 @@
     border-radius: 22px;
     padding: 20px;
   }
-}
-
-.sess__panel-title {
-  margin: 0 0 4px;
-}
-
-.sess__panel-copy {
-  margin: 0;
 }
 
 .sess__panel-header {
@@ -110,10 +87,6 @@
 
 .sess__section {
   margin-top: 22px;
-}
-
-.sess__section-title {
-  margin: 0 0 12px;
 }
 
 .sess__list {
