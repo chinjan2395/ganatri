@@ -10,7 +10,7 @@
 > (Current Phase → next NOT_STARTED/IN_PROGRESS item) apply.
 
 ## Current Phase
-Phase 6 — Remaining implementable items (6c auth hardening → 7a/7b quality)
+Phase 6 — Remaining implementable items (auth/account hardening → persistence/stats polish → analytics/compliance → operations hardening)
 
 ## Status
 IN_PROGRESS  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
@@ -46,10 +46,11 @@ Phase DS-R (all 23 tasks) completed as of 2026-06-30. The next run should pick u
 remaining Phase 6 items that are technically implementable (not operational/infra):
 
 Priority order for next runs:
-1. **Phase 6c: Replace ad-hoc name input** — when logged in, prefill create/join name from account; keep manual entry for guests. File: `packages/web/src/screens/LobbyScreen.tsx` (CreateJoinPanel name field).
-2. **Phase 7b: Rate-limit `create_room` and `join_room` per IP** — `packages/server/src/handlers.ts`. Simple in-memory rate-limiter per IP address (e.g. 10 rooms per IP per minute).
-3. **Phase 7a: `React.memo` on `Part1Board` and `Part2Board`** — `packages/web/src/components/`.
-4. **Phase 6c: Auth brute-force protection** — rate-limit login/OAuth callbacks per IP.
+1. **Phase 6c auth/account hardening bundle** — finish the remaining account-settings and auth-hardening work in one pass: account-profile polish, session-management UX, name-prefill flow, and any abuse-protection follow-ups.
+2. **Phase 6d/6e persistence + stats polish bundle** — tackle replay scaffolding, idempotency guards, backfill/reconcile work, and any remaining stats/leaderboard polish.
+3. **Phase 6f/6i analytics + compliance bundle** — cover instrumentation, event taxonomy, privacy policy/consent, and export/delete polish.
+4. **Phase 6j operations hardening bundle** — complete backups/monitoring/pool-sizing/cost guardrails.
+5. **Phase DS-R-D typography + enforcement pass** — if the DS-R work is still pending in a future run, finish the remaining typography and enforcement cleanup.
 
 Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — skip in nightly runs.
 Phase 4 production deployment is handled by the user (Render + Cloudflare).
