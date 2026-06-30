@@ -2,7 +2,7 @@
 
 **Last updated date:** See `docs/LAST_UPDATED.txt`. This file focuses on phase/task status; timestamps are tracked in a separate, low-overhead file to reduce read/write cost in SDK agent workflows.
 
-All 473 tests passing (153 engine + 117 server + 203 db).
+All 482 tests passing (153 engine + 126 server + 203 db).
 
 ---
 
@@ -170,7 +170,7 @@ Work `DS-R1 → DS-R14` in order — DS-R1–R5 build the missing components, DS
 | `get_blocked_users` socket event + handler                            | ✅      | `BlockedUserView`/`GetBlockedUsersAck` in `protocol.ts`; `GET_BLOCKED_USERS` in `EVENTS`; `handleGetBlockedUsers` in `handlers.ts` (NOT_LOGGED_IN/UNAVAILABLE guards); 3 tests in `blocked-users.test.ts` |
 
 
-**Test count: 117 / 117 passing.**
+**Test count: 126 / 126 passing.**
 
 ---
 
@@ -348,7 +348,7 @@ This phase is a **planning backlog with embedded decisions** — items marked **
 | Active session management — web | ✅ | `SessionsScreen` (+ CSS): list devices, revoke one, sign out others, log out current; `bootstrapAuth()` before socket connect; protocol/socket helpers; LobbyScreen link; `screen: 'sessions'` routing. |
 | Display-name edit — server + DB | ✅ | `updateUserDisplayName` in `GamePersistence` (Pg + Memory); `update_display_name` socket event handler in `handlers.ts` with NOT_LOGGED_IN/INVALID_NAME/UNAVAILABLE guards; re-emits SESSION on success; +3 tests in `account.test.ts`. |
 | Display-name edit — web client | ✅ | Inline editor on LobbyScreen; `UPDATE_DISPLAY_NAME` event + `UpdateDisplayNamePayload/Ack` in protocol.ts; `updateDisplayName` in socket.ts + GameProvider. |
-| Auth brute-force / abuse protection | ⬜ | Rate-limit login/magic-link/OAuth callbacks per IP (extends Phase 7b rate-limiting). |
+| Auth brute-force / abuse protection | ✅ | Per-IP rate-limiters in `createApp.ts`: OAuth (login+callback) 10/min, bootstrap 30/min. `resetAuthRateLimits()` export. 9 integration tests in `auth-rate-limit.test.ts`. |
 | Replace ad-hoc name input with account name | ✅ | `validateName()` bypasses for logged-in users; `handleCreate`/`handleJoin` use `effectiveName` (account.displayName ?? name); "Playing as <name>" shown in `CreateJoinPanel` when logged in. |
 
 ### 6d — Game & event persistence
