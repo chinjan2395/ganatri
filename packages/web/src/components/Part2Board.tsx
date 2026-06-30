@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   cardId,
@@ -35,7 +35,7 @@ function shortId(id: string): string {
   return id.length <= 6 ? id : id.slice(0, 6);
 }
 
-export function Part2Board({ view, flash: _flash, playerNames, onMove, onSelectionChange }: Part2BoardProps): React.ReactNode {
+export const Part2Board = memo(function Part2Board({ view, flash: _flash, playerNames, onMove, onSelectionChange }: Part2BoardProps): React.ReactNode {
   const canAct = view.turn === view.you;
   const legalIds: ReadonlySet<CardId> = legalPart2CardIds(view);
   const [submitting, setSubmitting] = useState(false);
@@ -135,4 +135,4 @@ export function Part2Board({ view, flash: _flash, playerNames, onMove, onSelecti
       </div>
     </div>
   );
-}
+});
