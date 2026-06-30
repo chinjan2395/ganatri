@@ -1,21 +1,27 @@
+import { lazy, Suspense } from 'react';
 import { useGame } from './state/GameProvider';
 import { VoiceChatProvider } from './state/VoiceChatProvider';
 import { LobbyScreen } from './screens/LobbyScreen';
 import { RoomScreen } from './screens/RoomScreen';
 import { GameScreen } from './screens/GameScreen';
-import { AdminScreen } from './screens/AdminScreen';
-import { HistoryScreen } from './screens/HistoryScreen';
-import { StatsScreen } from './screens/StatsScreen';
-import { LeaderboardScreen } from './screens/LeaderboardScreen';
-import { SessionsScreen } from './screens/SessionsScreen';
-import { DesignSystemScreen } from './screens/DesignSystemScreen';
 import { Toast } from './components/Toast';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { InviteToast } from './components/InviteToast';
 
+const AdminScreen = lazy(() => import('./screens/AdminScreen').then(m => ({ default: m.AdminScreen })));
+const HistoryScreen = lazy(() => import('./screens/HistoryScreen').then(m => ({ default: m.HistoryScreen })));
+const StatsScreen = lazy(() => import('./screens/StatsScreen').then(m => ({ default: m.StatsScreen })));
+const LeaderboardScreen = lazy(() => import('./screens/LeaderboardScreen').then(m => ({ default: m.LeaderboardScreen })));
+const SessionsScreen = lazy(() => import('./screens/SessionsScreen').then(m => ({ default: m.SessionsScreen })));
+const DesignSystemScreen = lazy(() => import('./screens/DesignSystemScreen').then(m => ({ default: m.DesignSystemScreen })));
+
 export function App(): React.ReactNode {
   if (window.location.pathname === '/admin') {
-    return <AdminScreen />;
+    return (
+      <Suspense fallback={<div className="center-screen"><div className="spinner" /></div>}>
+        <AdminScreen />
+      </Suspense>
+    );
   }
 
   const { session, room, view, error, clearError, screen: navScreen } = useGame();
@@ -25,7 +31,9 @@ export function App(): React.ReactNode {
       <VoiceChatProvider>
         <div className="app-shell">
           <ConnectionBanner />
-          <DesignSystemScreen />
+          <Suspense fallback={<div className="center-screen"><div className="spinner" /></div>}>
+            <DesignSystemScreen />
+          </Suspense>
           <Toast message={error} onDismiss={clearError} />
         </div>
       </VoiceChatProvider>
@@ -71,7 +79,9 @@ export function App(): React.ReactNode {
     <VoiceChatProvider>
       <div className="app-shell">
         <ConnectionBanner />
-        {screen}
+        <Suspense fallback={<div className="center-screen"><div className="spinner" /></div>}>
+          {screen}
+        </Suspense>
         <Toast message={error} onDismiss={clearError} />
         <InviteToast />
       </div>
