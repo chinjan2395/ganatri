@@ -56,19 +56,23 @@ Phase 4 production deployment is handled by the user (Render + Cloudflare).
 
 ## Last Run
 - Date: 2026-06-30
-- Outcome: Phase 7a complete — `React.memo` wrapped `Part1Board` and `Part2Board`. Added `memo` to imports, changed `export function` to `export const = memo(function ...)`. 0 TS errors; 473 tests pass (153 engine + 117 server + 203 db).
-- Branch: nightly/2026-06-30-1709
+- Outcome: Phase 6c auth brute-force protection complete — per-IP rate-limiters added to `createApp.ts` for OAuth (10/min) and bootstrap (30/min) endpoints. 9 new integration tests. 0 TS errors; 482 tests pass (153 engine + 126 server + 203 db).
+- Branch: nightly/2026-06-30-1850
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-Phase 7a (`React.memo` on boards) is done. Next item:
+Phase 6c auth brute-force protection is done (OAuth 10/min, bootstrap 30/min per IP).
 
-**Next item: Phase 6c — Auth brute-force protection** — rate-limit login/OAuth callbacks per IP in `packages/server/src/handlers.ts`. Mirror the same in-memory IP rate-limit pattern already used for `create_room`/`join_room` but applied to the `login`/OAuth endpoints.
+**Known follow-up items (non-blocking) from code review:**
+- `getClientIp` in `createApp.ts` trusts `X-Forwarded-For` unconditionally — same flaw as existing `handlers.ts`. Fix: gate on a `TRUST_PROXY=1` env var. Note in next run if working on security hardening.
+- OAuth 429 shows bare JSON to browser user (no redirect back with `?login=error`). Minor UX gap.
 
-After that: Phase 7a remaining items — split `GameProvider` context into stable slices, memoize per-player derived props in GameScreen.
+**Next item: Phase 7 — Split GameProvider context** — split `packages/web/src/state/GameProvider.tsx` into stable slices so components don't re-render on unrelated state changes. Memoize per-player derived props in `GameScreen.tsx`.
+
+After that: Phase 7 remaining performance items (memoize per-player derived props, lazy-load screens).
 
 Deferred items to consider for a future DS-R24 task:
 - `DsCoPlayerRow` component for mobile `rp__rows` co-player rows in LobbyScreen
