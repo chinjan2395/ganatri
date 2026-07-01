@@ -175,6 +175,7 @@ Work in four larger bundles — DS-R-A → DS-R-D — so each nightly run execut
 | `name?` in `SessionPayload` (guest display name on reconnect)         | ✅      | `protocol.ts` + `sessionPayload()` in `handlers.ts`; SESSION now includes `name` for guests when set |
 | Clear stale `roomCode` in `handleReconnect` when room is gone         | ✅      | `handlers.ts` `handleReconnect`: reordered `getRoom` before `socket.join`; clears `roomCode` via `updateSession` when room undefined |
 | `get_blocked_users` socket event + handler                            | ✅      | `BlockedUserView`/`GetBlockedUsersAck` in `protocol.ts`; `GET_BLOCKED_USERS` in `EVENTS`; `handleGetBlockedUsers` in `handlers.ts` (NOT_LOGGED_IN/UNAVAILABLE guards); 3 tests in `blocked-users.test.ts` |
+| `DEBUG_SKIP_TO_PART2` dev-only event                                  | ✅      | `protocol.ts` `EVENTS.DEBUG_SKIP_TO_PART2`; `handlers.ts` socket handler gated by `process.env['NODE_ENV'] !== 'production'`; teleports any active game into Part 2 with Ace of Spades on the trick; 0 TS errors, all 126 tests pass |
 
 
 **Test count: 131 / 131 passing.**
@@ -219,6 +220,7 @@ Work in four larger bundles — DS-R-A → DS-R-D — so each nightly run execut
 | GameScreen full-bleed felt + floating-avatar restyle — felt on `.game`, de-framed `.game__board`, all players (you centred) as borderless floating avatars in one row, OpponentSeat status line | ✅      | `orderedOpponents` → `orderedPlayers` (you at centre); removed `.game__you-seat`; `OpponentSeat` name/avatar/status/chips, no panel |
 | GameScreen: show player names in flash messages and turn indicator                                                                                                                              | ✅      | Wired `playerNames` from context; `nameFor` helper at line 140                                                                      |
 | `AdminScreen` — Admin Control Center shell (auth, 11-page nav, dashboard, user mgmt, settings, export)                                                                                                                                                      | ✅      | `src/screens/AdminScreen.tsx` + `src/admin/`                                                                                                       |
+| [DEV] `debug_skip_to_part2` floating button in GameScreen (Vite dev mode only)                                                                                                                                                                              | ✅      | Fixed bottom-right orange button; only renders when `import.meta.env.DEV && view.phase === 'PART_1'`; emits `debug_skip_to_part2` socket event; `GameScreen.tsx` |
 
 
 ### 3c — Game Components
@@ -257,6 +259,7 @@ Work in four larger bundles — DS-R-A → DS-R-D — so each nightly run execut
 | Part 2 cut animation — animate card pickup flying to the holder                                                   | ✅      | Scale + brightness pulse on `isCut` with 0.65s easing; key includes `isCut` state                          |
 | Card play animation — slide card from hand to table                                                               | ✅      | Framer Motion `layoutId` on Card + `layout="position"` on Hand/Part1Board/Part2Board slots                 |
 | Part 1 → Part 2 transition animation / screen banner                                                              | ✅      | Full-screen overlay with spring animation (380/22); text: "PART 2 — THE CUT"; 2.5s duration                |
+| Ace card special treatment in Part 1 table area                                                                   | ✅      | `Card.tsx` `aceTable` prop + `card--ace-table` class; `Part1Board.tsx` splits table into aces/non-aces rows; golden glow + pulse animation + sparkle particles + ACE badge; `Card.css` + `Boards.css` updated. `Part2Board.tsx` reverted to simple flat trick loop (no Ace splitting). |
 | Sound effects (optional)                                                                                          | ⬜      | Not in requirements; add only if desired                                                                   |
 | Mobile layout testing & fine-tuning                                                                               | ✅      | Responsive breakpoints added: 375px (avatar shrinking); 44px min button height; Hand overlap reflow tested |
 | Room/lobby scroll within locked viewport (Start game, Leave visible on short screens)                             | ✅      | `.center-screen` scroll + flex spacers; RoomScreen table uses real compact sizes instead of scale hack       |
