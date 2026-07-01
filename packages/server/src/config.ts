@@ -114,3 +114,20 @@ export function isValidAdminSecret(secret: string): boolean {
 export function isScoringEnabled(): boolean {
   return process.env['SCORING_ENABLED'] !== 'false';
 }
+
+// ---------------------------------------------------------------------------
+// Analytics & proxy config
+// ---------------------------------------------------------------------------
+
+/** PostHog API key for server-side analytics (null when not configured). */
+export const POSTHOG_API_KEY: string | null = process.env['POSTHOG_API_KEY'] ?? null;
+
+/** PostHog ingest host. Defaults to US cloud; use eu.i.posthog.com for EU data residency. */
+export const POSTHOG_HOST: string = process.env['POSTHOG_HOST'] ?? 'https://us.i.posthog.com';
+
+/**
+ * True when the server is behind a trusted reverse proxy that sets
+ * X-Forwarded-For. NEVER trust this header without this gate — it can be
+ * spoofed by clients and would allow IP rate-limit bypass.
+ */
+export const TRUST_PROXY: boolean = process.env['TRUST_PROXY'] === '1';

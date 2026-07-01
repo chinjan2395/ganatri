@@ -21,7 +21,7 @@ function httpRequest(
   method = 'GET',
   body?: string,
   headers: Record<string, string> = {},
-): Promise<{ status: number; body: string }> {
+): Promise<{ status: number; body: string; headers: Record<string, string | string[] | undefined> }> {
   return new Promise((resolve, reject) => {
     const req = request(
       {
@@ -38,6 +38,7 @@ function httpRequest(
           resolve({
             status: res.statusCode ?? 0,
             body: Buffer.concat(chunks).toString('utf8'),
+            headers: res.headers,
           });
         });
       },
@@ -98,14 +99,17 @@ describe('auth endpoint rate limiting', () => {
     }
   });
 
-  it('returns 302 redirect on the 11th request to /auth/google/login (rate-limited)', async () => {
+  it('redirects to /?login=error on the 11th request to /auth/google/login (over limit)', async () => {
     // Exhaust the 10-request window.
     for (let i = 0; i < 10; i++) {
       await httpRequest(port, '/auth/google/login');
     }
-    // 11th request — must be rate-limited (redirect to /?login=error).
+    // 11th request — must be rate-limited with a redirect (not JSON 429).
     const resp = await httpRequest(port, '/auth/google/login');
     expect(resp.status).toBe(302);
+    // Location header should contain /?login=error
+    const location = resp.headers['location'] ?? '';
+    expect(String(location)).toContain('login=error');
   });
 
   // -------------------------------------------------------------------------
@@ -120,12 +124,14 @@ describe('auth endpoint rate limiting', () => {
     }
   });
 
-  it('returns 302 redirect on the 11th request to /auth/google/callback (rate-limited)', async () => {
+  it('redirects to /?login=error on the 11th request to /auth/google/callback (over limit)', async () => {
     for (let i = 0; i < 10; i++) {
       await httpRequest(port, '/auth/google/callback?code=x&state=y');
     }
     const resp = await httpRequest(port, '/auth/google/callback?code=x&state=y');
     expect(resp.status).toBe(302);
+    const location = resp.headers['location'] ?? '';
+    expect(String(location)).toContain('login=error');
   });
 
   // -------------------------------------------------------------------------
@@ -170,46 +176,79 @@ describe('auth endpoint rate limiting', () => {
   // IP isolation
   // -------------------------------------------------------------------------
 
-  it('OAuth rate-limit buckets are isolated per IP', async () => {
-    // Exhaust the limit for "127.0.0.1" (the loopback used in tests).
-    for (let i = 0; i < 10; i++) {
-      await httpRequest(port, '/auth/google/login');
-    }
-    // The 11th from the same IP is rate-limited (302 redirect).
-    const blocked = await httpRequest(port, '/auth/google/login');
-    expect(blocked.status).toBe(302);
+  it('OAuth rate-limit buckets are isolated per IP (requires TRUST_PROXY=1)', async () => {
+    // Enable proxy trust so X-Forwarded-For is honoured for IP extraction.
+    process.env['TRUST_PROXY'] = '1';
+    try {
+      // Exhaust the limit for "127.0.0.1" (the loopback used in tests).
+      for (let i = 0; i < 10; i++) {
+        await httpRequest(port, '/auth/google/login');
+      }
+      // The 11th from the same IP is rate-limited — login now redirects instead of 429.
+      const blocked = await httpRequest(port, '/auth/google/login');
+      expect(blocked.status).toBe(302);
+      const blockedLocation = blocked.headers['location'] ?? '';
+      expect(String(blockedLocation)).toContain('login=error');
 
-    // A different IP (injected via X-Forwarded-For) gets its own bucket.
-    const fromOtherIp = await httpRequest(port, '/auth/google/login', 'GET', undefined, {
-      'X-Forwarded-For': '10.0.0.1',
-    });
-    expect(fromOtherIp.status).not.toBe(302);
+      // A different IP (injected via X-Forwarded-For with TRUST_PROXY=1) gets its own bucket.
+      const fromOtherIp = await httpRequest(port, '/auth/google/login', 'GET', undefined, {
+        'X-Forwarded-For': '10.0.0.1',
+      });
+      expect(fromOtherIp.status).not.toBe(302);
+    } finally {
+      delete process.env['TRUST_PROXY'];
+    }
   });
 
-  it('bootstrap rate-limit buckets are isolated per IP', async () => {
-    // Exhaust the bootstrap limit for loopback.
-    for (let i = 0; i < 30; i++) {
-      await httpRequest(port, '/auth/bootstrap', 'POST', JSON.stringify({}), {
+  it('bootstrap rate-limit buckets are isolated per IP (requires TRUST_PROXY=1)', async () => {
+    // Enable proxy trust so X-Forwarded-For is honoured for IP extraction.
+    process.env['TRUST_PROXY'] = '1';
+    try {
+      // Exhaust the bootstrap limit for loopback.
+      for (let i = 0; i < 30; i++) {
+        await httpRequest(port, '/auth/bootstrap', 'POST', JSON.stringify({}), {
+          'Content-Type': 'application/json',
+        });
+      }
+      const blocked = await httpRequest(port, '/auth/bootstrap', 'POST', JSON.stringify({}), {
         'Content-Type': 'application/json',
       });
-    }
-    const blocked = await httpRequest(port, '/auth/bootstrap', 'POST', JSON.stringify({}), {
-      'Content-Type': 'application/json',
-    });
-    expect(blocked.status).toBe(429);
+      expect(blocked.status).toBe(429);
 
-    // Different IP — own bucket, not blocked.
-    const fromOtherIp = await httpRequest(
-      port,
-      '/auth/bootstrap',
-      'POST',
-      JSON.stringify({}),
-      {
-        'Content-Type': 'application/json',
-        'X-Forwarded-For': '10.0.0.2',
-      },
-    );
-    expect(fromOtherIp.status).not.toBe(429);
+      // Different IP (with TRUST_PROXY=1) — own bucket, not blocked.
+      const fromOtherIp = await httpRequest(
+        port,
+        '/auth/bootstrap',
+        'POST',
+        JSON.stringify({}),
+        {
+          'Content-Type': 'application/json',
+          'X-Forwarded-For': '10.0.0.2',
+        },
+      );
+      expect(fromOtherIp.status).not.toBe(429);
+    } finally {
+      delete process.env['TRUST_PROXY'];
+    }
+  });
+
+  it('X-Forwarded-For is ignored without TRUST_PROXY — spoofed IP shares the loopback bucket', async () => {
+    // Without TRUST_PROXY, a client sending X-Forwarded-For: 10.0.0.99 must NOT
+    // get a separate rate-limit bucket — the raw socket address (loopback) is used.
+    delete process.env['TRUST_PROXY'];
+
+    // Exhaust the limit using requests that include a spoofed header.
+    for (let i = 0; i < 10; i++) {
+      await httpRequest(port, '/auth/google/login', 'GET', undefined, {
+        'X-Forwarded-For': '10.0.0.99',
+      });
+    }
+    // 11th request (still from loopback) must be blocked — same bucket.
+    const blocked = await httpRequest(port, '/auth/google/login', 'GET', undefined, {
+      'X-Forwarded-For': '10.0.0.99',
+    });
+    expect(blocked.status).toBe(302);
+    expect(String(blocked.headers['location'] ?? '')).toContain('login=error');
   });
 
   it('resets correctly between tests — first request after reset is not blocked', async () => {
@@ -223,8 +262,8 @@ describe('auth endpoint rate limiting', () => {
       });
     }
 
-    // Both should be blocked now.
-    // OAuth login → 302 redirect when rate-limited; bootstrap → 429 JSON.
+    // OAuth login rate-limit now redirects to /?login=error (302) instead of 429.
+    // Bootstrap still returns 429.
     expect((await httpRequest(port, '/auth/google/login')).status).toBe(302);
     expect(
       (
