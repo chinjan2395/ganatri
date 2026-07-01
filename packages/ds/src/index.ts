@@ -71,6 +71,9 @@ export type { SeatSlotProps, SeatData } from './components/SeatSlot';
 export { OvalTable } from './components/OvalTable';
 export type { OvalTableProps } from './components/OvalTable';
 
+export { GameTable } from './components/GameTable';
+export type { GameTableProps, GameTableSeatData } from './components/GameTable';
+
 export { StatusPanel } from './components/StatusPanel';
 export type { StatusPanelProps } from './components/StatusPanel';
 
@@ -111,6 +114,9 @@ export type { DsRankRowProps } from './components/RankRow';
 
 export { DsStatCard } from './components/StatCard';
 export type { DsStatCardProps } from './components/StatCard';
+
+export { ScoreCard } from './components/ScoreCard';
+export type { ScoreCardProps, ScoreCardEntry } from './components/ScoreCard';
 
 export { DsSummaryBar } from './components/SummaryBar';
 export type { DsSummaryBarProps } from './components/SummaryBar';
