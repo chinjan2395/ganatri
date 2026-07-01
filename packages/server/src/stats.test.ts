@@ -47,7 +47,7 @@ async function seedLoggedInUser(
   displayName: string,
   email: string | null = null,
 ): Promise<{ id: string }> {
-  const user = await p.upsertOAuthUser({
+  const { user } = await p.upsertOAuthUser({
     provider: 'google',
     providerUserId,
     email,

@@ -180,7 +180,7 @@ export class MemoryPersistence implements GamePersistence {
 
   // Auth (OAuth + sessions) -------------------------------------------------
 
-  async upsertOAuthUser(input: UpsertOAuthUserInput): Promise<UserRow> {
+  async upsertOAuthUser(input: UpsertOAuthUserInput): Promise<{ user: UserRow; isNew: boolean }> {
     // (a) Existing federated identity.
     const account = [...this.oauthAccounts.values()].find(
       (a) => a.provider === input.provider && a.providerUserId === input.providerUserId
@@ -194,7 +194,7 @@ export class MemoryPersistence implements GamePersistence {
         lastSeenAt: new Date(),
       };
       this.users.set(updated.id, updated);
-      return updated;
+      return { user: updated, isNew: false };
     }
 
     // (b) Match an existing user by email -> link a new account.
@@ -210,7 +210,7 @@ export class MemoryPersistence implements GamePersistence {
           lastSeenAt: new Date(),
         };
         this.users.set(updated.id, updated);
-        return updated;
+        return { user: updated, isNew: false };
       }
     }
 
@@ -226,7 +226,7 @@ export class MemoryPersistence implements GamePersistence {
     };
     this.users.set(user.id, user);
     this.insertOAuthAccount(user.id, input.provider, input.providerUserId);
-    return user;
+    return { user, isNew: true };
   }
 
   private insertOAuthAccount(
