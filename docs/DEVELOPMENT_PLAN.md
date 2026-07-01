@@ -2,7 +2,7 @@
 
 **Last updated date:** See `docs/LAST_UPDATED.txt`. This file focuses on phase/task status; timestamps are tracked in a separate, low-overhead file to reduce read/write cost in SDK agent workflows.
 
-All 510 tests passing (153 engine + 134 server + 223 db). Web: 0 TS errors, build green.
+All 518 tests passing (153 engine + 142 server + 223 db). Web: 0 TS errors, build green.
 
 ---
 
@@ -177,7 +177,7 @@ Work in four larger bundles — DS-R-A → DS-R-D — so each nightly run execut
 | `get_blocked_users` socket event + handler                            | ✅      | `BlockedUserView`/`GetBlockedUsersAck` in `protocol.ts`; `GET_BLOCKED_USERS` in `EVENTS`; `handleGetBlockedUsers` in `handlers.ts` (NOT_LOGGED_IN/UNAVAILABLE guards); 3 tests in `blocked-users.test.ts` |
 
 
-**Test count: 131 / 131 passing.**
+**Test count: 141 / 141 passing.**
 
 ---
 
@@ -313,7 +313,7 @@ To keep each Claude run meaningful, treat the remaining work as the following la
 | ---- | ------ | ----- |
 | 6c — Auth/account hardening bundle | ✅ | Display-name/avatar settings, active-session UX, name-prefill polish, and abuse-protection hardening all complete. (done 2026-06-30) |
 | 6d/6e — Persistence + stats polish bundle | ✅ | `recomputePlayerStats(userId?)` added to `GamePersistence` interface + implemented in `PgPersistence` and `MemoryPersistence`. `ADMIN_RECOMPUTE_STATS` socket event + `handleAdminRecomputeStats` handler (admin-auth + UNAVAILABLE gated). 12 new db contract tests (×2 impls) + 3 new server integration tests. Total: 510 tests (153+134+223). (done 2026-07-01) |
-| 6f/6i — Analytics + compliance bundle | ⬜ | One pass for event taxonomy, instrumentation, privacy-policy/consent work, and export/delete UX polish. |
+| 6f/6i — Analytics + compliance bundle | 🟡 | Event taxonomy + server instrumentation complete (analytics.ts, handlers.ts, createApp.ts). Two createApp.ts bug fixes (TRUST_PROXY gate, OAuth 429→302). 7 new analytics tests. CookieConsent component complete (packages/web/src/components/CookieConsent.tsx + .css): reads/writes localStorage key `ganatri_consent_v1`, fixed bottom banner with Accept/Decline via DsButton, mounted in App.tsx after InviteToast, z-index 2000, token-var CSS. Privacy policy content (human-authored text + URL) still TODO. |
 | 6j — Operations hardening bundle | ⬜ | One pass for backups, monitoring/alerts, pool sizing, and cost/free-tier guardrails. |
 
 ### 6a — Database foundation & infrastructure
@@ -400,9 +400,9 @@ To keep each Claude run meaningful, treat the remaining work as the following la
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| 🔷 DECISION: self-hosted vs third-party analytics | ⬜ | Self-host in `analytics_events` (full control, no third party, more build) **vs** **PostHog / Plausible** (fast, dashboards out of the box, privacy-friendly). Recommend PostHog (self-host or cloud) for product analytics; keep game-stat aggregates in our own DB. |
-| Define event taxonomy | ⬜ | `room_created`, `game_started`, `game_finished`, `game_abandoned`, `player_joined/left`, `turn_timed_out`, `voice_enabled`, `disconnect`, `reconnect`, `signup`, `guest_upgrade`. Stable names + versioned schema. |
-| Instrument server-side events | ⬜ | Emit from `handlers.ts` lifecycle points; anonymous user id only, no PII. |
+| 🔷 DECISION: self-hosted vs third-party analytics | ✅ | **PostHog cloud chosen** — env-gated via `POSTHOG_API_KEY`; no-op by default; `createAdapterFromEnv()` factory in `analytics.ts`. |
+| Define event taxonomy | ✅ | `room_created`, `game_started`, `game_finished` (with durationMs), `game_abandoned`, `player_joined/left`, `turn_timed_out`, `disconnect`, `reconnect`, `login`, `guest_upgrade`. Typed in `AnalyticsProperties` map in `analytics.ts`. (`signup` omitted — requires DB-layer `isNew` flag from `upsertOAuthUser`; deferred.) |
+| Instrument server-side events | ✅ | `track()` calls in `handlers.ts` (room_created, player_joined, player_left, game_started, game_finished+durationMs, game_abandoned×2, turn_timed_out, disconnect, reconnect) and `createApp.ts` (login, guest_upgrade). |
 | Instrument key client events | ⬜ | Funnel-critical UI actions (create/join clicked, start clicked) the server can't see. |
 | Funnel & product metrics | ⬜ | create → start → finish funnel; abandonment rate; average game duration; players-per-game distribution. |
 | Engagement metrics | ⬜ | DAU/MAU, retention (D1/D7), peak concurrent rooms/players, voice-chat adoption rate. |
@@ -442,7 +442,7 @@ To keep each Claude run meaningful, treat the remaining work as the following la
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Privacy policy & consent | ⬜ | Publish a policy; obtain consent for analytics where required; cookie/localStorage disclosure. |
+| Privacy policy & consent | 🟡 | Cookie consent banner shipped (CookieConsent component, localStorage `ganatri_consent_v1`). Remaining: publish actual privacy policy page/text and link from banner; wire consent value into PostHog opt-in/opt-out call. |
 | Data export (right to access) | ✅ | Full stack complete. Server: `DOWNLOAD_MY_DATA: 'download_my_data'` added to `EVENTS` + `DownloadMyDataAck` type in `packages/server/src/protocol.ts`; `handleDownloadMyData` in `handlers.ts` (NOT_LOGGED_IN/UNAVAILABLE guards, `Promise.all([getUserGameHistory, getPlayerStats])`, flattenHistoryEntry + mapStatsView, null stats row → null in export); 3 integration tests in `download-data.test.ts` (guest→NOT_LOGGED_IN, no-persistence→UNAVAILABLE, happy path acks ok with userId/displayName/email/exportedAt/games/stats). Server tests: 110→113. Web layer also complete: `DOWNLOAD_MY_DATA: 'download_my_data'` added to `EVENTS` + `DownloadMyDataAck` type in `packages/web/src/protocol.ts`; `downloadMyData()` socket helper in `packages/web/src/net/socket.ts`; `GameProvider` gains `downloadMyData` useCallback; `LobbyScreen.tsx` adds "Download My Data" button in logged-in profile panel with Blob download on success + error state. |
 | Account deletion (right to erasure) | ✅ | Full stack complete. DB: `deleteUser(userId)` in `GamePersistence` interface, `PgPersistence` (9-step transaction), `MemoryPersistence`; 3 contract test cases × 2 impls = 6 db test runs (180→186). Server: `DeleteAccountAck` type + `DELETE_ACCOUNT` event in `protocol.ts`; `handleDeleteAccount` in `handlers.ts` (NOT_LOGGED_IN/UNAVAILABLE guards, calls deleteUser, converts session to guest, re-emits SESSION); 3 integration tests in `delete-account.test.ts` (94→102 server tests). Web: `delete_account` event + `DeleteAccountAck` type in `packages/web/src/protocol.ts`; `deleteAccount()` socket helper; `GameProvider` callback; `ProfilePanel` danger button + inline confirm flow + error display. |
 | Data retention policies | 🟡 | Server-side daily prune job wired (`handlers.ts` `runRetention` → `pruneGameEventsBefore` + `pruneAbandonedGamesBefore`, cutoff `RETENTION_DAYS=30`); runs on startup + every 24h, no-op without persistence. Analytics-event purge still TODO (no analytics table yet). |

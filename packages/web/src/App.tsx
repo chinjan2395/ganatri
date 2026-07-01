@@ -7,6 +7,7 @@ import { GameScreen } from './screens/GameScreen';
 import { Toast } from './components/Toast';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { InviteToast } from './components/InviteToast';
+import { CookieConsent } from './components/CookieConsent';
 
 const AdminScreen = lazy(() => import('./screens/AdminScreen').then(m => ({ default: m.AdminScreen })));
 const HistoryScreen = lazy(() => import('./screens/HistoryScreen').then(m => ({ default: m.HistoryScreen })));
@@ -84,6 +85,7 @@ export function App(): React.ReactNode {
         </Suspense>
         <Toast message={error} onDismiss={clearError} />
         <InviteToast />
+        <CookieConsent />
       </div>
     </VoiceChatProvider>
   );

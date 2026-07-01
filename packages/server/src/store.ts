@@ -67,6 +67,11 @@ export interface RoomState {
    */
   turnStartedAt: number | null;
   /**
+   * Unix ms timestamp when the game started (phase → PLAYING), or null before
+   * the first game in this room. Used to compute game duration in analytics.
+   */
+  startedAt: number | null;
+  /**
    * Unix ms timestamp when the room transitioned to 'DONE', or null if it
    * hasn't ended yet. Used by the room-expiry cleanup interval.
    */
@@ -154,6 +159,7 @@ export function createRoom(code: string, hostId: string): RoomState {
     gracePeriodTimers: new Map(),
     turnTimer: null,
     turnStartedAt: null,
+    startedAt: null,
     completedAt: null,
   };
   store.rooms.set(code, room);
