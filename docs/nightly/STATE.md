@@ -55,8 +55,8 @@ Phase 4 production deployment is handled by the user (Render + Cloudflare).
 
 ## Last Run
 - Date: 2026-07-01
-- Outcome: `account_created` isNew fix — changed `upsertOAuthUser` return type from `Promise<UserRow>` to `Promise<{ user: UserRow; isNew: boolean }>` in `GamePersistence` interface + both `PgPersistence` and `MemoryPersistence` impls. Added `account_created` event to analytics taxonomy. `createApp.ts` OAuth callback now fires `account_created` only when `isNew=true` (first-ever registration), replacing the fragile 5-second timestamp heuristic. All 8 existing `auth.test.ts` + contract test calls updated to destructure `{ user }`. New db test `isNew=true / isNew=false` added. 520 tests pass (153+143+224).
-- Branch: nightly/2026-07-01-1721
+- Outcome: Phase 7g `/healthz` liveness probe — added `GET /healthz` route to `createApp.ts` (always returns 200 `{"ok":true}`, no DB checks); 3 new tests in `healthz.test.ts`. 523 tests pass (153+146+224).
+- Branch: nightly/2026-07-01-2138
 
 ## Blockers / Needs Human Input
 _(none)_
@@ -70,7 +70,8 @@ Phase 6f/6i analytics + compliance bundle is now fully complete on the implement
 
 **Next runnable items:**
 1. **Phase 6j operations hardening bundle** — mostly infrastructure (backups, monitoring, pool sizing, cost guardrails). All require human action to configure external services; nightly can only document what's needed.
-2. **Phase 7g: `/healthz` health-check endpoint** — `packages/server/src/createApp.ts`; simple `GET /healthz` → `200 OK` JSON. Needed by Render/Railway liveness probes. Small, self-contained.
+2. **Phase 7b: Clean up WebRTC peer connections when a player goes safe mid-Part-2** — `packages/web/src/hooks/useVoiceChat.ts`; when a player's hand empties and they go safe, tear down their peer connection to stop consuming resources.
+3. **Phase 7c: Visual peer-connection state indicator** — `packages/web`; show connecting/connected/failed state during ICE negotiation.
 
 **Known non-blocking follow-up items:**
 - Link/unlink Google OAuth (account settings — needs design for fallback auth when user has no guest token)

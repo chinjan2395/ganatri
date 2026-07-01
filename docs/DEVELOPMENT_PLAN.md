@@ -2,7 +2,7 @@
 
 **Last updated date:** See `docs/LAST_UPDATED.txt`. This file focuses on phase/task status; timestamps are tracked in a separate, low-overhead file to reduce read/write cost in SDK agent workflows.
 
-All 520 tests passing (153 engine + 143 server + 224 db). Web: 0 TS errors, build green.
+All 523 tests passing (153 engine + 146 server + 224 db). Web: 0 TS errors, build green.
 
 ---
 
@@ -177,7 +177,7 @@ Work in four larger bundles — DS-R-A → DS-R-D — so each nightly run execut
 | `get_blocked_users` socket event + handler                            | ✅      | `BlockedUserView`/`GetBlockedUsersAck` in `protocol.ts`; `GET_BLOCKED_USERS` in `EVENTS`; `handleGetBlockedUsers` in `handlers.ts` (NOT_LOGGED_IN/UNAVAILABLE guards); 3 tests in `blocked-users.test.ts` |
 
 
-**Test count: 145 / 145 passing.**
+**Test count: 146 / 146 passing.**
 
 ---
 
@@ -533,7 +533,7 @@ To keep each Claude run meaningful, treat the remaining work as the following la
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| Health-check endpoint (`/healthz`) | ⬜ | Railway / Render need liveness probe; currently no dedicated endpoint |
+| Health-check endpoint (`/healthz`) | ✅ | Simple liveness probe; always returns 200 JSON `{"ok":true}`. Render/Railway safe. No DB checks, no external calls. 3 tests in `src/healthz.test.ts`. |
 | Horizontal scaling path (Redis Socket.io adapter + external state store) | ⬜ | **Partially superseded:** the external state store is Phase 6 (DB); the Redis Socket.io adapter for fan-out across instances still belongs here |
 | CDN / cache headers for static assets | ⬜ | Vite bundle served from Node; a CDN (Cloudflare Pages or similar) would cut latency for remote players |
 | Split `handlers.ts` into focused modules | ⬜ | 850 lines covering rooms, sessions, game flow, admin, and voice signaling. (Best done as part of the Phase 6 store-interface refactor) |
