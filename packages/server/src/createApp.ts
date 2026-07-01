@@ -373,7 +373,7 @@ async function handleGoogleCallback(
       return;
     }
 
-    const user = await p.upsertOAuthUser({
+    const { user, isNew } = await p.upsertOAuthUser({
       provider: 'google',
       providerUserId: profile.providerUserId,
       email: profile.email,
@@ -389,24 +389,26 @@ async function handleGoogleCallback(
       userAgent: req.headers['user-agent'] ?? null,
     });
 
-    // Track login / guest upgrade analytics.
-    const isGuestUpgrade = Boolean(cookies[GUEST_COOKIE_NAME]);
+    // Track login analytics.
     track(user.id, 'login', { provider: 'google' });
-    if (isGuestUpgrade) {
-      track(user.id, 'guest_upgrade', {});
-    }
 
-    // Attempt guest → registered merge (non-fatal)
+    // Attempt guest → registered merge (non-fatal); track only on success.
     const guestToken = cookies[GUEST_COOKIE_NAME];
     if (guestToken) {
       try {
         const guestSession = getSession(guestToken);
         if (guestSession && guestSession.userId === null) {
           await p.mergeGuestIntoUser(guestSession.playerId, user.id);
+          track(user.id, 'guest_upgrade', {});
         }
       } catch (err) {
         console.error('[auth] guest merge failed (non-fatal):', err);
       }
+    }
+
+    // Fire account_created only on first-time signup (not on repeat logins).
+    if (isNew) {
+      track(user.id, 'account_created', { provider: 'google' });
     }
 
     const redirectUrl = new URL(webRedirectBase);

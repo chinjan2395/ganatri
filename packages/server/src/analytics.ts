@@ -13,6 +13,7 @@
 // ---------------------------------------------------------------------------
 
 export type AnalyticsEventName =
+  | 'account_created'
   | 'room_created'
   | 'player_joined'
   | 'player_left'
@@ -26,6 +27,7 @@ export type AnalyticsEventName =
   | 'guest_upgrade';
 
 export interface AnalyticsProperties {
+  account_created: { provider: string };
   room_created: { playerCount?: number; isLoggedIn: boolean };
   player_joined: { roomCode: string; isLoggedIn: boolean };
   player_left: { roomCode: string; inGame: boolean };

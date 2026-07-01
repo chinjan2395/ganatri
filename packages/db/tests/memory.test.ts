@@ -192,14 +192,15 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
   // Auth --------------------------------------------------------------------
 
   it('upsertOAuthUser: new identity creates a non-guest user, repeat login is idempotent', async () => {
-    const first = await repo.upsertOAuthUser({
+    const { user: first, isNew: isNewFirst } = await repo.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'oauth-1',
       email: 'one@example.com',
       displayName: 'One',
     });
     expect(first.isGuest).toBe(false);
-    const second = await repo.upsertOAuthUser({
+    expect(isNewFirst).toBe(true);
+    const { user: second, isNew: isNewSecond } = await repo.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'oauth-1',
       email: 'one@example.com',
@@ -207,18 +208,19 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
     });
     expect(second.id).toBe(first.id);
     expect(second.displayName).toBe('One Renamed');
+    expect(isNewSecond).toBe(false);
   });
 
   it('upsertOAuthUser links a new identity onto a user matched by email', async () => {
     // First login establishes the user + email.
-    const created = await repo.upsertOAuthUser({
+    const { user: created } = await repo.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'oauth-email-a',
       email: 'shared@example.com',
       displayName: 'Shared',
     });
     // A different provider identity but same email links to the same user.
-    const linked = await repo.upsertOAuthUser({
+    const { user: linked, isNew: isNewLinked } = await repo.upsertOAuthUser({
       provider: 'github',
       providerUserId: 'oauth-email-b',
       email: 'shared@example.com',
@@ -226,10 +228,11 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
     });
     expect(linked.id).toBe(created.id);
     expect(linked.isGuest).toBe(false);
+    expect(isNewLinked).toBe(false);
   });
 
   it('auth sessions: valid lookup, expired -> null, revoked -> null', async () => {
-    const user = await repo.upsertOAuthUser({
+    const { user } = await repo.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'oauth-sess',
       email: 'sess@example.com',
@@ -654,7 +657,7 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
     const guestId = h.newUserId();
     await repo.ensureGuest(guestId, 'GuestPlayer');
 
-    const regUser = await repo.upsertOAuthUser({
+    const { user: regUser } = await repo.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'merge-oauth-1',
       email: 'merge1@example.com',
@@ -711,7 +714,7 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
     const guestId = h.newUserId();
     await repo.ensureGuest(guestId, 'GuestWithStats');
 
-    const regUser = await repo.upsertOAuthUser({
+    const { user: regUser } = await repo.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'merge-oauth-2',
       email: 'merge2@example.com',
@@ -864,13 +867,13 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
   // Phase 8: co-player queries and blocks -----------------------------------
 
   async function freshRegistered(name: string, emailSuffix: string): Promise<string> {
-    const u = await repo.upsertOAuthUser({
+    const { user } = await repo.upsertOAuthUser({
       provider: 'google',
       providerUserId: `ph8-${emailSuffix}`,
       email: `${emailSuffix}@ph8.test`,
       displayName: name,
     });
-    return u.id;
+    return user.id;
   }
 
   async function seedSharedGame(playerIds: string[], seed: string): Promise<void> {
@@ -1019,7 +1022,7 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
     });
 
     it('matches by email case-insensitively', async () => {
-      const user = await repo.upsertOAuthUser({
+      const { user } = await repo.upsertOAuthUser({
         provider: 'google',
         providerUserId: 'su-email-1',
         email: 'FindMe@example.com',

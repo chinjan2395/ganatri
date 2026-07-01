@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { request } from 'node:http';
 import { MemoryPersistence } from '@ganatri/db';
 import type { AppInstance } from './createApp.js';
+import type { AnalyticsAdapter, AnalyticsEventName } from './analytics.js';
 
 const EXCHANGE_PROFILE = {
   providerUserId: 'google-sub-callback',
@@ -118,7 +119,7 @@ describe('google oauth callback', () => {
   });
 
   it('bootstrap migrates a legacy auth token into the durable cookie', async () => {
-    const user = await persistence.upsertOAuthUser({
+    const { user } = await persistence.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'google-sub-bootstrap',
       email: 'bootstrap@example.com',
@@ -167,5 +168,32 @@ describe('google oauth callback', () => {
       guestToken: 'legacy-guest-token',
       playerId: 'guest-player-id',
     });
+  });
+
+  it('fires account_created on first-time OAuth login (path c) and not on repeat login', async () => {
+    const { __setAnalyticsAdapterForTests } = await import('./analytics.js');
+    const calls: Array<{ distinctId: string; event: AnalyticsEventName; properties?: unknown }> = [];
+    const spy: AnalyticsAdapter = {
+      track(distinctId, event, properties) {
+        calls.push({ distinctId, event, properties });
+      },
+    };
+    __setAnalyticsAdapterForTests(spy);
+
+    // First login — should fire account_created.
+    const first = await httpRequest(port, '/auth/google/callback?code=c1&state=s1', 'GET', undefined, {
+      Cookie: 'ganatri_oauth_state=s1',
+    });
+    expect(first.status).toBe(302);
+    expect(calls.some((c) => c.event === 'account_created' && (c.properties as { provider?: string })?.provider === 'google')).toBe(true);
+
+    const countAfterFirst = calls.filter((c) => c.event === 'account_created').length;
+
+    // Second login (same provider identity) — should NOT fire account_created again.
+    const second = await httpRequest(port, '/auth/google/callback?code=c2&state=s2', 'GET', undefined, {
+      Cookie: 'ganatri_oauth_state=s2',
+    });
+    expect(second.status).toBe(302);
+    expect(calls.filter((c) => c.event === 'account_created').length).toBe(countAfterFirst);
   });
 });

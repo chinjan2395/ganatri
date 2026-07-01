@@ -100,7 +100,7 @@ describe('REQUEST_HISTORY + durable identity', () => {
     // Connect while persistence is available so the socket binds a durable
     // userId, then remove persistence before requesting history. The handler
     // reads getPersistence() at call time → UNAVAILABLE.
-    const user = await persistence.upsertOAuthUser({
+    const { user } = await persistence.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'google-sub-gone',
       email: null,
@@ -133,7 +133,7 @@ describe('REQUEST_HISTORY + durable identity', () => {
 
   it('binds a durable account from the session cookie and returns its history', async () => {
     // Seed an OAuth user + auth session and a finished game.
-    const user = await persistence.upsertOAuthUser({
+    const { user } = await persistence.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'google-sub-123',
       email: 'player@example.com',
@@ -177,7 +177,7 @@ describe('REQUEST_HISTORY + durable identity', () => {
     // Cross-package contract guard: the web client expects a flattened entry
     // (top-level id/startedAt/endedAt/durationMs/playerCount/isAbandoned/
     // winnerId, with ISO-string timestamps) — NOT the DB's nested `{ game }`.
-    const user = await persistence.upsertOAuthUser({
+    const { user } = await persistence.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'google-sub-flat',
       email: 'flat@example.com',

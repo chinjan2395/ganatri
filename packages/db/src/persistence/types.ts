@@ -320,8 +320,9 @@ export interface GamePersistence {
    * (b) else an existing user matching `email` (when non-null) -> link account;
    * (c) else create a new (non-guest) user + oauth_accounts row.
    * Idempotent across repeat logins. Always returns the resolved UserRow.
+   * `isNew` is true only when path (c) was taken (brand-new user created).
    */
-  upsertOAuthUser(input: UpsertOAuthUserInput): Promise<UserRow>;
+  upsertOAuthUser(input: UpsertOAuthUserInput): Promise<{ user: UserRow; isNew: boolean }>;
 
   /** Create a durable auth session row. */
   createAuthSession(input: CreateAuthSessionInput): Promise<AuthSessionRow>;

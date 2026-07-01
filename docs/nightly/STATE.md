@@ -55,26 +55,26 @@ Phase 4 production deployment is handled by the user (Render + Cloudflare).
 
 ## Last Run
 - Date: 2026-07-01
-- Outcome: Phase 6f/6i analytics + compliance bundle (server-side): New `analytics.ts` with `AnalyticsSink` interface, `NoopAnalyticsSink`, `PostHogAnalyticsSink` (fire-and-forget, Node 18 fetch), `getAnalytics()` singleton. 11-event taxonomy (room_created, game_started, game_finished, game_abandoned, player_joined, player_left, turn_timed_out, player_disconnected, player_reconnected, account_created, guest_upgraded). Wired at 12 lifecycle points in handlers.ts + createApp.ts. Security fixes: `getClientIp` now gates X-Forwarded-For on TRUST_PROXY=1; OAuth 429 → redirect with ?login=error. Code-review fixes applied: `game_abandoned` added to explicit-leave path in silentLeaveRoom; TRUST_PROXY uncommented from .env.example (was security risk); PostHog timestamp moved to top-level per API spec; POSTHOG_HOST centralised in config.ts. 12 new server tests. 522 tests pass (153+146+223).
-- Branch: nightly/2026-07-01-1206
+- Outcome: `account_created` isNew fix — `upsertOAuthUser` now returns `{ user: UserRow; isNew: boolean }` across `GamePersistence` interface, `PgPersistence`, and `MemoryPersistence`. `account_created` analytics event fires correctly on first-time OAuth signup only. Also: analytics module refactored to `AnalyticsAdapter`/`track()` pattern (typed properties, cleaner API); event names updated (`player_disconnected`→`disconnect`, `player_reconnected`→`reconnect`, `guest_upgraded`→`guest_upgrade`); `guest_upgrade` tracking moved inside successful-merge block (was firing on cookie presence regardless of merge outcome). 520 tests pass (153+144+223).
+- Branch: nightly/2026-07-01-2023
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-Phase 6f/6i analytics server-side work complete. Remaining work in the bundle:
+Phase 6f/6i analytics + `account_created` isNew fix complete. Remaining work in the bundle:
 - **Client-side funnel events** (create/join/start clicked) — needs analytics platform decision from user. Without a PostHog API key configured, these would be no-ops. Low priority until platform is live.
 - **Privacy policy & consent banner** (6i ⬜) — requires legal input; skip in nightly.
-- **`account_created` heuristic** — uses 5-second window on `user.createdAt`; fragile under DB load. Proper fix: `upsertOAuthUser` returns `{ user: UserRow; isNew: boolean }`. This is a `GamePersistence` interface change affecting both impls and tests. A worthwhile follow-up.
 
 **Next runnable items:**
-1. **Phase 6j operations hardening bundle** — mostly infrastructure (backups, monitoring, pool sizing, cost guardrails). All require human action to configure external services; nightly can only document what's needed.
-2. **`account_created` isNew fix** — GamePersistence interface change; db-package work → route to backend-dev.
+1. **Phase 6j operations hardening bundle** — mostly infrastructure (backups, monitoring, pool sizing, cost guardrails). All require human action to configure external services; nightly can only document what's needed. Consider generating a runbook/checklist document that the user can execute.
+2. **POSTHOG_HOST consolidation (minor)** — `analytics.ts` reads `process.env['POSTHOG_HOST']` directly instead of using the constant from `config.ts`. Low-priority cleanup.
 
 **Known non-blocking follow-up items:**
 - Link/unlink Google OAuth (account settings — needs design for fallback auth when user has no guest token)
 - `DsCoPlayerRow` component for mobile `rp__rows` co-player rows in LobbyScreen
 - `DsTitleBlock size="sm"` flourish suppression (pre-existing design issue)
+- `guest_upgrade` test: add test asserting the event fires iff the merge actually ran
 
 Routing reminder: packages/db has no dedicated agent — route db-package work to backend-dev.

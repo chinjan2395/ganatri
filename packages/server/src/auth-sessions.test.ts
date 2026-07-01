@@ -64,7 +64,7 @@ describe('durable auth sessions', () => {
   });
 
   it('does not authenticate a logged-in account from client-sent guestToken alone', async () => {
-    const user = await persistence.upsertOAuthUser({
+    const { user } = await persistence.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'google-sub-no-fallback',
       email: 'fallback@example.com',
@@ -93,7 +93,7 @@ describe('durable auth sessions', () => {
   });
 
   it('authenticates via authSessionToken handshake fallback when cookie is absent', async () => {
-    const user = await persistence.upsertOAuthUser({
+    const { user } = await persistence.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'google-sub-handshake',
       email: 'handshake@example.com',
@@ -122,7 +122,7 @@ describe('durable auth sessions', () => {
   });
 
   it('lists active sessions and rolls expiry on authenticated connect', async () => {
-    const user = await persistence.upsertOAuthUser({
+    const { user } = await persistence.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'google-sub-list',
       email: 'list@example.com',
@@ -168,7 +168,7 @@ describe('durable auth sessions', () => {
   });
 
   it('revokes other sessions and can revoke the current session', async () => {
-    const user = await persistence.upsertOAuthUser({
+    const { user } = await persistence.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'google-sub-revoke',
       email: 'revoke@example.com',

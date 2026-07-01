@@ -2,7 +2,7 @@
 
 **Last updated date:** See `docs/LAST_UPDATED.txt`. This file focuses on phase/task status; timestamps are tracked in a separate, low-overhead file to reduce read/write cost in SDK agent workflows.
 
-All 522 tests passing (153 engine + 146 server + 223 db). Web: 0 TS errors, build green.
+All 520 tests passing (153 engine + 144 server + 223 db). Web: 0 TS errors, build green.
 
 ---
 
@@ -177,7 +177,7 @@ Work in four larger bundles — DS-R-A → DS-R-D — so each nightly run execut
 | `get_blocked_users` socket event + handler                            | ✅      | `BlockedUserView`/`GetBlockedUsersAck` in `protocol.ts`; `GET_BLOCKED_USERS` in `EVENTS`; `handleGetBlockedUsers` in `handlers.ts` (NOT_LOGGED_IN/UNAVAILABLE guards); 3 tests in `blocked-users.test.ts` |
 
 
-**Test count: 145 / 145 passing.**
+**Test count: 144 / 144 passing.**
 
 ---
 
@@ -313,7 +313,7 @@ To keep each Claude run meaningful, treat the remaining work as the following la
 | ---- | ------ | ----- |
 | 6c — Auth/account hardening bundle | ✅ | Display-name/avatar settings, active-session UX, name-prefill polish, and abuse-protection hardening all complete. (done 2026-06-30) |
 | 6d/6e — Persistence + stats polish bundle | ✅ | `recomputePlayerStats(userId?)` added to `GamePersistence` interface + implemented in `PgPersistence` and `MemoryPersistence`. `ADMIN_RECOMPUTE_STATS` socket event + `handleAdminRecomputeStats` handler (admin-auth + UNAVAILABLE gated). 12 new db contract tests (×2 impls) + 3 new server integration tests. Total: 510 tests (153+134+223). (done 2026-07-01) |
-| 6f/6i — Analytics + compliance bundle | 🟡 | Analytics abstraction (`analytics.ts`), 11-event taxonomy, server-side instrumentation at 12 lifecycle points, getClientIp TRUST_PROXY gating, OAuth 429→redirect, `game_abandoned` on explicit-leave path, PostHog timestamp fix, POSTHOG_HOST centralised in config.ts. Privacy-policy/consent, client-side events, and metrics dashboards remain ⬜. 12 new server tests (146 total). (started 2026-07-01) |
+| 6f/6i — Analytics + compliance bundle | 🟡 | Analytics abstraction (`analytics.ts`), 12-event taxonomy (account_created now wired), server-side instrumentation at all 12 lifecycle points. `upsertOAuthUser` returns `{ user, isNew }` — `account_created` fires only on path-c (first signup), not on repeat logins. Privacy-policy/consent, client-side events, and metrics dashboards remain ⬜. 144 server tests total. (updated 2026-07-01) |
 | 6j — Operations hardening bundle | ⬜ | One pass for backups, monitoring/alerts, pool sizing, and cost/free-tier guardrails. |
 
 ### 6a — Database foundation & infrastructure
@@ -401,8 +401,8 @@ To keep each Claude run meaningful, treat the remaining work as the following la
 | Task | Status | Notes |
 | ---- | ------ | ----- |
 | 🔷 DECISION: self-hosted vs third-party analytics | ⬜ | Self-host in `analytics_events` (full control, no third party, more build) **vs** **PostHog / Plausible** (fast, dashboards out of the box, privacy-friendly). Recommend PostHog (self-host or cloud) for product analytics; keep game-stat aggregates in our own DB. |
-| Define event taxonomy | ✅ | 11-event taxonomy in `packages/server/src/analytics.ts`: `room_created`, `game_started`, `game_finished`, `game_abandoned`, `player_joined`, `player_left`, `turn_timed_out`, `player_disconnected`, `player_reconnected`, `account_created`, `guest_upgraded`. `AnalyticsSink` interface + `NoopAnalyticsSink` + `PostHogAnalyticsSink` (fire-and-forget fetch). Singleton factory `getAnalytics()`/`resetAnalyticsSink()`. 11 tests in `analytics.test.ts`. |
-| Instrument server-side events | ✅ | 10 lifecycle call-sites wired in `handlers.ts` (room_created, player_joined, player_left, game_started, game_finished, game_abandoned, turn_timed_out, player_disconnected, player_reconnected) + 2 in `createApp.ts` OAuth callback (account_created, guest_upgraded). All fire-and-forget, no await, no blocking. |
+| Define event taxonomy | ✅ | 12-event taxonomy in `packages/server/src/analytics.ts`: `room_created`, `game_started`, `game_finished`, `game_abandoned`, `player_joined`, `player_left`, `turn_timed_out`, `disconnect`, `reconnect`, `account_created`, `guest_upgrade`, `login`. `AnalyticsAdapter` interface + `NO_OP` adapter + `PostHogAdapter` (fire-and-forget fetch). Typed `track()` public API + `initAnalytics()` + `createAdapterFromEnv()`. 8 tests in `analytics.test.ts`. Note: event names updated from prior pass (`player_disconnected`→`disconnect`, `player_reconnected`→`reconnect`, `guest_upgraded`→`guest_upgrade`). |
+| Instrument server-side events | ✅ | 11 lifecycle call-sites wired: `handlers.ts` (room_created, player_joined, player_left, game_started, game_finished, game_abandoned, turn_timed_out, disconnect, reconnect) + `createApp.ts` OAuth callback (login, account_created when isNew, guest_upgrade when merge runs). `account_created` now uses `upsertOAuthUser` `isNew` flag (was fragile 5s heuristic). `guest_upgrade` fires inside successful-merge block only (was firing on cookie presence regardless). All fire-and-forget, no await, no blocking. |
 | Instrument key client events | ⬜ | Funnel-critical UI actions (create/join clicked, start clicked) the server can't see. |
 | Funnel & product metrics | ⬜ | create → start → finish funnel; abandonment rate; average game duration; players-per-game distribution. |
 | Engagement metrics | ⬜ | DAU/MAU, retention (D1/D7), peak concurrent rooms/players, voice-chat adoption rate. |
