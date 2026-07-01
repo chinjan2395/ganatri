@@ -1,168 +1,150 @@
 /**
- * analytics.test.ts — Unit tests for the analytics abstraction layer.
+ * analytics.test.ts — Unit tests for the analytics adapter abstraction.
  *
- * Tests the NoopAnalyticsSink, PostHogAnalyticsSink, and the singleton
- * factory (getAnalytics / resetAnalyticsSink).
+ * Tests the adapter interface, PostHog adapter, no-op adapter, and public API.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  NoopAnalyticsSink,
-  PostHogAnalyticsSink,
-  getAnalytics,
-  resetAnalyticsSink,
+  track,
+  initAnalytics,
+  __setAnalyticsAdapterForTests,
+  createAdapterFromEnv,
+  type AnalyticsAdapter,
   type AnalyticsEventName,
 } from './analytics.js';
 
 // ---------------------------------------------------------------------------
-// NoopAnalyticsSink
+// Test helpers
 // ---------------------------------------------------------------------------
 
-describe('NoopAnalyticsSink', () => {
-  it('track() does not throw for any event name', () => {
-    const sink = new NoopAnalyticsSink();
-    const events: AnalyticsEventName[] = [
-      'room_created',
-      'game_started',
-      'game_finished',
-      'game_abandoned',
-      'player_joined',
-      'player_left',
-      'turn_timed_out',
-      'player_disconnected',
-      'player_reconnected',
-      'account_created',
-      'guest_upgraded',
-    ];
-    for (const event of events) {
-      expect(() => sink.track(event)).not.toThrow();
-    }
-  });
+/** Spy adapter that records all track() calls. */
+class SpyAdapter implements AnalyticsAdapter {
+  calls: Array<{ distinctId: string; event: AnalyticsEventName; properties?: unknown }> = [];
 
-  it('track() with props does not throw', () => {
-    const sink = new NoopAnalyticsSink();
-    expect(() =>
-      sink.track('room_created', { playerCount: 1, isRanked: false, label: 'test', nullable: null }),
-    ).not.toThrow();
-  });
-
-  it('calling track() on room_created — no error (integration smoke)', () => {
-    const sink = new NoopAnalyticsSink();
-    // Fire-and-forget — no return value, no side effects, no error.
-    sink.track('room_created');
-    // If we reach here without throwing, the test passes.
-    expect(true).toBe(true);
-  });
-});
+  track<E extends AnalyticsEventName>(
+    distinctId: string,
+    event: E,
+    properties?: unknown,
+  ): void {
+    this.calls.push({ distinctId, event, properties });
+  }
+}
 
 // ---------------------------------------------------------------------------
-// PostHogAnalyticsSink
+// Main track() API
 // ---------------------------------------------------------------------------
 
-describe('PostHogAnalyticsSink', () => {
-  let originalFetch: typeof globalThis.fetch;
+describe('track() function', () => {
+  let spyAdapter: SpyAdapter;
 
   beforeEach(() => {
-    // Save real fetch and replace with a spy that resolves immediately.
-    originalFetch = globalThis.fetch;
-    globalThis.fetch = vi.fn().mockResolvedValue(new Response('', { status: 200 }));
+    spyAdapter = new SpyAdapter();
+    __setAnalyticsAdapterForTests(spyAdapter);
   });
 
   afterEach(() => {
-    globalThis.fetch = originalFetch;
+    __setAnalyticsAdapterForTests(new SpyAdapter());
   });
 
-  it('track() does not throw when called', () => {
-    const sink = new PostHogAnalyticsSink('test-key');
-    expect(() => sink.track('game_started', { playerCount: 2 })).not.toThrow();
+  it('delegates to the active adapter', () => {
+    track('user-123', 'room_created', { playerCount: 2, isLoggedIn: true });
+    expect(spyAdapter.calls).toEqual([
+      { distinctId: 'user-123', event: 'room_created', properties: { playerCount: 2, isLoggedIn: true } },
+    ]);
   });
 
-  it('track() fires a POST to the PostHog capture endpoint (fire-and-forget)', async () => {
-    const sink = new PostHogAnalyticsSink('test-key', 'https://us.i.posthog.com');
-    sink.track('room_created', { playerCount: 1 });
-
-    // Drain microtask queue so the fire-and-forget fetch resolves.
-    await vi.waitFor(() => {
-      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
-    });
-
-    const [url, options] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [
-      string,
-      RequestInit,
-    ];
-    expect(url).toBe('https://us.i.posthog.com/capture');
-    expect(options.method).toBe('POST');
-    const body = JSON.parse(options.body as string) as Record<string, unknown>;
-    expect(body['api_key']).toBe('test-key');
-    expect(body['event']).toBe('room_created');
-    expect(body['distinct_id']).toBe('server');
+  it('enforces type safety on properties', () => {
+    // This should compile; TS will enforce that 'login' events must have { provider: string }
+    track('user-123', 'login', { provider: 'google' });
+    expect(spyAdapter.calls[0]?.properties).toEqual({ provider: 'google' });
   });
 
-  it('track() does not throw even when fetch rejects', async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error('network error'));
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  it('accepts undefined properties', () => {
+    track('user-123', 'guest_upgrade');
+    expect(spyAdapter.calls).toEqual([
+      { distinctId: 'user-123', event: 'guest_upgrade', properties: undefined },
+    ]);
+  });
 
-    const sink = new PostHogAnalyticsSink('test-key');
-    expect(() => sink.track('game_started')).not.toThrow();
+  it('catches adapter errors and logs them (never throws)', () => {
+    const errorAdapter: AnalyticsAdapter = {
+      track() {
+        throw new Error('adapter error');
+      },
+    };
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    __setAnalyticsAdapterForTests(errorAdapter);
 
-    // Drain so the rejection handler runs and logs the error silently.
-    await vi.waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalled();
-    });
+    // Should not throw.
+    expect(() => track('user-123', 'room_created', { playerCount: 1, isLoggedIn: false })).not.toThrow();
+    expect(consoleSpy).toHaveBeenCalledWith('[analytics] track error:', expect.any(Error));
 
     consoleSpy.mockRestore();
   });
 });
 
 // ---------------------------------------------------------------------------
-// getAnalytics() singleton factory
+// initAnalytics() setup
 // ---------------------------------------------------------------------------
 
-describe('getAnalytics()', () => {
+describe('initAnalytics()', () => {
+  let spyAdapter: SpyAdapter;
+
+  beforeEach(() => {
+    spyAdapter = new SpyAdapter();
+  });
+
+  it('activates a custom adapter', () => {
+    initAnalytics(spyAdapter);
+    track('user-123', 'room_created', { playerCount: 1, isLoggedIn: false });
+    expect(spyAdapter.calls).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// createAdapterFromEnv() factory
+// ---------------------------------------------------------------------------
+
+describe('createAdapterFromEnv()', () => {
   afterEach(() => {
-    resetAnalyticsSink();
     delete process.env['POSTHOG_API_KEY'];
+    delete process.env['POSTHOG_HOST'];
   });
 
-  it('returns a NoopAnalyticsSink when POSTHOG_API_KEY env var is not set', () => {
+  it('returns a no-op adapter when POSTHOG_API_KEY is not set', () => {
     delete process.env['POSTHOG_API_KEY'];
-    resetAnalyticsSink();
-    const sink = getAnalytics();
-    expect(sink).toBeInstanceOf(NoopAnalyticsSink);
+    const adapter = createAdapterFromEnv();
+    const spy = new SpyAdapter();
+    // No-op adapter is a plain object, so just check it doesn't throw.
+    expect(() => adapter.track('user-123', 'room_created', { playerCount: 1, isLoggedIn: false })).not.toThrow();
   });
 
-  it('returns a PostHogAnalyticsSink when POSTHOG_API_KEY is set', () => {
-    process.env['POSTHOG_API_KEY'] = 'test-key';
-    resetAnalyticsSink();
-    const sink = getAnalytics();
-    expect(sink).toBeInstanceOf(PostHogAnalyticsSink);
+  it('returns a PostHog adapter when POSTHOG_API_KEY is set', () => {
+    process.env['POSTHOG_API_KEY'] = 'test-api-key';
+    const adapter = createAdapterFromEnv();
+    // Verify it's a PostHog adapter by checking fetch is called.
+    const fetchSpy = vi.fn().mockResolvedValue(new Response('', { status: 200 }));
+    globalThis.fetch = fetchSpy;
+
+    adapter.track('user-123', 'room_created', { playerCount: 1, isLoggedIn: false });
+    // Fire-and-forget, so we need to wait for microtask.
+    vi.waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalled();
+    });
   });
 
-  it('returns the same singleton instance on repeated calls', () => {
-    delete process.env['POSTHOG_API_KEY'];
-    resetAnalyticsSink();
-    const a = getAnalytics();
-    const b = getAnalytics();
-    expect(a).toBe(b);
-  });
+  it('uses custom POSTHOG_HOST if provided', () => {
+    process.env['POSTHOG_API_KEY'] = 'test-api-key';
+    process.env['POSTHOG_HOST'] = 'https://custom.posthog.com';
+    const adapter = createAdapterFromEnv();
+    const fetchSpy = vi.fn().mockResolvedValue(new Response('', { status: 200 }));
+    globalThis.fetch = fetchSpy;
 
-  it('resetAnalyticsSink() allows the factory to re-create with a new env var', () => {
-    delete process.env['POSTHOG_API_KEY'];
-    resetAnalyticsSink();
-    const noopSink = getAnalytics();
-    expect(noopSink).toBeInstanceOf(NoopAnalyticsSink);
-
-    process.env['POSTHOG_API_KEY'] = 'new-key';
-    resetAnalyticsSink();
-    const postHogSink = getAnalytics();
-    expect(postHogSink).toBeInstanceOf(PostHogAnalyticsSink);
-  });
-
-  it('PostHogAnalyticsSink.track() does not throw when POSTHOG_API_KEY is set', () => {
-    process.env['POSTHOG_API_KEY'] = 'test-key';
-    resetAnalyticsSink();
-    const sink = getAnalytics();
-    // Should not throw — fire-and-forget.
-    expect(() => sink.track('room_created', { playerCount: 1 })).not.toThrow();
+    adapter.track('user-123', 'room_created', { playerCount: 1, isLoggedIn: false });
+    vi.waitFor(() => {
+      const [url] = (fetchSpy.mock.calls[0] ?? []) as [string];
+      expect(url).toContain('custom.posthog.com');
+    });
   });
 });

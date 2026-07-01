@@ -17,7 +17,6 @@ import {
   SESSION_TTL_DAYS,
   cookiesSecure,
 } from './config.js';
-import { getAnalytics } from './analytics.js';
 import { getGoogleAuthUrl, exchangeCode } from './auth/oauth.js';
 import { getPersistence } from './persistence.js';
 import { isPhase9SchemaReady, getDb } from '@ganatri/db';
@@ -36,6 +35,7 @@ import {
   GUEST_COOKIE_NAME,
 } from './auth/session.js';
 import { getSession } from './store.js';
+import { track } from './analytics.js';
 
 export interface AppInstance {
   io: Server;
@@ -214,7 +214,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
 
   if (path === '/auth/google/login') {
     if (!checkOAuthRateLimit(getClientIp(req))) {
-      redirect(res, `${webRedirectBase}/?login=error`);
+      redirect(res, `${webRedirectBase}?login=error`);
       return;
     }
     if (!isOAuthEnabled()) {
@@ -234,7 +234,10 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
 
   if (path === '/auth/google/callback') {
     if (!checkOAuthRateLimit(getClientIp(req))) {
-      redirect(res, `${webRedirectBase}/?login=error`);
+      redirect(res, `${webRedirectBase}?login=error`, [
+        buildClearStateCookie(cookiesSecure()),
+        buildClearGuestCookie(cookiesSecure()),
+      ]);
       return;
     }
     await handleGoogleCallback(req, res, url);
@@ -378,11 +381,6 @@ async function handleGoogleCallback(
       avatarUrl: profile.avatarUrl,
     });
 
-    // Track account creation when the user was created within the last 5 seconds.
-    if (user.createdAt && Date.now() - user.createdAt.getTime() < 5_000) {
-      getAnalytics().track('account_created', {});
-    }
-
     const token = randomSessionToken();
     await p.createAuthSession({
       userId: user.id,
@@ -391,6 +389,13 @@ async function handleGoogleCallback(
       userAgent: req.headers['user-agent'] ?? null,
     });
 
+    // Track login / guest upgrade analytics.
+    const isGuestUpgrade = Boolean(cookies[GUEST_COOKIE_NAME]);
+    track(user.id, 'login', { provider: 'google' });
+    if (isGuestUpgrade) {
+      track(user.id, 'guest_upgrade', {});
+    }
+
     // Attempt guest → registered merge (non-fatal)
     const guestToken = cookies[GUEST_COOKIE_NAME];
     if (guestToken) {
@@ -398,7 +403,6 @@ async function handleGoogleCallback(
         const guestSession = getSession(guestToken);
         if (guestSession && guestSession.userId === null) {
           await p.mergeGuestIntoUser(guestSession.playerId, user.id);
-          getAnalytics().track('guest_upgraded', {});
         }
       } catch (err) {
         console.error('[auth] guest merge failed (non-fatal):', err);

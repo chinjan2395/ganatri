@@ -1,99 +1,126 @@
 /**
- * analytics.ts — Fire-and-forget analytics sink abstraction.
+ * analytics.ts — Server-side analytics abstraction.
  *
- * Event taxonomy uses anonymous IDs only — no PII (no display names, emails,
- * or room codes). All sensitive identifiers are stripped before leaving the
- * server; only counts, durations, and booleans are collected.
+ * Uses a pluggable adapter pattern so analytics can be swapped or disabled
+ * without touching business logic. The default adapter is a no-op; activate
+ * PostHog (or any other provider) by calling initAnalytics() at startup.
+ *
+ * All track() calls are fire-and-forget — they never throw or block.
  */
 
-import { POSTHOG_HOST as DEFAULT_POSTHOG_HOST } from './config.js';
-
 // ---------------------------------------------------------------------------
-// Types
+// Event taxonomy
 // ---------------------------------------------------------------------------
 
 export type AnalyticsEventName =
   | 'room_created'
+  | 'player_joined'
+  | 'player_left'
   | 'game_started'
   | 'game_finished'
   | 'game_abandoned'
-  | 'player_joined'
-  | 'player_left'
+  | 'disconnect'
+  | 'reconnect'
   | 'turn_timed_out'
-  | 'player_disconnected'
-  | 'player_reconnected'
-  | 'account_created'
-  | 'guest_upgraded';
+  | 'login'
+  | 'guest_upgrade';
 
-export type AnalyticsProps = Record<string, string | number | boolean | null>;
-
-export interface AnalyticsSink {
-  track(event: AnalyticsEventName, props?: AnalyticsProps): void;
+export interface AnalyticsProperties {
+  room_created: { playerCount?: number; isLoggedIn: boolean };
+  player_joined: { roomCode: string; isLoggedIn: boolean };
+  player_left: { roomCode: string; inGame: boolean };
+  game_started: { roomCode: string; playerCount: number };
+  game_finished: { roomCode: string; playerCount: number; durationMs?: number };
+  game_abandoned: { roomCode: string; playerCount: number };
+  disconnect: { inGame: boolean; isLoggedIn: boolean };
+  reconnect: { inGame: boolean; isLoggedIn: boolean };
+  turn_timed_out: { roomCode: string };
+  login: { provider: string };
+  guest_upgrade: Record<string, never>;
 }
 
 // ---------------------------------------------------------------------------
-// NoopAnalyticsSink — default when POSTHOG_API_KEY is not set
+// Adapter interface
 // ---------------------------------------------------------------------------
 
-export class NoopAnalyticsSink implements AnalyticsSink {
-  track(_event: AnalyticsEventName, _props?: AnalyticsProps): void {
-    // Intentionally empty — no-op.
-  }
+export interface AnalyticsAdapter {
+  track<E extends AnalyticsEventName>(
+    distinctId: string,
+    event: E,
+    properties?: AnalyticsProperties[E],
+  ): void;
 }
 
 // ---------------------------------------------------------------------------
-// PostHogAnalyticsSink — fire-and-forget via Node 18+ built-in fetch
+// No-op adapter (default)
 // ---------------------------------------------------------------------------
 
-export class PostHogAnalyticsSink implements AnalyticsSink {
-  private readonly apiKey: string;
-  private readonly host: string;
+const NO_OP: AnalyticsAdapter = {
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  track() { /* intentional no-op */ },
+};
 
-  constructor(apiKey: string, host?: string) {
-    this.apiKey = apiKey;
-    this.host = (host ?? DEFAULT_POSTHOG_HOST).replace(/\/$/, '');
-  }
+// ---------------------------------------------------------------------------
+// PostHog adapter
+// ---------------------------------------------------------------------------
 
-  track(event: AnalyticsEventName, props?: AnalyticsProps): void {
-    const body = JSON.stringify({
-      api_key: this.apiKey,
-      distinct_id: 'server',
-      event,
-      timestamp: new Date().toISOString(),
-      properties: { ...props },
-    });
+class PostHogAdapter implements AnalyticsAdapter {
+  constructor(private readonly apiKey: string, private readonly host: string) {}
 
-    // Fire-and-forget: never awaited, errors are caught and logged silently.
-    void fetch(`${this.host}/capture`, {
+  track<E extends AnalyticsEventName>(
+    distinctId: string,
+    event: E,
+    properties?: AnalyticsProperties[E],
+  ): void {
+    void fetch(`${this.host}/capture/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body,
+      body: JSON.stringify({
+        api_key: this.apiKey,
+        distinct_id: distinctId,
+        event,
+        properties: properties ?? {},
+        timestamp: new Date().toISOString(),
+      }),
     }).catch((err: unknown) => {
-      console.error('[analytics] posthog capture failed (non-fatal):', err);
+      console.warn('[analytics] PostHog track failed:', err);
     });
   }
 }
 
 // ---------------------------------------------------------------------------
-// Singleton factory
+// Module-level state + public API
 // ---------------------------------------------------------------------------
 
-let _sink: AnalyticsSink | null = null;
+let _adapter: AnalyticsAdapter = NO_OP;
 
-/**
- * Returns the active analytics sink. Reads POSTHOG_API_KEY from process.env
- * at the time of first call (or after resetAnalyticsSink). When the env var
- * is not set, returns a NoopAnalyticsSink that does nothing.
- */
-export function getAnalytics(): AnalyticsSink {
-  if (!_sink) {
-    const key = process.env['POSTHOG_API_KEY'];
-    _sink = key ? new PostHogAnalyticsSink(key) : new NoopAnalyticsSink();
-  }
-  return _sink;
+/** Call once at startup to activate an adapter. No-op adapter is the default. */
+export function initAnalytics(adapter: AnalyticsAdapter): void {
+  _adapter = adapter;
 }
 
-/** Reset for tests — allows the factory to re-create with a different env. */
-export function resetAnalyticsSink(): void {
-  _sink = null;
+/** Export for tests only — reset to no-op between test suites. */
+export function __setAnalyticsAdapterForTests(adapter: AnalyticsAdapter): void {
+  _adapter = adapter;
+}
+
+/** Track an analytics event. Fire-and-forget — never throws. */
+export function track<E extends AnalyticsEventName>(
+  distinctId: string,
+  event: E,
+  properties?: AnalyticsProperties[E],
+): void {
+  try {
+    _adapter.track(distinctId, event, properties);
+  } catch (err) {
+    console.warn('[analytics] track error:', err);
+  }
+}
+
+/** Create a PostHog adapter if env vars are configured, else return no-op. */
+export function createAdapterFromEnv(): AnalyticsAdapter {
+  const apiKey = process.env['POSTHOG_API_KEY'];
+  if (!apiKey) return NO_OP;
+  const host = process.env['POSTHOG_HOST'] ?? 'https://us.i.posthog.com';
+  return new PostHogAdapter(apiKey, host);
 }
