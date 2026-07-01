@@ -53,24 +53,30 @@ Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — sk
 Phase 4 production deployment is handled by the user (Render + Cloudflare).
 
 ## Last Run
-- Date: 2026-06-30
-- Outcome: Phase 6c complete — preset avatar selection: `updateUserAvatarUrl` (DB+server), `UPDATE_AVATAR` socket event, `DsAvatar` preset-color rendering, LobbyScreen avatar picker (8-swatch grid). All 3 MUST-FIX code review issues fixed (ESLint raw-button gate, DsTopNav preset guard, UpdateAvatarAck discriminated union). 495 tests pass; 0 TS errors; ESLint clean.
-- Branch: nightly/2026-06-30-2222
+- Date: 2026-07-01
+- Outcome: Phase 6d/6e — Stats recompute/backfill job: `recomputePlayerStats(userId?)` added to GamePersistence interface + implemented in PgPersistence (SQL aggregation + streak query) and MemoryPersistence. `ADMIN_RECOMPUTE_STATS` socket event with admin-auth gate. Non-derivable fields (cutsGiven, cutsReceived, timesSafe, ghostFinishes) explicitly preserved on ON CONFLICT UPDATE. 6 DB contract tests + 3 server integration tests. Code review MUST-FIX applied (explicit ghost_finishes preservation in ON CONFLICT SET clause). 510 tests pass (153 engine + 134 server + 223 db).
+- Branch: nightly/2026-07-01-0445
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-Phase 6c complete: avatar selection (preset:1–8 + clear), display-name edit, session management, abuse protection all shipped. Link/unlink OAuth deferred — needs design decision on fallback auth path for users with no guest token.
+Phase 6d/6e stats recompute backfill complete. Remaining ⬜ items in this bundle:
+- **Replay data model & reconstruction** (6d ⬜) — Rebuild a game from game_events + seed; depends on full-log decision in 6b. Low priority without a replay UI.
+- **Rating system decision** (6e ⬜) — ELO/Glicko-2 optional; deferred.
 
-**Next item: Phase 6d/6e persistence + stats polish bundle** — replay model scaffolding, idempotency guards on stats re-computation, backfill/reconcile job for existing game records, and any remaining stats/leaderboard polish. Review the Phase 6d/6e section of DEVELOPMENT_PLAN.md for remaining ⬜ items.
+**Next items to consider:**
+1. **Phase 6f/6i analytics + compliance bundle** (6f ⬜, 6i privacy policy ⬜) — event taxonomy, PostHog/Plausible instrumentation, privacy policy UX.
+2. **Phase 6j operations hardening bundle** (6j ⬜) — backups, monitoring, pool sizing, cost guardrails.
+3. **`getClientIp` fix** — gate on `TRUST_PROXY=1` env var (packages/server/src/createApp.ts); non-blocking.
+4. **OAuth 429 redirect** — bare JSON shown to browser; should redirect with `?login=error`.
 
-**Known follow-up items (non-blocking) from prior code review:**
+**Known non-blocking follow-up items:**
 - `getClientIp` in `createApp.ts` trusts `X-Forwarded-For` unconditionally. Fix: gate on `TRUST_PROXY=1` env var.
 - OAuth 429 shows bare JSON to browser (no redirect with `?login=error`). Minor UX gap.
 
-Deferred items for a future run:
+Deferred items:
 - Link/unlink Google OAuth (account settings — needs design for fallback auth when user has no guest token)
 - `DsCoPlayerRow` component for mobile `rp__rows` co-player rows in LobbyScreen
 - `DsTitleBlock size="sm"` flourish suppression (pre-existing design issue)
