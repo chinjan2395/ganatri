@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { cardId, type CardId, type Card as CardModel, type GameEvent, type Phase } from '@ganatri/engine';
 import { DsSpinner, DsBadge, DsButton } from '@ganatri/ds';
 import { useGame, useGameView, useGameRoom, useGameSession } from '../state/GameProvider';
+import { socket } from '../net/socket';
 import { useVoiceChatContext, useVoiceSpeaking } from '../state/VoiceChatProvider';
 import { OpponentSeat } from '../components/OpponentSeat';
 import { Part1Board, type Part1SelectionState } from '../components/Part1Board';
@@ -470,6 +471,20 @@ export function GameScreen(): React.ReactNode {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── [DEV] Skip to Part 2 — visible only in Vite dev mode ── */}
+      {import.meta.env.DEV && view.phase === 'PART_1' && (
+        <DsButton
+          className="game__dev-skip-btn"
+          onClick={() => {
+            socket.emit('debug_skip_to_part2', (res: { ok: boolean }) => {
+              console.log('[DEV] skip to part2:', res);
+            });
+          }}
+        >
+          [DEV] Skip to Part 2
+        </DsButton>
+      )}
 
     </div>
   );
