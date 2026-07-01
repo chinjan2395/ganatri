@@ -723,6 +723,26 @@ export type AdminExportDataAck =
   | { ok: true; games: ExportGameView[] }
   | { ok: false; error: 'NOT_AUTHORIZED' | 'UNAVAILABLE' };
 
+// ---------------------------------------------------------------------------
+// Admin: stats recompute
+// ---------------------------------------------------------------------------
+
+/**
+ * Payload for admin_recompute_stats.
+ * Omit userId to recompute all users that have at least one game_players row.
+ */
+export interface AdminRecomputeStatsPayload {
+  userId?: string;
+}
+
+/**
+ * Ack for admin_recompute_stats. Requires admin auth and persistence.
+ * Returns the count of player_stats rows written/updated.
+ */
+export type AdminRecomputeStatsAck =
+  | { ok: true; recomputedCount: number }
+  | { ok: false; error: 'NOT_AUTHORIZED' | 'UNAVAILABLE' };
+
 // Re-export for consumers that want the config shape via the protocol module.
 export type { GameConfig };
 
@@ -768,6 +788,7 @@ export const EVENTS = {
   ADMIN_SEARCH_USERS: 'admin_search_users',
   ADMIN_GET_USER_STATS: 'admin_get_user_stats',
   ADMIN_EXPORT_DATA: 'admin_export_data',
+  ADMIN_RECOMPUTE_STATS: 'admin_recompute_stats',
 
   // Server → Client
   SESSION: 'session',

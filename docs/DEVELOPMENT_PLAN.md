@@ -2,7 +2,7 @@
 
 **Last updated date:** See `docs/LAST_UPDATED.txt`. This file focuses on phase/task status; timestamps are tracked in a separate, low-overhead file to reduce read/write cost in SDK agent workflows.
 
-All 495 tests passing (153 engine + 131 server + 211 db). Web: 0 TS errors, build green.
+All 510 tests passing (153 engine + 134 server + 223 db). Web: 0 TS errors, build green.
 
 ---
 
@@ -312,7 +312,7 @@ To keep each Claude run meaningful, treat the remaining work as the following la
 | Work pack | Status | Notes |
 | ---- | ------ | ----- |
 | 6c — Auth/account hardening bundle | ✅ | Display-name/avatar settings, active-session UX, name-prefill polish, and abuse-protection hardening all complete. (done 2026-06-30) |
-| 6d/6e — Persistence + stats polish bundle | ⬜ | One pass for replay-model scaffolding, idempotency guards, backfill/reconcile work, and any remaining stats/leaderboard polish. |
+| 6d/6e — Persistence + stats polish bundle | ✅ | `recomputePlayerStats(userId?)` added to `GamePersistence` interface + implemented in `PgPersistence` and `MemoryPersistence`. `ADMIN_RECOMPUTE_STATS` socket event + `handleAdminRecomputeStats` handler (admin-auth + UNAVAILABLE gated). 12 new db contract tests (×2 impls) + 3 new server integration tests. Total: 510 tests (153+134+223). (done 2026-07-01) |
 | 6f/6i — Analytics + compliance bundle | ⬜ | One pass for event taxonomy, instrumentation, privacy-policy/consent work, and export/delete UX polish. |
 | 6j — Operations hardening bundle | ⬜ | One pass for backups, monitoring/alerts, pool sizing, and cost/free-tier guardrails. |
 
@@ -382,7 +382,7 @@ To keep each Claude run meaningful, treat the remaining work as the following la
 | Server-restart recovery | ✅ | `rehydrateFromDb()` in `recovery.ts` replays event log through engine on startup, creates ghost sessions (socketId=null) for all players, restores persistence bookkeeping maps, starts grace-period timers. Ghost adoption in `handlers.ts` matches reconnecting clients by playerId (cookie for OAuth, localStorage for guests). Web: playerId stored in localStorage, sent in handshake auth. 5 integration tests. |
 | Replay data model & reconstruction | ⬜ | Rebuild a game from `game_events` + seed to power a replay viewer (depends on full-log decision in 6b). |
 | Abandonment / forfeit recording | ✅ | `recordGameEnd(..., isAbandoned=true)` from `gracePeriodExpired` and the PLAYING branch of `silentLeaveRoom` when <2 players remain; sets `games.is_abandoned` + `rooms.status=ABANDONED` and increments `gamesAbandoned`. |
-| Aggregation/backfill job | ⬜ | Job to (re)compute stats from game records — for fixing bugs or onboarding historical data. |
+| Aggregation/backfill job | ✅ | `recomputePlayerStats(userId?)` added to `GamePersistence` interface + implemented in `PgPersistence` (SQL aggregation + ordered streak query) and `MemoryPersistence`. Non-derivable fields (cutsGiven, cutsReceived, timesSafe, ghostFinishes) explicitly preserved via `player_stats.<col>` in ON CONFLICT SET clause. `ADMIN_RECOMPUTE_STATS` admin socket event with auth+UNAVAILABLE guards. 6 db contract tests + 3 server integration tests. 510 tests pass. |
 
 ### 6e — Player statistics
 
@@ -394,7 +394,7 @@ To keep each Claude run meaningful, treat the remaining work as the following la
 | 🔷 DECISION: rating system | ⬜ | Optional skill rating: **ELO** (simple, 1v1-style adapted to multiplayer placement) or **Glicko-2** (handles uncertainty/inactivity). Skip for v1 of this phase if scope is tight. |
 | Leaderboard queries | ✅ | Global leaderboard shipped: `GamePersistence.getLeaderboard(limit=20, offset=0)` (Pg + Memory), inner-joins `users` (excludes guests + zero-games), orders `gamesWon DESC, winRate DESC, gamesPlayed DESC, userId ASC`, paginated; winRate derived in JS (0-guarded). Exposed via the PUBLIC `get_leaderboard` socket event. `getMyLeaderboardRank(userId)` added (CTE+ROW_NUMBER in Pg, sort+findIndex in Memory); `myEntry?` in `GetLeaderboardAck` so logged-in users outside top 20 see their rank. **Time-windowed boards now shipped** (`timeWindow?: 'week' | 'month'` on both methods; Pg path uses CTE joining `game_players+games+users` filtered by `ended_at >= cutoff`; Memory path uses `aggregateWindowed(cutoff)` helper; server `handleGetLeaderboard` passes `req.timeWindow` through; +10 db contract tests + 2 server tests). Web UI tab switcher already shipped. Friends boards still TODO. No index added (fine at current scale). |
 | Stats API endpoints / socket queries | 🟡 | `REQUEST_HISTORY` socket event added (`handlers.ts` `handleRequestHistory` → `getUserGameHistory`): logged-in account → `{ok:true, games}`; guest → `NOT_LOGGED_IN`; no persistence → `UNAVAILABLE`. Ack flattens the DB's nested entry → the web wire shape (top-level fields + ISO timestamps) via `flattenHistoryEntry`; contract test guards the shape. **`get_my_stats` now shipped** (`handleGetMyStats` → `getPlayerStats` → flat `PlayerStatsView` with derived `winRate`; same guard semantics; null-row → zeroed view; 4 tests in `stats.test.ts`). **`get_leaderboard` now shipped** (PUBLIC — no session gate; `handleGetLeaderboard` → `getLeaderboard` → `LeaderboardEntryView[]` with 1-based `rank`; only failure is no-persistence → `UNAVAILABLE`; 3 tests in `leaderboard.test.ts`). |
-| Idempotency on replays/recompute | ⬜ | Guard against double-counting if a game-end is processed twice (use game_id uniqueness). |
+| Idempotency on replays/recompute | ✅ | `recomputePlayerStats` is a full-replace (not incremental), so calling it twice produces the same result. Non-derivable fields preserved (not zeroed) on recompute. Existing in-memory guard (`gameIdPromises.delete` before async work) prevents in-process double-calls. |
 
 ### 6f — Analytics & telemetry
 

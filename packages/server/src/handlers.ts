@@ -23,6 +23,8 @@ import {
   type AdminUserStatsView,
   type AdminExportDataPayload,
   type AdminExportDataAck,
+  type AdminRecomputeStatsPayload,
+  type AdminRecomputeStatsAck,
   type ExportGameView,
   type ExportGamePlayerView,
   type CreateRoomAck,
@@ -1132,6 +1134,12 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
   socket.on(EVENTS.ADMIN_EXPORT_DATA, (payload: unknown, ack: (res: AdminExportDataAck) => void) => {
     if (typeof ack !== 'function') return;
     void handleAdminExportData(socket, payload, ack);
+  });
+
+  // Admin: idempotent recompute of player_stats from game_players.
+  socket.on(EVENTS.ADMIN_RECOMPUTE_STATS, (payload: unknown, ack: (res: AdminRecomputeStatsAck) => void) => {
+    if (typeof ack !== 'function') return;
+    void handleAdminRecomputeStats(socket, payload, ack);
   });
 
   // Voice chat: hand out ICE servers (STUN + minted Cloudflare TURN creds).
@@ -2611,6 +2619,30 @@ async function handleAdminExportData(
       })),
     }));
     ack({ ok: true, games });
+  } catch {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+  }
+}
+
+async function handleAdminRecomputeStats(
+  socket: Socket,
+  payload: unknown,
+  ack: (res: AdminRecomputeStatsAck) => void,
+): Promise<void> {
+  if (!store.adminSockets.has(socket.id)) {
+    ack({ ok: false, error: 'NOT_AUTHORIZED' });
+    return;
+  }
+  const p = getPersistence();
+  if (!p) {
+    ack({ ok: false, error: 'UNAVAILABLE' });
+    return;
+  }
+  const raw = payload as AdminRecomputeStatsPayload | undefined;
+  const userId = typeof raw?.userId === 'string' && raw.userId.length > 0 ? raw.userId : undefined;
+  try {
+    const recomputedCount = await p.recomputePlayerStats(userId);
+    ack({ ok: true, recomputedCount });
   } catch {
     ack({ ok: false, error: 'UNAVAILABLE' });
   }
