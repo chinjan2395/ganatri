@@ -184,6 +184,12 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
   const url = new URL(req.url ?? '/', `http://${host}`);
   const path = url.pathname;
 
+  if (path === '/healthz') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+
   if (path === '/health' || path === '/') {
     const p = getPersistence();
     let dbReady: boolean | null = null;
