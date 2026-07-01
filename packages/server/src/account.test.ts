@@ -15,7 +15,7 @@ import { resetLastMoveTime } from './handlers.js';
 import { EVENTS } from './protocol.js';
 import { __setPersistenceForTests } from './persistence.js';
 import { hashToken } from './auth/session.js';
-import type { UpdateDisplayNameAck, SessionPayload } from './protocol.js';
+import type { UpdateDisplayNameAck, UpdateAvatarAck, SessionPayload } from './protocol.js';
 
 function waitFor<T>(socket: ClientSocket, event: string, timeoutMs = 3000): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -167,6 +167,134 @@ describe('UPDATE_DISPLAY_NAME', () => {
       const entry = board.find((e) => e.userId === user.id);
       expect(entry).toBeDefined();
       expect(entry!.displayName).toBe('BrandNewName');
+    } finally {
+      client.disconnect();
+    }
+  });
+});
+
+describe('UPDATE_AVATAR', () => {
+  let app: AppInstance;
+  let port: number;
+  let persistence: MemoryPersistence;
+
+  beforeEach(async () => {
+    resetStore();
+    resetLastMoveTime();
+    persistence = new MemoryPersistence();
+    __setPersistenceForTests(persistence);
+    app = createApp();
+    port = await app.listen(0);
+  });
+
+  afterEach(async () => {
+    await app.close();
+    __setPersistenceForTests(null);
+  });
+
+  it('guest gets NOT_LOGGED_IN', async () => {
+    const client = ioClient(`http://localhost:${port}`, { autoConnect: true, reconnection: false });
+    try {
+      const session = await waitFor<SessionPayload>(client, EVENTS.SESSION);
+      expect(session.loggedIn).toBe(false);
+      const ack = await emitAck<UpdateAvatarAck>(client, EVENTS.UPDATE_AVATAR, { avatarUrl: 'preset:1' });
+      expect(ack).toEqual({ ok: false, error: 'NOT_LOGGED_IN' });
+    } finally {
+      client.disconnect();
+    }
+  });
+
+  it('invalid avatarUrl (http://) gets INVALID_AVATAR', async () => {
+    const token = 'token-avatar-invalid';
+    await seedLoggedInUser(persistence, 'google-sub-avatar-invalid', token, 'AvatarUser');
+
+    const client = ioClient(`http://localhost:${port}`, {
+      autoConnect: true,
+      reconnection: false,
+      transports: ['polling'],
+      extraHeaders: { Cookie: `ganatri_session=${token}` },
+    });
+    try {
+      const session = await waitFor<SessionPayload>(client, EVENTS.SESSION);
+      expect(session.loggedIn).toBe(true);
+      const ack = await emitAck<UpdateAvatarAck>(client, EVENTS.UPDATE_AVATAR, { avatarUrl: 'http://example.com/avatar.png' });
+      expect(ack).toEqual({ ok: false, error: 'INVALID_AVATAR' });
+    } finally {
+      client.disconnect();
+    }
+  });
+
+  it('valid preset:3 → ok: true, avatarUrl updated in session', async () => {
+    const token = 'token-avatar-preset';
+    const user = await seedLoggedInUser(persistence, 'google-sub-avatar-preset', token, 'PresetUser');
+
+    const client = ioClient(`http://localhost:${port}`, {
+      autoConnect: true,
+      reconnection: false,
+      transports: ['polling'],
+      extraHeaders: { Cookie: `ganatri_session=${token}` },
+    });
+    try {
+      const firstSession = await waitFor<SessionPayload>(client, EVENTS.SESSION);
+      expect(firstSession.loggedIn).toBe(true);
+
+      const nextSessionPromise = waitFor<SessionPayload>(client, EVENTS.SESSION);
+
+      const ack = await emitAck<UpdateAvatarAck>(client, EVENTS.UPDATE_AVATAR, { avatarUrl: 'preset:3' });
+      expect(ack).toEqual({ ok: true, avatarUrl: 'preset:3' });
+
+      const updatedSession = await nextSessionPromise;
+      expect(updatedSession.avatarUrl).toBe('preset:3');
+
+      // Verify persistence was updated too.
+      await persistence.upsertPlayerStats({ userId: user.id, gamesPlayed: 1, gamesWon: 1, gamesLost: 0 });
+      const board = await persistence.getLeaderboard();
+      const entry = board.find((e) => e.userId === user.id);
+      expect(entry).toBeDefined();
+      expect(entry!.avatarUrl).toBe('preset:3');
+    } finally {
+      client.disconnect();
+    }
+  });
+
+  it('null (clear avatar) → ok: true, avatarUrl: null', async () => {
+    const token = 'token-avatar-null';
+    await seedLoggedInUser(persistence, 'google-sub-avatar-null', token, 'NullAvatarUser');
+
+    const client = ioClient(`http://localhost:${port}`, {
+      autoConnect: true,
+      reconnection: false,
+      transports: ['polling'],
+      extraHeaders: { Cookie: `ganatri_session=${token}` },
+    });
+    try {
+      const session = await waitFor<SessionPayload>(client, EVENTS.SESSION);
+      expect(session.loggedIn).toBe(true);
+
+      const ack = await emitAck<UpdateAvatarAck>(client, EVENTS.UPDATE_AVATAR, { avatarUrl: null });
+      expect(ack).toEqual({ ok: true, avatarUrl: null });
+    } finally {
+      client.disconnect();
+    }
+  });
+
+  it('no persistence → UNAVAILABLE', async () => {
+    const token = 'token-avatar-unavailable';
+    await seedLoggedInUser(persistence, 'google-sub-avatar-unavailable', token, 'UnavailableUser');
+
+    const client = ioClient(`http://localhost:${port}`, {
+      autoConnect: true,
+      reconnection: false,
+      transports: ['polling'],
+      extraHeaders: { Cookie: `ganatri_session=${token}` },
+    });
+    try {
+      const session = await waitFor<SessionPayload>(client, EVENTS.SESSION);
+      expect(session.loggedIn).toBe(true);
+
+      __setPersistenceForTests(null);
+      const ack = await emitAck<UpdateAvatarAck>(client, EVENTS.UPDATE_AVATAR, { avatarUrl: 'preset:5' });
+      expect(ack).toEqual({ ok: false, error: 'UNAVAILABLE' });
     } finally {
       client.disconnect();
     }

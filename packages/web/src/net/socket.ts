@@ -25,6 +25,8 @@ import {
   type RequestIceServersAck,
   type StartGameAck,
   type UpdateDisplayNameAck,
+  type UpdateAvatarPayload,
+  type UpdateAvatarAck,
   type GetRecentPlayersAck,
   type InvitePlayerAck,
   type RevokeAuthSessionAck,
@@ -258,6 +260,12 @@ export function requestIceServers(): Promise<RequestIceServersAck> {
 
 export function updateDisplayName(newDisplayName: string): Promise<UpdateDisplayNameAck> {
   return emitAck<UpdateDisplayNameAck>(EVENTS.UPDATE_DISPLAY_NAME, { newDisplayName });
+}
+
+export function updateAvatar(avatarUrl: string | null): Promise<UpdateAvatarAck> {
+  return new Promise((resolve) => {
+    socket.emit(EVENTS.UPDATE_AVATAR, { avatarUrl } satisfies UpdateAvatarPayload, resolve);
+  });
 }
 
 export function requestRecentPlayers(): Promise<GetRecentPlayersAck> {

@@ -795,6 +795,54 @@ describe.each(impls)('GamePersistence contract: %s', (_name, makeHarness) => {
     await expect(repo.updateUserDisplayName(unknownId, 'SomeName')).resolves.toBeUndefined();
   });
 
+  // updateUserAvatarUrl -----------------------------------------------------
+
+  it('updateUserAvatarUrl — sets to a preset key', async () => {
+    const userId = h.newUserId();
+    await repo.upsertUser({ id: userId, displayName: 'AvatarUser', isGuest: false });
+    await repo.upsertPlayerStats({ userId, gamesPlayed: 1, gamesWon: 1, gamesLost: 0 });
+
+    await repo.updateUserAvatarUrl(userId, 'preset:3');
+
+    // Verify via getLeaderboard which joins users.avatar_url.
+    const board = await repo.getLeaderboard();
+    const entry = board.find((e) => e.userId === userId);
+    expect(entry).toBeDefined();
+    expect(entry!.avatarUrl).toBe('preset:3');
+  });
+
+  it('updateUserAvatarUrl — sets to null (clear)', async () => {
+    const userId = h.newUserId();
+    await repo.upsertUser({ id: userId, displayName: 'ClearAvatar', isGuest: false, avatarUrl: 'preset:1' });
+    await repo.upsertPlayerStats({ userId, gamesPlayed: 1, gamesWon: 1, gamesLost: 0 });
+
+    await repo.updateUserAvatarUrl(userId, null);
+
+    const board = await repo.getLeaderboard();
+    const entry = board.find((e) => e.userId === userId);
+    expect(entry).toBeDefined();
+    expect(entry!.avatarUrl).toBeNull();
+  });
+
+  it('updateUserAvatarUrl — sets to an HTTPS URL', async () => {
+    const userId = h.newUserId();
+    await repo.upsertUser({ id: userId, displayName: 'UrlAvatar', isGuest: false });
+    await repo.upsertPlayerStats({ userId, gamesPlayed: 1, gamesWon: 1, gamesLost: 0 });
+
+    const url = 'https://example.com/avatar.png';
+    await repo.updateUserAvatarUrl(userId, url);
+
+    const board = await repo.getLeaderboard();
+    const entry = board.find((e) => e.userId === userId);
+    expect(entry).toBeDefined();
+    expect(entry!.avatarUrl).toBe(url);
+  });
+
+  it('updateUserAvatarUrl — no-op for unknown user (does not throw)', async () => {
+    const unknownId = h.newUserId();
+    await expect(repo.updateUserAvatarUrl(unknownId, 'preset:2')).resolves.toBeUndefined();
+  });
+
   it('loadActiveGames returns PLAYING, unfinished games only', async () => {
     const host = await freshUser();
     const playing = await repo.recordRoomCreated({ roomCode: 'CON005', hostUserId: host });

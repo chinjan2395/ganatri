@@ -878,3 +878,50 @@
   flex-shrink: 0;
 }
 
+
+/* ── Avatar picker ────────────────────────────────────────────── */
+
+.lobby__avatar-section {
+  margin: 8px 0;
+}
+
+.lobby__avatar-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.lobby__avatar-swatch {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: white;
+  transition: transform 0.15s, border-color 0.15s;
+}
+
+.lobby__avatar-swatch:hover:not(:disabled) {
+  transform: scale(1.1);
+  border-color: var(--gold, #d4ac0d);
+}
+
+.lobby__avatar-swatch--active {
+  border-color: white;
+}
+
+.lobby__avatar-swatch-check {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.lobby__avatar-swatch--clear {
+  background-color: #444;
+  border: 2px solid #666;
+  font-size: 14px;
+}

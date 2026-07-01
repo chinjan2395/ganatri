@@ -9,6 +9,7 @@ import {
   DsTopNav, DsBottomNav, DsModal, DsDivider, DsField, DsButton, DsIcon,
   DsAvatar, DsCard, DsEmptyState, FeltBackdrop, FooterBar, CornerDecor,
   DsTitleBlock, DsAlert, DsBodyText, DsRankRow, DsListRow,
+  PRESET_AVATAR_KEYS, getPresetColor,
 } from '@ganatri/ds';
 import type { DsTopNavItem, DsBottomNavTab } from '@ganatri/ds';
 import './LobbyScreen.css';
@@ -520,7 +521,7 @@ function DesktopSidebar({ requestLeaderboard, requestMyStats, loggedIn, setScree
 export function LobbyScreen(): React.ReactNode {
   const {
     createRoom, joinRoom, account, loginWithGoogle, logout, setScreen,
-    updateDisplayName, guestName, recentPlayers, invitePlayer,
+    updateDisplayName, updateAvatar, guestName, recentPlayers, invitePlayer,
     getBlockedUsers, unblockUser, deleteAccount, downloadMyData,
     requestMyStats, requestLeaderboard, progression,
   } = useGame();
@@ -558,6 +559,11 @@ export function LobbyScreen(): React.ReactNode {
   // Download my data state
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  // Avatar picker state
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
 
   // Overlay state
   const [profileOpen, setProfileOpen] = useState(false);
@@ -682,6 +688,18 @@ export function LobbyScreen(): React.ReactNode {
       setDownloadError('Export failed. Please try again.');
     } finally {
       setDownloadLoading(false);
+    }
+  }
+
+  async function handlePickAvatar(key: string | null): Promise<void> {
+    setAvatarBusy(true);
+    setAvatarError(null);
+    const ack = await updateAvatar(key);
+    setAvatarBusy(false);
+    if (ack.ok) {
+      setAvatarPickerOpen(false);
+    } else {
+      setAvatarError('Could not update avatar. Please try again.');
     }
   }
 
@@ -866,6 +884,45 @@ export function LobbyScreen(): React.ReactNode {
           )}
         </div>
 
+        {/* Avatar picker */}
+        <div className="lobby__avatar-section">
+          {avatarPickerOpen ? (
+            <div className="lobby__avatar-picker">
+              {PRESET_AVATAR_KEYS.map((key) => (
+                <DsButton
+                  key={key}
+                  tone="ghost"
+                  className={`lobby__avatar-swatch${avatarUrl === key ? ' lobby__avatar-swatch--active' : ''}`}
+                  style={{ backgroundColor: getPresetColor(key) }}
+                  disabled={avatarBusy}
+                  onClick={() => void handlePickAvatar(key)}
+                  aria-label={`Avatar color ${key.split(':')[1]}`}
+                >
+                  {avatarUrl === key && <span className="lobby__avatar-swatch-check">&#10003;</span>}
+                </DsButton>
+              ))}
+              <DsButton
+                tone="ghost"
+                className="lobby__avatar-swatch lobby__avatar-swatch--clear"
+                disabled={avatarBusy}
+                onClick={() => void handlePickAvatar(null)}
+                aria-label="Clear avatar"
+              >
+                &#10005;
+              </DsButton>
+            </div>
+          ) : (
+            <DsButton
+              tone="secondary"
+              compact
+              onClick={() => setAvatarPickerOpen(true)}
+            >
+              Change Avatar
+            </DsButton>
+          )}
+          {avatarError && <DsAlert tone="danger" title="Error" description={avatarError} />}
+        </div>
+
         {/* Nav links */}
         <div className="row lobby__account-actions">
           <DsButton
@@ -1023,7 +1080,7 @@ export function LobbyScreen(): React.ReactNode {
             aria-label={displayName}
             onClick={() => setProfileOpen(true)}
           >
-            {avatarUrl ? (
+            {avatarUrl && !avatarUrl.startsWith('preset:') ? (
               <img
                 className="lobby__mobile-avatar-img"
                 src={avatarUrl}

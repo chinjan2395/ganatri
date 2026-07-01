@@ -107,6 +107,13 @@ export class PgPersistence implements GamePersistence {
       .where(eq(users.id, userId));
   }
 
+  async updateUserAvatarUrl(userId: string, avatarUrl: string | null): Promise<void> {
+    await this.db
+      .update(users)
+      .set({ avatarUrl })
+      .where(eq(users.id, userId));
+  }
+
   async deleteUser(userId: string): Promise<void> {
     await this.db.transaction(async (tx) => {
       // 1. Anonymize historical game_players rows.

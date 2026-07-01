@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { DsAvatar } from './Avatar';
+import { DsAvatar, PRESET_AVATAR_KEYS } from './Avatar';
 
 const meta: Meta<typeof DsAvatar> = {
   component: DsAvatar,
@@ -35,4 +35,14 @@ export const Large: Story = {
 
 export const Small: Story = {
   args: { displayName: 'Eve', size: 28 },
+};
+
+export const PresetGrid: StoryObj = {
+  render: () => (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+      {PRESET_AVATAR_KEYS.map((key) => (
+        <DsAvatar key={key} src={key} displayName="Player" size={48} />
+      ))}
+    </div>
+  ),
 };
