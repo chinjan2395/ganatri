@@ -1222,6 +1222,117 @@ export class MemoryPersistence implements GamePersistence {
     };
   }
 
+  // ---------------------------------------------------------------------------
+  // Stats: idempotent recompute from game_players
+  // ---------------------------------------------------------------------------
+
+  async recomputePlayerStats(userId?: string): Promise<number> {
+    console.log(`[persistence] recomputePlayerStats: userId=${userId ?? '(all)'}`);
+
+    // Determine which user IDs to recompute.
+    let userIds: string[];
+    if (userId !== undefined) {
+      userIds = [userId];
+    } else {
+      const seen = new Set<string>();
+      for (const gp of this.gamePlayers.values()) {
+        if (gp.userId !== null) seen.add(gp.userId);
+      }
+      userIds = [...seen];
+    }
+
+    if (userIds.length === 0) return 0;
+
+    let count = 0;
+    for (const uid of userIds) {
+      this._recomputeOneUser(uid);
+      count += 1;
+    }
+    return count;
+  }
+
+  private _recomputeOneUser(userId: string): void {
+    // Collect all game_players rows for this user.
+    const myRows = [...this.gamePlayers.values()].filter((gp) => gp.userId === userId);
+    if (myRows.length === 0) return;
+
+    let gamesPlayed = 0;
+    let gamesWon = 0;
+    let gamesLost = 0;
+    let gamesAbandoned = 0;
+    let totalCaptures = 0;
+    let sumFinishPositions = 0;
+    let totalPlayTimeMs = 0;
+    let highestMatchScore = 0;
+    let totalMatchScore = 0;
+
+    for (const gp of myRows) {
+      gamesPlayed += 1;
+      if (gp.finalRank === 1) gamesWon += 1;
+      if (gp.result === 'LOSS') gamesLost += 1;
+      if (gp.result === 'ABANDONED') gamesAbandoned += 1;
+      totalCaptures += gp.captureCount;
+      if (gp.result !== 'ABANDONED' && gp.finalRank !== null) {
+        sumFinishPositions += gp.finalRank;
+      }
+      const game = this.games.get(gp.gameId);
+      if (game?.durationMs !== null && game?.durationMs !== undefined) {
+        totalPlayTimeMs += game.durationMs;
+      }
+      const ms = gp.matchScore ?? 0;
+      if (ms > highestMatchScore) highestMatchScore = ms;
+      totalMatchScore += ms;
+    }
+
+    // Compute win streaks from games ordered by ended_at.
+    const orderedRows = myRows
+      .map((gp) => {
+        const game = this.games.get(gp.gameId);
+        return { gp, endedAt: game?.endedAt ?? null };
+      })
+      .filter((r): r is { gp: typeof myRows[0]; endedAt: Date } => r.endedAt !== null)
+      .sort((a, b) => a.endedAt.getTime() - b.endedAt.getTime());
+
+    let tempStreak = 0;
+    let longestWinStreak = 0;
+    for (const { gp } of orderedRows) {
+      if (gp.result === 'ABANDONED') continue;
+      if (gp.finalRank === 1) {
+        tempStreak += 1;
+        if (tempStreak > longestWinStreak) longestWinStreak = tempStreak;
+      } else {
+        tempStreak = 0;
+      }
+    }
+    const currentWinStreak = tempStreak;
+
+    // Retrieve existing stats to preserve non-derivable fields.
+    const existing = this.stats.get(userId);
+
+    const id = existing?.id ?? newId('stats');
+    this.stats.set(userId, {
+      id,
+      userId,
+      gamesPlayed,
+      gamesWon,
+      gamesLost,
+      gamesAbandoned,
+      totalCaptures,
+      // Preserve non-derivable fields from existing row; default to 0 if no row.
+      cutsGiven: existing?.cutsGiven ?? 0,
+      cutsReceived: existing?.cutsReceived ?? 0,
+      timesSafe: existing?.timesSafe ?? 0,
+      ghostFinishes: existing?.ghostFinishes ?? 0,
+      totalPlayTimeMs,
+      longestWinStreak,
+      currentWinStreak,
+      sumFinishPositions,
+      highestMatchScore,
+      totalMatchScore,
+      updatedAt: new Date(),
+    });
+  }
+
   async exportGamesData(limit = 500): Promise<ExportGameRow[]> {
     // Build a roomId -> roomCode lookup for quick access.
     const roomCodeById = new Map<string, string>();

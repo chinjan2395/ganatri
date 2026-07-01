@@ -496,6 +496,20 @@ export interface GamePersistence {
    * Default limit 500; max enforced by callers.
    */
   exportGamesData(limit?: number): Promise<ExportGameRow[]>;
+
+  /**
+   * Idempotent full-recompute of `player_stats` from `game_players` source data.
+   *
+   * Derives stats fresh (not incrementally) from the game_players rows, replacing
+   * whatever is in player_stats. Fields that cannot be derived from game_players
+   * alone (cutsGiven, cutsReceived, timesSafe) are left at their existing value
+   * rather than overwritten with 0.
+   *
+   * @param userId - When supplied, recomputes only that user's stats.
+   *   When omitted, recomputes every user that has at least one game_players row.
+   * @returns The number of player_stats rows written/updated.
+   */
+  recomputePlayerStats(userId?: string): Promise<number>;
 }
 
 // ---------------------------------------------------------------------------

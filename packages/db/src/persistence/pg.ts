@@ -1422,6 +1422,165 @@ export class PgPersistence implements GamePersistence {
     };
   }
 
+  // ---------------------------------------------------------------------------
+  // Stats: idempotent recompute from game_players
+  // ---------------------------------------------------------------------------
+
+  async recomputePlayerStats(userId?: string): Promise<number> {
+    console.log(`[persistence] recomputePlayerStats: userId=${userId ?? '(all)'}`);
+
+    // Determine which user IDs to recompute.
+    let userIds: string[];
+    if (userId !== undefined) {
+      userIds = [userId];
+    } else {
+      // All distinct user_ids that have at least one game_players row.
+      const rows = await this.db
+        .selectDistinct({ userId: gamePlayers.userId })
+        .from(gamePlayers)
+        .where(sql`${gamePlayers.userId} IS NOT NULL`);
+      userIds = rows.map((r) => r.userId).filter((id): id is string => id !== null);
+    }
+
+    if (userIds.length === 0) return 0;
+
+    let count = 0;
+    for (const uid of userIds) {
+      await this._recomputeOneUser(uid);
+      count += 1;
+    }
+    return count;
+  }
+
+  private async _recomputeOneUser(userId: string): Promise<void> {
+    // Step 1: aggregate from game_players JOIN games for computable fields.
+    const aggResult = await this.db.execute(sql`
+      SELECT
+        COUNT(*)::int                                                                AS games_played,
+        COUNT(*) FILTER (WHERE gp.final_rank = 1)::int                             AS games_won,
+        COUNT(*) FILTER (WHERE gp.result = 'LOSS')::int                            AS games_lost,
+        COUNT(*) FILTER (WHERE gp.result = 'ABANDONED')::int                       AS games_abandoned,
+        COALESCE(SUM(gp.capture_count), 0)::int                                    AS total_captures,
+        COALESCE(SUM(CASE WHEN gp.result != 'ABANDONED' THEN COALESCE(gp.final_rank, 0) ELSE 0 END), 0)::int
+                                                                                   AS sum_finish_positions,
+        COALESCE(SUM(COALESCE(g.duration_ms, 0)), 0)::bigint                       AS total_play_time_ms,
+        COALESCE(MAX(COALESCE(gp.match_score, 0)), 0)::int                         AS highest_match_score,
+        COALESCE(SUM(COALESCE(gp.match_score, 0)), 0)::int                         AS total_match_score
+      FROM game_players gp
+      JOIN games g ON g.id = gp.game_id
+      WHERE gp.user_id = ${userId}
+    `);
+    const agg = aggResult.rows[0] as {
+      games_played: number | string;
+      games_won: number | string;
+      games_lost: number | string;
+      games_abandoned: number | string;
+      total_captures: number | string;
+      sum_finish_positions: number | string;
+      total_play_time_ms: number | string;
+      highest_match_score: number | string;
+      total_match_score: number | string;
+    } | undefined;
+
+    if (!agg) return;
+
+    const gamesPlayed = Number(agg.games_played);
+    const gamesWon = Number(agg.games_won);
+    const gamesLost = Number(agg.games_lost);
+    const gamesAbandoned = Number(agg.games_abandoned);
+    const totalCaptures = Number(agg.total_captures);
+    const sumFinishPositions = Number(agg.sum_finish_positions);
+    const totalPlayTimeMs = Number(agg.total_play_time_ms);
+    const highestMatchScore = Number(agg.highest_match_score);
+    const totalMatchScore = Number(agg.total_match_score);
+
+    // Step 2: compute win streaks from ordered game results.
+    const streakResult = await this.db.execute(sql`
+      SELECT gp.final_rank, gp.result
+      FROM game_players gp
+      JOIN games g ON g.id = gp.game_id
+      WHERE gp.user_id = ${userId}
+        AND g.ended_at IS NOT NULL
+      ORDER BY g.ended_at ASC
+    `);
+    const rows = streakResult.rows as Array<{ final_rank: number | null; result: string | null }>;
+    let currentWinStreak = 0;
+    let longestWinStreak = 0;
+    let tempStreak = 0;
+    for (const row of rows) {
+      if (row.result === 'ABANDONED') continue; // skip abandoned
+      if (row.final_rank === 1) {
+        tempStreak += 1;
+        if (tempStreak > longestWinStreak) longestWinStreak = tempStreak;
+      } else {
+        tempStreak = 0;
+      }
+    }
+    currentWinStreak = tempStreak;
+
+    // Step 3: upsert into player_stats.
+    // Fields we cannot derive from game_players (cutsGiven, cutsReceived, timesSafe,
+    // ghostFinishes) are set to 0 on INSERT (first-ever row) and explicitly kept as
+    // player_stats.<col> on CONFLICT UPDATE, so a recompute never overwrites them.
+    await this.db.execute(sql`
+      INSERT INTO player_stats (
+        user_id,
+        games_played,
+        games_won,
+        games_lost,
+        games_abandoned,
+        total_captures,
+        cuts_given,
+        cuts_received,
+        times_safe,
+        total_play_time_ms,
+        longest_win_streak,
+        current_win_streak,
+        sum_finish_positions,
+        highest_match_score,
+        total_match_score,
+        ghost_finishes,
+        updated_at
+      )
+      VALUES (
+        ${userId},
+        ${gamesPlayed},
+        ${gamesWon},
+        ${gamesLost},
+        ${gamesAbandoned},
+        ${totalCaptures},
+        0,
+        0,
+        0,
+        ${totalPlayTimeMs},
+        ${longestWinStreak},
+        ${currentWinStreak},
+        ${sumFinishPositions},
+        ${highestMatchScore},
+        ${totalMatchScore},
+        0,
+        NOW()
+      )
+      ON CONFLICT (user_id) DO UPDATE SET
+        games_played         = EXCLUDED.games_played,
+        games_won            = EXCLUDED.games_won,
+        games_lost           = EXCLUDED.games_lost,
+        games_abandoned      = EXCLUDED.games_abandoned,
+        total_captures       = EXCLUDED.total_captures,
+        cuts_given           = player_stats.cuts_given,
+        cuts_received        = player_stats.cuts_received,
+        times_safe           = player_stats.times_safe,
+        ghost_finishes       = player_stats.ghost_finishes,
+        total_play_time_ms   = EXCLUDED.total_play_time_ms,
+        longest_win_streak   = EXCLUDED.longest_win_streak,
+        current_win_streak   = EXCLUDED.current_win_streak,
+        sum_finish_positions = EXCLUDED.sum_finish_positions,
+        highest_match_score  = EXCLUDED.highest_match_score,
+        total_match_score    = EXCLUDED.total_match_score,
+        updated_at           = NOW()
+    `);
+  }
+
   async exportGamesData(limit = 500): Promise<ExportGameRow[]> {
     // Step 1: fetch games ordered newest-first, limited.
     const gameRows = await this.db
