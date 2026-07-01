@@ -62,11 +62,13 @@ describe('auth endpoint rate limiting', () => {
 
     // Disable OAuth so login/callback return 404 instead of redirect.
     // The rate-limit check fires BEFORE the isOAuthEnabled check,
-    // so 429 will still be returned on the 11th request.
+    // so a redirect will still be returned on the 11th request.
     delete process.env['GOOGLE_CLIENT_ID'];
     delete process.env['GOOGLE_CLIENT_SECRET'];
     delete process.env['OAUTH_REDIRECT_URI'];
     process.env['HOST'] = '127.0.0.1';
+    // Enable X-Forwarded-For trust so IP-isolation tests work with injected headers.
+    process.env['TRUST_PROXY'] = '1';
 
     const createAppModule = await import('./createApp.js');
     resetAuthRateLimits = createAppModule.resetAuthRateLimits;
@@ -80,6 +82,7 @@ describe('auth endpoint rate limiting', () => {
     await app.close();
     resetAuthRateLimits();
     delete process.env['HOST'];
+    delete process.env['TRUST_PROXY'];
     vi.resetModules();
   });
 
@@ -95,15 +98,14 @@ describe('auth endpoint rate limiting', () => {
     }
   });
 
-  it('returns 429 on the 11th request to /auth/google/login (over limit)', async () => {
+  it('returns 302 redirect on the 11th request to /auth/google/login (rate-limited)', async () => {
     // Exhaust the 10-request window.
     for (let i = 0; i < 10; i++) {
       await httpRequest(port, '/auth/google/login');
     }
-    // 11th request — must be rate-limited.
+    // 11th request — must be rate-limited (redirect to /?login=error).
     const resp = await httpRequest(port, '/auth/google/login');
-    expect(resp.status).toBe(429);
-    expect(JSON.parse(resp.body)).toEqual({ error: 'RATE_LIMITED' });
+    expect(resp.status).toBe(302);
   });
 
   // -------------------------------------------------------------------------
@@ -118,13 +120,12 @@ describe('auth endpoint rate limiting', () => {
     }
   });
 
-  it('returns 429 on the 11th request to /auth/google/callback (over limit)', async () => {
+  it('returns 302 redirect on the 11th request to /auth/google/callback (rate-limited)', async () => {
     for (let i = 0; i < 10; i++) {
       await httpRequest(port, '/auth/google/callback?code=x&state=y');
     }
     const resp = await httpRequest(port, '/auth/google/callback?code=x&state=y');
-    expect(resp.status).toBe(429);
-    expect(JSON.parse(resp.body)).toEqual({ error: 'RATE_LIMITED' });
+    expect(resp.status).toBe(302);
   });
 
   // -------------------------------------------------------------------------
@@ -174,15 +175,15 @@ describe('auth endpoint rate limiting', () => {
     for (let i = 0; i < 10; i++) {
       await httpRequest(port, '/auth/google/login');
     }
-    // The 11th from the same IP is rate-limited.
+    // The 11th from the same IP is rate-limited (302 redirect).
     const blocked = await httpRequest(port, '/auth/google/login');
-    expect(blocked.status).toBe(429);
+    expect(blocked.status).toBe(302);
 
     // A different IP (injected via X-Forwarded-For) gets its own bucket.
     const fromOtherIp = await httpRequest(port, '/auth/google/login', 'GET', undefined, {
       'X-Forwarded-For': '10.0.0.1',
     });
-    expect(fromOtherIp.status).not.toBe(429);
+    expect(fromOtherIp.status).not.toBe(302);
   });
 
   it('bootstrap rate-limit buckets are isolated per IP', async () => {
@@ -223,7 +224,8 @@ describe('auth endpoint rate limiting', () => {
     }
 
     // Both should be blocked now.
-    expect((await httpRequest(port, '/auth/google/login')).status).toBe(429);
+    // OAuth login → 302 redirect when rate-limited; bootstrap → 429 JSON.
+    expect((await httpRequest(port, '/auth/google/login')).status).toBe(302);
     expect(
       (
         await httpRequest(port, '/auth/bootstrap', 'POST', JSON.stringify({}), {
@@ -235,7 +237,7 @@ describe('auth endpoint rate limiting', () => {
     // Reset and confirm limits are cleared.
     resetAuthRateLimits();
 
-    expect((await httpRequest(port, '/auth/google/login')).status).not.toBe(429);
+    expect((await httpRequest(port, '/auth/google/login')).status).not.toBe(302);
     expect(
       (
         await httpRequest(port, '/auth/bootstrap', 'POST', JSON.stringify({}), {

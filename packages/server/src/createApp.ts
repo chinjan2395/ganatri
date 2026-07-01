@@ -35,6 +35,7 @@ import {
   GUEST_COOKIE_NAME,
 } from './auth/session.js';
 import { getSession } from './store.js';
+import { track } from './analytics.js';
 
 export interface AppInstance {
   io: Server;
@@ -50,10 +51,12 @@ export interface AppInstance {
 // ---------------------------------------------------------------------------
 
 function getClientIp(req: IncomingMessage): string {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (forwarded) {
-    const first = Array.isArray(forwarded) ? forwarded[0] : forwarded.split(',')[0];
-    return (first ?? '127.0.0.1').trim();
+  if (process.env['TRUST_PROXY'] === '1') {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) {
+      const first = Array.isArray(forwarded) ? forwarded[0] : forwarded.split(',')[0];
+      return (first ?? '127.0.0.1').trim();
+    }
   }
   return req.socket?.remoteAddress ?? '127.0.0.1';
 }
@@ -211,7 +214,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
 
   if (path === '/auth/google/login') {
     if (!checkOAuthRateLimit(getClientIp(req))) {
-      json(res, 429, { error: 'RATE_LIMITED' });
+      redirect(res, `${webRedirectBase}?login=error`);
       return;
     }
     if (!isOAuthEnabled()) {
@@ -231,7 +234,10 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
 
   if (path === '/auth/google/callback') {
     if (!checkOAuthRateLimit(getClientIp(req))) {
-      json(res, 429, { error: 'RATE_LIMITED' });
+      redirect(res, `${webRedirectBase}?login=error`, [
+        buildClearStateCookie(cookiesSecure()),
+        buildClearGuestCookie(cookiesSecure()),
+      ]);
       return;
     }
     await handleGoogleCallback(req, res, url);
@@ -382,6 +388,13 @@ async function handleGoogleCallback(
       expiresAt: new Date(Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000),
       userAgent: req.headers['user-agent'] ?? null,
     });
+
+    // Track login / guest upgrade analytics.
+    const isGuestUpgrade = Boolean(cookies[GUEST_COOKIE_NAME]);
+    track(user.id, 'login', { provider: 'google' });
+    if (isGuestUpgrade) {
+      track(user.id, 'guest_upgrade', {});
+    }
 
     // Attempt guest → registered merge (non-fatal)
     const guestToken = cookies[GUEST_COOKIE_NAME];

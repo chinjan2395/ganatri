@@ -7,6 +7,7 @@
 
 import { runMigrations } from '@ganatri/db';
 import { createApp } from './createApp.js';
+import { initAnalytics, createAdapterFromEnv } from './analytics.js';
 
 const port = Number(process.env['PORT'] ?? 4000);
 
@@ -14,6 +15,8 @@ void (async () => {
   if (process.env['DATABASE_URL']) {
     await runMigrations();
   }
+
+  initAnalytics(createAdapterFromEnv());
 
   const app = createApp();
   const boundPort = await app.listen(port);

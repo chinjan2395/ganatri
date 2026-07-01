@@ -130,6 +130,7 @@ async function rehydrateGame(
     gracePeriodTimers: new Map(),
     turnTimer: null,
     turnStartedAt: null,
+    startedAt: null,
     completedAt: null,
   });
 

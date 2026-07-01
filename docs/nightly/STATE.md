@@ -10,7 +10,7 @@
 > (Current Phase → next NOT_STARTED/IN_PROGRESS item) apply.
 
 ## Current Phase
-Phase 6 — Remaining implementable items (auth/account hardening → persistence/stats polish → analytics/compliance → operations hardening)
+Phase 6 — Remaining implementable items (analytics/compliance → operations hardening)
 
 ## Status
 IN_PROGRESS  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
@@ -42,39 +42,48 @@ IN_PROGRESS  <!-- NOT_STARTED | IN_PROGRESS | BLOCKED | COMPLETE -->
 - [x] Phase 1 — Rules Engine (153 tests passing)
 
 ## Sequencing Note
-Phase DS-R (all 23 tasks) completed as of 2026-06-30. Phase 6c auth/account hardening complete as of 2026-06-30 (avatar DB+server+web, display name, session management, abuse protection all done; only link/unlink OAuth remains but is deferred — it requires careful design to avoid locking users out).
+Phase DS-R (all 23 tasks) completed as of 2026-06-30. Phase 6c auth/account hardening complete as of 2026-06-30. Phase 6d/6e stats recompute complete as of 2026-07-01. Phase 6f/6i analytics + compliance bundle complete as of 2026-07-01.
 
-Priority order for next runs:
-1. **Phase 6d/6e persistence + stats polish bundle** — replay scaffolding, idempotency guards, backfill/reconcile work, and any remaining stats/leaderboard polish.
-2. **Phase 6f/6i analytics + compliance bundle** — event taxonomy, instrumentation, privacy policy/consent, export/delete polish.
-3. **Phase 6j operations hardening bundle** — backups, monitoring/alerts, pool sizing, cost guardrails.
+Next items:
+1. **Phase 6j operations hardening bundle** — backups, monitoring/alerts, pool sizing, cost guardrails. All require human infrastructure decisions (Neon, Render, alerting providers).
+2. **Remaining 6f instrumentation** — client-side funnel events (create/join/start) are ⬜; requires PostHog JS SDK in web (new npm package decision).
+3. **`signup` event** — requires `upsertOAuthUser` in packages/db to return an `isNew: boolean` flag; deferred.
+4. **`auth_token` in OAuth redirect URL** — PRE-EXISTING issue (not introduced in this phase). The session token is appended to the redirect URL in `createApp.ts:handleGoogleCallback` (`redirectUrl.searchParams.set('auth_token', token)`). The token already appears in the httpOnly cookie; the URL param exists for legacy `LEGACY_TOKEN_KEY` bootstrap compatibility. Should be removed or replaced with a short-lived one-time code before production launch. See packages/server/src/createApp.ts ~line 413.
+5. **Consent-analytics decoupling** — Server-side PostHog tracking fires unconditionally; the `ganatri_consent_v1` localStorage value (set by CookieConsent.tsx) is not read by the server. Full GDPR compliance would require: (a) client sending consent status to server via socket handshake or dedicated event, (b) server only calling `track()` when consent='accepted'. Acceptable for development but must be resolved before EU launch.
 
 Phase 5.7 (multi-tab voice smoke test) requires a human with a microphone — skip in nightly runs.
 Phase 4 production deployment is handled by the user (Render + Cloudflare).
 
 ## Last Run
 - Date: 2026-07-01
-- Outcome: Phase 6d/6e — Stats recompute/backfill job: `recomputePlayerStats(userId?)` added to GamePersistence interface + implemented in PgPersistence (SQL aggregation + streak query) and MemoryPersistence. `ADMIN_RECOMPUTE_STATS` socket event with admin-auth gate. Non-derivable fields (cutsGiven, cutsReceived, timesSafe, ghostFinishes) explicitly preserved on ON CONFLICT UPDATE. 6 DB contract tests + 3 server integration tests. Code review MUST-FIX applied (explicit ghost_finishes preservation in ON CONFLICT SET clause). 510 tests pass (153 engine + 134 server + 223 db).
-- Branch: nightly/2026-07-01-0445
+- Outcome: Phase 6f/6i — Analytics + compliance bundle complete. New `analytics.ts` (event taxonomy, AnalyticsAdapter interface, NoOpAdapter, PostHogAdapter via Node 22 fetch, env-gated on POSTHOG_API_KEY). 10 server-side track() call sites in handlers.ts. Two createApp.ts bug fixes (getClientIp TRUST_PROXY gate, OAuth 429→302 redirect). CookieConsent component in web (localStorage ganatri_consent_v1, Accept/Decline buttons). RoomState.startedAt added for game_finished durationMs. auth-rate-limit.test.ts updated for 302 behavior. 8 new server tests (analytics.test.ts). Total: 518 tests (153 engine + 142 server + 223 db).
+- Branch: nightly/2026-07-01-0655
 
 ## Blockers / Needs Human Input
-_(none)_
+_(none — but see Sequencing Note for known limitations requiring human decisions before EU launch)_
 
 ## Notes for Next Run
 
-Phase 6d/6e stats recompute backfill complete. Remaining ⬜ items in this bundle:
-- **Replay data model & reconstruction** (6d ⬜) — Rebuild a game from game_events + seed; depends on full-log decision in 6b. Low priority without a replay UI.
-- **Rating system decision** (6e ⬜) — ELO/Glicko-2 optional; deferred.
+Phase 6f/6i analytics + compliance bundle: COMPLETE (core instrumentation done). Remaining items in 6f:
+- Client-side funnel events (⬜) — `create_room`/`join_room`/`start_game` clicks; needs PostHog JS SDK decision
+- Privacy-respecting collection policy (⬜) — document what's collected (already anonymous UUIDs only)
+- Funnel/engagement/operational metrics dashboards (⬜) — PostHog dashboard configuration, not code
 
-**Next items to consider:**
-1. **Phase 6f/6i analytics + compliance bundle** (6f ⬜, 6i privacy policy ⬜) — event taxonomy, PostHog/Plausible instrumentation, privacy policy UX.
-2. **Phase 6j operations hardening bundle** (6j ⬜) — backups, monitoring, pool sizing, cost guardrails.
-3. **`getClientIp` fix** — gate on `TRUST_PROXY=1` env var (packages/server/src/createApp.ts); non-blocking.
-4. **OAuth 429 redirect** — bare JSON shown to browser; should redirect with `?login=error`.
+**Next unit of work: Phase 6j operations hardening bundle**
+- Automated backups & restore drills (requires Neon/Render setup — human needed)
+- DB monitoring & alerting (requires external monitoring service — human needed)
+- Connection-pool sizing (code-level: optimize pool size in packages/db)
+- Cost & free-tier monitoring (requires Neon dashboard — human needed)
 
-**Known non-blocking follow-up items:**
-- `getClientIp` in `createApp.ts` trusts `X-Forwarded-For` unconditionally. Fix: gate on `TRUST_PROXY=1` env var.
-- OAuth 429 shows bare JSON to browser (no redirect with `?login=error`). Minor UX gap.
+The only code-implementable item in 6j is connection-pool tuning. Consider doing that plus documenting the others as requiring human setup, then moving to Phase 7 improvements.
+
+**Alternative: Phase 7g improvements**
+- Health-check endpoint `/healthz` (quick server-only addition, great for Render liveness probes)
+- Split handlers.ts into focused modules (larger refactor, high value)
+
+**Known pre-existing issues (not introduced in this phase):**
+- `auth_token` in OAuth redirect URL (see Sequencing Note above)
+- `getClientIp` now gated on TRUST_PROXY=1 — set this env var in Render/production
 
 Deferred items:
 - Link/unlink Google OAuth (account settings — needs design for fallback auth when user has no guest token)
