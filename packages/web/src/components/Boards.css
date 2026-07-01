@@ -98,6 +98,65 @@
 }
 
 
+/* Ace special treatment in Part 2 trick */
+.board__trick-aces {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 6px;
+}
+.board__trick-normal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+.board__trick-ace-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+}
+.board__ace-sparkles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.board__ace-sparkles span {
+  position: absolute;
+  font-size: 12px;
+  color: #ffd700;
+  animation: ace-sparkle 1.4s ease-in-out infinite;
+  opacity: 0;
+}
+/* Position the 6 sparkles around the card */
+.board__ace-sparkles span:nth-child(1) { top: -14px; left: 50%; transform: translateX(-50%); animation-delay: 0s; }
+.board__ace-sparkles span:nth-child(2) { top: 10%; right: -14px; animation-delay: 0.23s; }
+.board__ace-sparkles span:nth-child(3) { bottom: 10%; right: -14px; animation-delay: 0.46s; }
+.board__ace-sparkles span:nth-child(4) { bottom: -14px; left: 50%; transform: translateX(-50%); animation-delay: 0.69s; }
+.board__ace-sparkles span:nth-child(5) { bottom: 10%; left: -14px; animation-delay: 0.92s; }
+.board__ace-sparkles span:nth-child(6) { top: 10%; left: -14px; animation-delay: 1.15s; }
+
+@keyframes ace-sparkle {
+  0% { opacity: 0; transform: scale(0.5) translateY(0); }
+  40% { opacity: 1; transform: scale(1.2) translateY(-4px); }
+  100% { opacity: 0; transform: scale(0.6) translateY(-8px); }
+}
+
+.board__ace-badge {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #ffd700;
+  text-shadow: 0 0 6px rgba(255, 215, 0, 0.9);
+  font-family: var(--font-display);
+  text-transform: uppercase;
+}
+
 /* Led-suit indicator (Part 2) — sits above trick, not stretched */
 .game__board .board__led {
   flex: 0 0 auto;

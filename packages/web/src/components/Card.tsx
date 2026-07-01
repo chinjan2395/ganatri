@@ -16,12 +16,13 @@ export interface CardProps {
   disabled?: boolean;
   highlighted?: boolean; // capture-set highlight
   small?: boolean;
+  aceTable?: boolean; // special large/glowing treatment for Ace in Part 2 trick
   onClick?: () => void;
   title?: string;
 }
 
 export function Card(props: CardProps): React.ReactNode {
-  const { card, faceDown, selected, legal, disabled, highlighted, small, onClick, title } = props;
+  const { card, faceDown, selected, legal, disabled, highlighted, small, aceTable, onClick, title } = props;
   const interactive = Boolean(onClick) && !disabled;
 
   const classes = ['card'];
@@ -31,6 +32,7 @@ export function Card(props: CardProps): React.ReactNode {
   if (disabled) classes.push('card--disabled');
   if (highlighted) classes.push('card--highlighted');
   if (small) classes.push('card--small');
+  if (aceTable) classes.push('card--ace-table');
   if (interactive) classes.push('card--interactive');
 
   if (faceDown || !card) {

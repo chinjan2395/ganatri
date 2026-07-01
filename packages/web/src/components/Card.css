@@ -106,3 +106,34 @@
   filter: grayscale(0.6);
   cursor: not-allowed;
 }
+
+/* Ace special treatment in Part 2 trick */
+.card--ace-table {
+  --card-w: clamp(58px, 14vw, 80px);
+  box-shadow:
+    0 0 0 2px #ffd700,
+    0 0 0 5px rgba(255, 215, 0, 0.4),
+    0 0 32px 12px rgba(255, 215, 0, 0.55),
+    0 6px 18px rgba(0, 0, 0, 0.55);
+  animation: ace-pulse 2s ease-in-out infinite;
+  z-index: 2;
+}
+
+@keyframes ace-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 2px #ffd700,
+      0 0 0 5px rgba(255, 215, 0, 0.4),
+      0 0 32px 12px rgba(255, 215, 0, 0.55),
+      0 6px 18px rgba(0, 0, 0, 0.55);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px #ffd700,
+      0 0 0 8px rgba(255, 215, 0, 0.5),
+      0 0 48px 18px rgba(255, 215, 0, 0.7),
+      0 6px 18px rgba(0, 0, 0, 0.55);
+    transform: scale(1.04);
+  }
+}
