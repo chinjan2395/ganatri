@@ -8,7 +8,7 @@
 import type { Server, Socket } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
 import { applyMove, createGame, legalMoves, viewFor } from '@ganatri/engine';
-import type { GameEvent, GameState, Move, MoveResult } from '@ganatri/engine';
+import type { GameEvent, GameState, Move, MoveResult, Part2State } from '@ganatri/engine';
 
 import {
   type AdminAuthPayload,
@@ -1015,6 +1015,89 @@ function registerSocketEvents(io: Server, socket: Socket, session: SessionState)
     if (typeof ack !== 'function') return;
     void handleDownloadMyData(session, ack).catch(console.error);
   });
+
+  // Dev shortcut: skip to Part 2 with an Ace on the trick (never runs in production)
+  if (process.env['NODE_ENV'] !== 'production') {
+    socket.on(EVENTS.DEBUG_SKIP_TO_PART2, (ack: (res: { ok: boolean; reason?: string }) => void) => {
+      if (typeof ack !== 'function') return;
+      const { roomCode, playerId } = session;
+      if (roomCode === null) { ack({ ok: false, reason: 'not_in_room' }); return; }
+      const room = getRoom(roomCode);
+      if (room === undefined || room.gameState === null || room.phase !== 'PLAYING') {
+        ack({ ok: false, reason: 'game_not_active' }); return;
+      }
+      const gs = room.gameState;
+      const seating = gs.seating as string[];
+
+      // Build Part 2 hands: distribute all cards (table + stock + part1 hands + capture piles)
+      // across players so everyone has some cards, then put an Ace of Spades on the trick.
+      const allCards: Array<{ rank: string; suit: string }> = [];
+      if (gs.phase === 'PART_1' && gs.part1 !== null) {
+        const p1 = gs.part1;
+        allCards.push(...(p1.table as Array<{ rank: string; suit: string }>));
+        allCards.push(...(p1.stock as Array<{ rank: string; suit: string }>));
+        for (const pid of seating) {
+          allCards.push(...((p1.hands[pid] ?? []) as Array<{ rank: string; suit: string }>));
+          allCards.push(...((p1.capturePiles[pid] ?? []) as Array<{ rank: string; suit: string }>));
+        }
+      } else if (gs.phase === 'PART_2' && gs.part2 !== null) {
+        const p2 = gs.part2;
+        for (const pid of seating) {
+          allCards.push(...((p2.hands[pid] ?? []) as Array<{ rank: string; suit: string }>));
+        }
+        allCards.push(...(p2.trick.map(tp => tp.card) as Array<{ rank: string; suit: string }>));
+      }
+
+      // Ensure Ace of Spades exists in the deck to place on trick
+      const aceCard = { rank: 'A' as const, suit: 'S' as const };
+      const aceIndex = allCards.findIndex(c => c.rank === 'A' && c.suit === 'S');
+      if (aceIndex !== -1) allCards.splice(aceIndex, 1); // remove from pool before distributing
+
+      // Distribute remaining cards evenly to players
+      const hands: Record<string, Array<{ rank: string; suit: string }>> = {};
+      for (const pid of seating) hands[pid] = [];
+      let i = 0;
+      for (const card of allCards) {
+        hands[seating[i % seating.length]!]!.push(card);
+        i++;
+      }
+
+      const part2: Part2State = {
+        hands: hands as unknown as Part2State['hands'],
+        trick: [{ player: seating[0]!, card: aceCard as unknown as import('@ganatri/engine').Card, isCut: false }],
+        ledSuit: 'S',
+        safeOrder: [],
+        removedPool: [],
+        cutStreak: 0,
+        redistributionCount: 0,
+      };
+
+      const newState: GameState = {
+        ...gs,
+        phase: 'PART_2',
+        turn: seating[1] ?? seating[0]!,
+        part1: null,
+        part2,
+      };
+
+      room.gameState = newState;
+      clearTurnTimer(room);
+
+      // Broadcast updated views to all players
+      const now = Date.now();
+      room.turnStartedAt = now;
+      for (const pid of seating) {
+        transport.send(pid, EVENTS.STATE_UPDATE, {
+          view: viewFor(newState, pid),
+          turnStartedAt: now,
+          turnTimeoutMs: getConfig().turnTimeoutMs,
+          matchScoring: matchScoringForState(roomCode, newState),
+        });
+      }
+
+      ack({ ok: true });
+    });
+  }
 
   // Admin: authenticate
   socket.on(EVENTS.ADMIN_AUTH, (payload: AdminAuthPayload, ack: (res: { ok: boolean; reason?: string }) => void) => {

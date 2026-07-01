@@ -779,6 +779,9 @@ export const EVENTS = {
   BLOCK_USER: 'block_user',
   UNBLOCK_USER: 'unblock_user',
 
+  // Dev shortcuts (dev only — ignored in production)
+  DEBUG_SKIP_TO_PART2: 'debug_skip_to_part2',
+
   // Admin (Client → Server)
   ADMIN_AUTH: 'admin_auth',
   ADMIN_GET_CONFIG: 'admin_get_config',
