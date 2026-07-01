@@ -55,22 +55,22 @@ Phase 4 production deployment is handled by the user (Render + Cloudflare).
 
 ## Last Run
 - Date: 2026-07-01
-- Outcome: Phase 6f/6i analytics + compliance bundle (server-side): New `analytics.ts` with `AnalyticsSink` interface, `NoopAnalyticsSink`, `PostHogAnalyticsSink` (fire-and-forget, Node 18 fetch), `getAnalytics()` singleton. 11-event taxonomy (room_created, game_started, game_finished, game_abandoned, player_joined, player_left, turn_timed_out, player_disconnected, player_reconnected, account_created, guest_upgraded). Wired at 12 lifecycle points in handlers.ts + createApp.ts. Security fixes: `getClientIp` now gates X-Forwarded-For on TRUST_PROXY=1; OAuth 429 → redirect with ?login=error. Code-review fixes applied: `game_abandoned` added to explicit-leave path in silentLeaveRoom; TRUST_PROXY uncommented from .env.example (was security risk); PostHog timestamp moved to top-level per API spec; POSTHOG_HOST centralised in config.ts. 12 new server tests. 522 tests pass (153+146+223).
-- Branch: nightly/2026-07-01-1206
+- Outcome: `account_created` isNew fix — changed `upsertOAuthUser` return type from `Promise<UserRow>` to `Promise<{ user: UserRow; isNew: boolean }>` in `GamePersistence` interface + both `PgPersistence` and `MemoryPersistence` impls. Added `account_created` event to analytics taxonomy. `createApp.ts` OAuth callback now fires `account_created` only when `isNew=true` (first-ever registration), replacing the fragile 5-second timestamp heuristic. All 8 existing `auth.test.ts` + contract test calls updated to destructure `{ user }`. New db test `isNew=true / isNew=false` added. 520 tests pass (153+143+224).
+- Branch: nightly/2026-07-01-1721
 
 ## Blockers / Needs Human Input
 _(none)_
 
 ## Notes for Next Run
 
-Phase 6f/6i analytics server-side work complete. Remaining work in the bundle:
-- **Client-side funnel events** (create/join/start clicked) — needs analytics platform decision from user. Without a PostHog API key configured, these would be no-ops. Low priority until platform is live.
-- **Privacy policy & consent banner** (6i ⬜) — requires legal input; skip in nightly.
-- **`account_created` heuristic** — uses 5-second window on `user.createdAt`; fragile under DB load. Proper fix: `upsertOAuthUser` returns `{ user: UserRow; isNew: boolean }`. This is a `GamePersistence` interface change affecting both impls and tests. A worthwhile follow-up.
+Phase 6f/6i analytics + compliance bundle is now fully complete on the implementable items:
+- Server-side instrumentation ✅
+- `account_created` isNew fix ✅
+- Remaining items blocked by human decisions: client-side funnel events (needs analytics platform), privacy policy (needs legal input)
 
 **Next runnable items:**
 1. **Phase 6j operations hardening bundle** — mostly infrastructure (backups, monitoring, pool sizing, cost guardrails). All require human action to configure external services; nightly can only document what's needed.
-2. **`account_created` isNew fix** — GamePersistence interface change; db-package work → route to backend-dev.
+2. **Phase 7g: `/healthz` health-check endpoint** — `packages/server/src/createApp.ts`; simple `GET /healthz` → `200 OK` JSON. Needed by Render/Railway liveness probes. Small, self-contained.
 
 **Known non-blocking follow-up items:**
 - Link/unlink Google OAuth (account settings — needs design for fallback auth when user has no guest token)

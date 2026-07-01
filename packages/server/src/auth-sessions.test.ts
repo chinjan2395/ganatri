@@ -64,7 +64,7 @@ describe('durable auth sessions', () => {
   });
 
   it('does not authenticate a logged-in account from client-sent guestToken alone', async () => {
-    const user = await persistence.upsertOAuthUser({
+    const { user: nfUser } = await persistence.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'google-sub-no-fallback',
       email: 'fallback@example.com',
@@ -72,7 +72,7 @@ describe('durable auth sessions', () => {
     });
     const authToken = 'auth-token-no-cookie';
     await persistence.createAuthSession({
-      userId: user.id,
+      userId: nfUser.id,
       tokenHash: hashToken(authToken),
       expiresAt: new Date(Date.now() + 60_000),
     });
@@ -93,7 +93,7 @@ describe('durable auth sessions', () => {
   });
 
   it('authenticates via authSessionToken handshake fallback when cookie is absent', async () => {
-    const user = await persistence.upsertOAuthUser({
+    const { user: hsUser } = await persistence.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'google-sub-handshake',
       email: 'handshake@example.com',
@@ -101,7 +101,7 @@ describe('durable auth sessions', () => {
     });
     const authToken = 'handshake-auth-token';
     await persistence.createAuthSession({
-      userId: user.id,
+      userId: hsUser.id,
       tokenHash: hashToken(authToken),
       expiresAt: new Date(Date.now() + 60_000),
     });
@@ -122,7 +122,7 @@ describe('durable auth sessions', () => {
   });
 
   it('lists active sessions and rolls expiry on authenticated connect', async () => {
-    const user = await persistence.upsertOAuthUser({
+    const { user: listUser } = await persistence.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'google-sub-list',
       email: 'list@example.com',
@@ -130,13 +130,13 @@ describe('durable auth sessions', () => {
     });
     const currentToken = 'current-auth-token';
     const currentSession = await persistence.createAuthSession({
-      userId: user.id,
+      userId: listUser.id,
       tokenHash: hashToken(currentToken),
       expiresAt: new Date(Date.now() + 1_000),
       userAgent: 'Current Device',
     });
     const otherSession = await persistence.createAuthSession({
-      userId: user.id,
+      userId: listUser.id,
       tokenHash: hashToken('other-auth-token'),
       expiresAt: new Date(Date.now() + 60_000),
       userAgent: 'Other Device',
@@ -156,7 +156,7 @@ describe('durable auth sessions', () => {
       expect(ack.sessions.find((entry) => entry.id === currentSession.id)?.current).toBe(true);
       expect(ack.sessions.find((entry) => entry.id === otherSession.id)?.current).toBe(false);
 
-      const refreshedCurrent = (await persistence.listAuthSessions(user.id)).find(
+      const refreshedCurrent = (await persistence.listAuthSessions(listUser.id)).find(
         (entry) => entry.id === currentSession.id,
       );
       expect(refreshedCurrent).toBeDefined();
@@ -168,7 +168,7 @@ describe('durable auth sessions', () => {
   });
 
   it('revokes other sessions and can revoke the current session', async () => {
-    const user = await persistence.upsertOAuthUser({
+    const { user: revokeUser } = await persistence.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'google-sub-revoke',
       email: 'revoke@example.com',
@@ -176,13 +176,13 @@ describe('durable auth sessions', () => {
     });
     const currentToken = 'current-revoke-token';
     const currentSession = await persistence.createAuthSession({
-      userId: user.id,
+      userId: revokeUser.id,
       tokenHash: hashToken(currentToken),
       expiresAt: new Date(Date.now() + 60_000),
       userAgent: 'Current Device',
     });
     const otherSession = await persistence.createAuthSession({
-      userId: user.id,
+      userId: revokeUser.id,
       tokenHash: hashToken('other-revoke-token'),
       expiresAt: new Date(Date.now() + 60_000),
       userAgent: 'Other Device',
@@ -196,7 +196,7 @@ describe('durable auth sessions', () => {
 
       const revokeOthers = await emitAck<RevokeOtherAuthSessionsAck>(client, EVENTS.REVOKE_OTHER_AUTH_SESSIONS);
       expect(revokeOthers).toEqual({ ok: true, revokedCount: 1 });
-      expect((await persistence.listAuthSessions(user.id)).map((entry) => entry.id)).toEqual([currentSession.id]);
+      expect((await persistence.listAuthSessions(revokeUser.id)).map((entry) => entry.id)).toEqual([currentSession.id]);
 
       const nextSessionPromise = waitFor<SessionPayload>(client, EVENTS.SESSION);
       const revokeCurrent = await emitAck<RevokeAuthSessionAck>(
@@ -211,7 +211,7 @@ describe('durable auth sessions', () => {
       expect(typeof downgradedSession.guestToken).toBe('string');
 
       expect(await persistence.getAuthSessionByTokenHash(hashToken(currentToken))).toBeNull();
-      expect((await persistence.listAuthSessions(user.id)).find((entry) => entry.id === otherSession.id)).toBeUndefined();
+      expect((await persistence.listAuthSessions(revokeUser.id)).find((entry) => entry.id === otherSession.id)).toBeUndefined();
     } finally {
       client.disconnect();
     }

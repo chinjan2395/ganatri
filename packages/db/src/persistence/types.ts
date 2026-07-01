@@ -321,7 +321,7 @@ export interface GamePersistence {
    * (c) else create a new (non-guest) user + oauth_accounts row.
    * Idempotent across repeat logins. Always returns the resolved UserRow.
    */
-  upsertOAuthUser(input: UpsertOAuthUserInput): Promise<UserRow>;
+  upsertOAuthUser(input: UpsertOAuthUserInput): Promise<{ user: UserRow; isNew: boolean }>;
 
   /** Create a durable auth session row. */
   createAuthSession(input: CreateAuthSessionInput): Promise<AuthSessionRow>;

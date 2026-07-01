@@ -100,7 +100,7 @@ describe('REQUEST_HISTORY + durable identity', () => {
     // Connect while persistence is available so the socket binds a durable
     // userId, then remove persistence before requesting history. The handler
     // reads getPersistence() at call time → UNAVAILABLE.
-    const user = await persistence.upsertOAuthUser({
+    const { user: vanishUser } = await persistence.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'google-sub-gone',
       email: null,
@@ -108,7 +108,7 @@ describe('REQUEST_HISTORY + durable identity', () => {
     });
     const token = 'token-for-vanish';
     await persistence.createAuthSession({
-      userId: user.id,
+      userId: vanishUser.id,
       tokenHash: hashToken(token),
       expiresAt: new Date(Date.now() + 60_000),
     });
@@ -133,7 +133,7 @@ describe('REQUEST_HISTORY + durable identity', () => {
 
   it('binds a durable account from the session cookie and returns its history', async () => {
     // Seed an OAuth user + auth session and a finished game.
-    const user = await persistence.upsertOAuthUser({
+    const { user } = await persistence.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'google-sub-123',
       email: 'player@example.com',
@@ -177,7 +177,7 @@ describe('REQUEST_HISTORY + durable identity', () => {
     // Cross-package contract guard: the web client expects a flattened entry
     // (top-level id/startedAt/endedAt/durationMs/playerCount/isAbandoned/
     // winnerId, with ISO-string timestamps) — NOT the DB's nested `{ game }`.
-    const user = await persistence.upsertOAuthUser({
+    const { user: flatUser } = await persistence.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'google-sub-flat',
       email: 'flat@example.com',
@@ -185,11 +185,11 @@ describe('REQUEST_HISTORY + durable identity', () => {
     });
     const token = 'opaque-session-token-flat';
     await persistence.createAuthSession({
-      userId: user.id,
+      userId: flatUser.id,
       tokenHash: hashToken(token),
       expiresAt: new Date(Date.now() + 60_000),
     });
-    await seedFinishedGame(persistence, user.id, 'Flat Player');
+    await seedFinishedGame(persistence, flatUser.id, 'Flat Player');
 
     const client = ioClient(`http://localhost:${port}`, {
       autoConnect: true,
@@ -214,7 +214,7 @@ describe('REQUEST_HISTORY + durable identity', () => {
         expect(g.durationMs).toBe(12_345);
         expect(g.playerCount).toBe(1);
         expect(g.isAbandoned).toBe(false);
-        expect(g.winnerId).toBe(user.id);
+        expect(g.winnerId).toBe(flatUser.id);
         // `you` and `players` are present and well-formed.
         expect(g.you).toBeDefined();
         expect(g.you.captureCount).toBe(3);

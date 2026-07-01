@@ -16,7 +16,7 @@ describe('auth (pg)', () => {
   });
 
   it('creates a new non-guest user for a first-time login', async () => {
-    const user = await t.repo.upsertOAuthUser({
+    const { user } = await t.repo.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'g-1',
       email: 'new@example.com',
@@ -33,7 +33,7 @@ describe('auth (pg)', () => {
       email: 'link@example.com',
       isGuest: true,
     });
-    const user = await t.repo.upsertOAuthUser({
+    const { user } = await t.repo.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'g-link',
       email: 'link@example.com',
@@ -45,13 +45,13 @@ describe('auth (pg)', () => {
   });
 
   it('is idempotent across repeat logins (same provider identity)', async () => {
-    const first = await t.repo.upsertOAuthUser({
+    const { user: first } = await t.repo.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'g-repeat',
       email: 'r@example.com',
       displayName: 'First',
     });
-    const second = await t.repo.upsertOAuthUser({
+    const { user: second } = await t.repo.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'g-repeat',
       email: 'r@example.com',
@@ -70,13 +70,13 @@ describe('auth (pg)', () => {
   });
 
   it('creates a separate user when email is null and identity is new', async () => {
-    const a = await t.repo.upsertOAuthUser({
+    const { user: a } = await t.repo.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'g-null-1',
       email: null,
       displayName: 'Anon One',
     });
-    const b = await t.repo.upsertOAuthUser({
+    const { user: b } = await t.repo.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'g-null-2',
       email: null,
@@ -86,7 +86,7 @@ describe('auth (pg)', () => {
   });
 
   it('returns the user for a valid session token hash', async () => {
-    const user = await t.repo.upsertOAuthUser({
+    const { user } = await t.repo.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'g-sess',
       email: 's@example.com',
@@ -103,7 +103,7 @@ describe('auth (pg)', () => {
   });
 
   it('returns null for an expired session', async () => {
-    const user = await t.repo.upsertOAuthUser({
+    const { user } = await t.repo.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'g-exp',
       email: 'e@example.com',
@@ -118,7 +118,7 @@ describe('auth (pg)', () => {
   });
 
   it('returns null for a revoked session', async () => {
-    const user = await t.repo.upsertOAuthUser({
+    const { user } = await t.repo.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'g-rev',
       email: 'rv@example.com',
@@ -141,8 +141,16 @@ describe('auth (pg)', () => {
     expect(await t.repo.getAuthSessionByTokenHash('f'.repeat(64))).toBeNull();
   });
 
+  it('returns isNew=true on first login and isNew=false on repeat login', async () => {
+    const first = await t.repo.upsertOAuthUser({ provider: 'google', providerUserId: 'g-isnew', email: 'new@isnew.com', displayName: 'IsNew' });
+    expect(first.isNew).toBe(true);
+    const second = await t.repo.upsertOAuthUser({ provider: 'google', providerUserId: 'g-isnew', email: 'new@isnew.com', displayName: 'IsNew' });
+    expect(second.isNew).toBe(false);
+    expect(second.user.id).toBe(first.user.id);
+  });
+
   it('touches, lists, and revokes sessions by id', async () => {
-    const user = await t.repo.upsertOAuthUser({
+    const { user } = await t.repo.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'g-manage',
       email: 'manage@example.com',

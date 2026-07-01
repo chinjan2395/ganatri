@@ -2,7 +2,7 @@
 
 **Last updated date:** See `docs/LAST_UPDATED.txt`. This file focuses on phase/task status; timestamps are tracked in a separate, low-overhead file to reduce read/write cost in SDK agent workflows.
 
-All 522 tests passing (153 engine + 146 server + 223 db). Web: 0 TS errors, build green.
+All 520 tests passing (153 engine + 143 server + 224 db). Web: 0 TS errors, build green.
 
 ---
 
@@ -401,8 +401,8 @@ To keep each Claude run meaningful, treat the remaining work as the following la
 | Task | Status | Notes |
 | ---- | ------ | ----- |
 | 🔷 DECISION: self-hosted vs third-party analytics | ⬜ | Self-host in `analytics_events` (full control, no third party, more build) **vs** **PostHog / Plausible** (fast, dashboards out of the box, privacy-friendly). Recommend PostHog (self-host or cloud) for product analytics; keep game-stat aggregates in our own DB. |
-| Define event taxonomy | ✅ | 11-event taxonomy in `packages/server/src/analytics.ts`: `room_created`, `game_started`, `game_finished`, `game_abandoned`, `player_joined`, `player_left`, `turn_timed_out`, `player_disconnected`, `player_reconnected`, `account_created`, `guest_upgraded`. `AnalyticsSink` interface + `NoopAnalyticsSink` + `PostHogAnalyticsSink` (fire-and-forget fetch). Singleton factory `getAnalytics()`/`resetAnalyticsSink()`. 11 tests in `analytics.test.ts`. |
-| Instrument server-side events | ✅ | 10 lifecycle call-sites wired in `handlers.ts` (room_created, player_joined, player_left, game_started, game_finished, game_abandoned, turn_timed_out, player_disconnected, player_reconnected) + 2 in `createApp.ts` OAuth callback (account_created, guest_upgraded). All fire-and-forget, no await, no blocking. |
+| Define event taxonomy | ✅ | 12-event taxonomy in `packages/server/src/analytics.ts`: `room_created`, `game_started`, `game_finished`, `game_abandoned`, `player_joined`, `player_left`, `turn_timed_out`, `disconnect`, `reconnect`, `login`, `guest_upgrade`, `account_created`. `AnalyticsAdapter` interface + no-op + `PostHogAdapter` (fire-and-forget fetch). Singleton `getAnalytics()`/`track()`. 8 tests in `analytics.test.ts`. |
+| Instrument server-side events | ✅ | 10 lifecycle call-sites wired in `handlers.ts` + 3 in `createApp.ts` OAuth callback (`login`, `guest_upgrade`, `account_created`). `account_created` fires only on first-ever registration (`isNew: true` from `upsertOAuthUser`); repeat logins only fire `login`. `upsertOAuthUser` now returns `{ user: UserRow; isNew: boolean }` — proper fix, no timestamp heuristic. All fire-and-forget, no await, no blocking. |
 | Instrument key client events | ⬜ | Funnel-critical UI actions (create/join clicked, start clicked) the server can't see. |
 | Funnel & product metrics | ⬜ | create → start → finish funnel; abandonment rate; average game duration; players-per-game distribution. |
 | Engagement metrics | ⬜ | DAU/MAU, retention (D1/D7), peak concurrent rooms/players, voice-chat adoption rate. |

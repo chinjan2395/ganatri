@@ -169,7 +169,7 @@ export class PgPersistence implements GamePersistence {
 
   // Auth (OAuth + sessions) -------------------------------------------------
 
-  async upsertOAuthUser(input: UpsertOAuthUserInput): Promise<UserRow> {
+  async upsertOAuthUser(input: UpsertOAuthUserInput): Promise<{ user: UserRow; isNew: boolean }> {
     return this.db.transaction(async (tx) => {
       // (a) Existing federated identity -> return (and refresh) its user.
       const accountRows = await tx
@@ -193,7 +193,7 @@ export class PgPersistence implements GamePersistence {
           })
           .where(eq(users.id, account.userId))
           .returning();
-        return updated[0]!;
+        return { user: updated[0]!, isNew: false };
       }
 
       // (b) Match an existing user by email -> link a new account to it.
@@ -220,7 +220,7 @@ export class PgPersistence implements GamePersistence {
             })
             .where(eq(users.id, existing.id))
             .returning();
-          return updated[0]!;
+          return { user: updated[0]!, isNew: false };
         }
       }
 
@@ -240,7 +240,7 @@ export class PgPersistence implements GamePersistence {
         provider: input.provider,
         providerUserId: input.providerUserId,
       });
-      return user;
+      return { user, isNew: true };
     });
   }
 

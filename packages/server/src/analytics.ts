@@ -23,7 +23,8 @@ export type AnalyticsEventName =
   | 'reconnect'
   | 'turn_timed_out'
   | 'login'
-  | 'guest_upgrade';
+  | 'guest_upgrade'
+  | 'account_created';
 
 export interface AnalyticsProperties {
   room_created: { playerCount?: number; isLoggedIn: boolean };
@@ -37,6 +38,7 @@ export interface AnalyticsProperties {
   turn_timed_out: { roomCode: string };
   login: { provider: string };
   guest_upgrade: Record<string, never>;
+  account_created: { provider: string };
 }
 
 // ---------------------------------------------------------------------------

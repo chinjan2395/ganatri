@@ -118,7 +118,7 @@ describe('google oauth callback', () => {
   });
 
   it('bootstrap migrates a legacy auth token into the durable cookie', async () => {
-    const user = await persistence.upsertOAuthUser({
+    const { user } = await persistence.upsertOAuthUser({
       provider: 'google',
       providerUserId: 'google-sub-bootstrap',
       email: 'bootstrap@example.com',

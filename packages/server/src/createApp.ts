@@ -373,7 +373,7 @@ async function handleGoogleCallback(
       return;
     }
 
-    const user = await p.upsertOAuthUser({
+    const { user, isNew } = await p.upsertOAuthUser({
       provider: 'google',
       providerUserId: profile.providerUserId,
       email: profile.email,
@@ -392,6 +392,9 @@ async function handleGoogleCallback(
     // Track login / guest upgrade analytics.
     const isGuestUpgrade = Boolean(cookies[GUEST_COOKIE_NAME]);
     track(user.id, 'login', { provider: 'google' });
+    if (isNew) {
+      track(user.id, 'account_created', { provider: 'google' });
+    }
     if (isGuestUpgrade) {
       track(user.id, 'guest_upgrade', {});
     }
