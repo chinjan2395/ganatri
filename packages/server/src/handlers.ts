@@ -87,7 +87,7 @@ import type {
   CoPlayerEntry,
 } from '@ganatri/db';
 import { getConfig, isAdminEmail, isValidAdminSecret, updateConfig, RETENTION_DAYS } from './config.js';
-import { getAnalytics } from './analytics.js';
+import { track } from './analytics.js';
 import { getIceServers } from './iceConfig.js';
 import { maybeTouchAuthenticatedSession } from './auth/sessionMiddleware.js';
 import {
@@ -271,7 +271,7 @@ function applyAutoMove(roomCode: string, playerId: string, t: GameTransport, rea
   });
 
   if (reason === 'timeout') {
-    getAnalytics().track('turn_timed_out', {});
+    track(playerId, 'turn_timed_out', { roomCode });
   }
 
   room.gameState = result.state;
@@ -353,8 +353,11 @@ function gracePeriodExpired(roomCode: string, playerId: string, t: GameTransport
       // Game abandoned (too few players). Persist before any state is cleared.
       if (room.gameState !== null) {
         recordGameEnd(roomCode, room.gameState, namesFor(room.gameState.seating), true);
+        track(playerId, 'game_abandoned', {
+          roomCode,
+          playerCount: room.gameState.seating.length,
+        });
       }
-      getAnalytics().track('game_abandoned', { reason: 'grace_expired' });
     }
     // Broadcast updated room state so other players see the seat is gone.
     broadcastRoomUpdate(roomCode);
@@ -628,6 +631,16 @@ function sessionPayload(session: SessionState): {
 function handleReconnect(socket: Socket, session: SessionState): void {
   const { playerId, roomCode } = session;
 
+  const reconnectInGame = ((): boolean => {
+    if (roomCode === null) return false;
+    const r = getRoom(roomCode);
+    return r !== undefined && r.phase === 'PLAYING';
+  })();
+  track(session.playerId, 'reconnect', {
+    inGame: reconnectInGame,
+    isLoggedIn: session.userId !== null,
+  });
+
   // Re-join the socket.io room so they receive broadcasts again.
   if (roomCode !== null) {
     const room = getRoom(roomCode);
@@ -666,8 +679,6 @@ function handleReconnect(socket: Socket, session: SessionState): void {
 
   // Re-issue the session payload (client may need the playerId + account info).
   socket.emit(EVENTS.SESSION, sessionPayload(session));
-
-  getAnalytics().track('player_reconnected', {});
 }
 
 // ---------------------------------------------------------------------------
@@ -684,14 +695,18 @@ function handleDisconnect(socket: Socket, session: SessionState): void {
   // nulling socketId would break message delivery to the live socket.
   if (session.socketId !== socket.id) return;
 
+  const disconnectInGame = ((): boolean => {
+    if (session.roomCode === null) return false;
+    const r = getRoom(session.roomCode);
+    return r !== undefined && r.phase === 'PLAYING';
+  })();
+  track(session.playerId, 'disconnect', {
+    inGame: disconnectInGame,
+    isLoggedIn: session.userId !== null,
+  });
+
   session.socketId = null;
   const { playerId, roomCode } = session;
-
-  // Track the disconnect (fire-and-forget) after confirming it's a genuine one.
-  const roomForAnalytics = roomCode !== null ? getRoom(roomCode) : undefined;
-  getAnalytics().track('player_disconnected', {
-    duringGame: Boolean(roomCode && roomForAnalytics?.phase === 'PLAYING'),
-  });
 
   if (roomCode === null) return;
   const room = getRoom(roomCode);
@@ -1228,10 +1243,9 @@ function handleCreateRoom(socket: Socket, session: SessionState, ack: (res: Crea
   updateSession(session.token, { roomCode: code });
   socket.join(code);
 
-  getAnalytics().track('room_created', { playerCount: 1 });
-
   broadcastRoomUpdate(code);
   ack({ ok: true, roomCode: code });
+  track(session.playerId, 'room_created', { isLoggedIn: session.userId !== null });
 }
 
 // ---------------------------------------------------------------------------
@@ -1300,10 +1314,9 @@ function handleJoinRoom(
   updateSession(session.token, { roomCode });
   socket.join(roomCode);
 
-  getAnalytics().track('player_joined', { roomPlayerCount: room.players.length });
-
   broadcastRoomUpdate(roomCode);
   ack({ ok: true });
+  track(session.playerId, 'player_joined', { roomCode, isLoggedIn: session.userId !== null });
 }
 
 // ---------------------------------------------------------------------------
@@ -1315,7 +1328,11 @@ function handleLeaveRoom(socket: Socket, session: SessionState, ack: (res: Leave
     ack({ ok: true }); // idempotent
     return;
   }
+  const leftRoomCode = session.roomCode;
+  const leftRoom = getRoom(leftRoomCode);
+  const inGame = leftRoom !== undefined && leftRoom.phase === 'PLAYING';
   silentLeaveRoom(socket, session);
+  track(session.playerId, 'player_left', { roomCode: leftRoomCode, inGame });
   ack({ ok: true });
 }
 
@@ -1375,8 +1392,11 @@ function silentLeaveRoom(socket: Socket, session: SessionState): void {
         // Game abandoned (too few players). Persist before any state is cleared.
         if (room.gameState !== null) {
           recordGameEnd(roomCode, room.gameState, namesFor(room.gameState.seating), true);
+          track(session.playerId, 'game_abandoned', {
+            roomCode,
+            playerCount: room.gameState.seating.length,
+          });
         }
-        getAnalytics().track('game_abandoned', { reason: 'explicit_leave' });
       } else {
         broadcastRoomUpdate(roomCode);
       }
@@ -1399,7 +1419,6 @@ function silentLeaveRoom(socket: Socket, session: SessionState): void {
 
   socket.leave(roomCode);
   updateSession(session.token, { roomCode: null });
-  getAnalytics().track('player_left', {});
 }
 
 // ---------------------------------------------------------------------------
@@ -1672,8 +1691,7 @@ function handleStartGame(session: SessionState, ack: (res: StartGameAck) => void
   const gameState = createGame(room.players, seed);
   room.gameState = gameState;
   room.phase = 'PLAYING';
-
-  getAnalytics().track('game_started', { playerCount: room.players.length });
+  room.startedAt = Date.now();
 
   // Persist the room + game start (async write-through; never blocks gameplay).
   recordGameStart(roomCode, room.hostId, room.players, seed, namesFor(room.players));
@@ -1696,6 +1714,7 @@ function handleStartGame(session: SessionState, ack: (res: StartGameAck) => void
   }
 
   ack({ ok: true });
+  track(session.playerId, 'game_started', { roomCode, playerCount: room.players.length });
 }
 
 // ---------------------------------------------------------------------------
@@ -1735,7 +1754,6 @@ function handleMakeMove(session: SessionState, move: Move, ack: (res: MakeMoveAc
     room.phase = 'DONE';
     room.completedAt = Date.now();
     clearTurnTimer(room);
-    getAnalytics().track('game_finished', { playerCount: room.players.length });
   }
 
   // Start the next player's turn timer (no-op if game ended).
@@ -1754,6 +1772,11 @@ function handleMakeMove(session: SessionState, move: Move, ack: (res: MakeMoveAc
   recordEvents(roomCode, result.events);
   if (result.state.phase === 'GAME_OVER') {
     recordGameEnd(roomCode, result.state, namesFor(result.state.seating), false);
+    track(session.playerId, 'game_finished', {
+      roomCode,
+      playerCount: result.state.seating.length,
+      durationMs: room.startedAt != null ? Date.now() - room.startedAt : undefined,
+    });
   }
 
   // Unicast the updated view to every connected player in the room.
